@@ -10,14 +10,19 @@ import code
 import rlcompleter
 from sklearn.preprocessing import normalize
 from PIL import ImageFilter
+# from collections import OrderedDict
 
+def plotHist(list, numBins):
+    'Take a 1dimensional matrix or a list'
+    plt.hist(list, bins=numBins)
+    plt.show()
 
 def plotMatrixBinary(mat):
     plt.spy(mat, markersize=1, aspect='auto', origin='lower')
     plt.show()
 
 def plotMatrixColor(mat):
-    plt.imshow(mat, vmin=80, vmax=99) # 0,99 are min,max defaults
+    plt.imshow(mat, vmin=55, vmax=99) # 0,99 are min,max defaults
     plt.colorbar()
     plt.show()
 
@@ -48,6 +53,20 @@ def runShell():
     shell = code.InteractiveConsole(vars)
     shell.interact()
 
+class Pixel:
+    'This class is being used to hold the coordinates, base info and derived info of a single pixle of a single image\'s layer'
+
+    def __init__(self, xin, yin, value):
+        self.x = xin # The x coordinate
+        self.y = yin # The y coordinate
+        self.val = value
+    def setNeighborValues(self, non_zero_neighbors, neighbor_sum):
+        self.nz_neighbors = non_zero_neighbors # The number out of the 8 surrounding pixels that are non-zero
+        self.neighbor_sum = neighbor_sum # The sum of the surrounding 8 pixels
+
+
+
+
 imagein = Image.open('..\\data\\Swellshark_Adult_012615_TEL1s1_DorsalPallium_5-HT_CollagenIV_60X_C003Z001.tif')
 #im.show()
 imarray = np.array(imagein)
@@ -61,6 +80,11 @@ print('The are ' + str(zdim) + ' channels')
 image_channels = imagein.split()
 slices = []
 norm_slices = []
+non_zero_count = 0
+pixels = []
+sum_pixels = 0
+sorted_pixels = []
+
 for s in range(len(image_channels)): # Better to split image and use splits for arrays than to split an array
     buf = np.array(image_channels[s])
     slices.append(buf)
@@ -68,19 +92,36 @@ for s in range(len(image_channels)): # Better to split image and use splits for 
     if (np.amax(slices[s]) == 0):
         print('Slice #' + str(s) + ' is an empty slice')
 
-
-# plotMatrixPair(slices[0], norm_slices[0])
-# plotMatrixBinary(slices[0])
 plotMatrixColor(slices[0])
-
 
 im = Image.fromarray(np.uint8(cm.jet(slices[0])*255))
 out = im.filter(ImageFilter.MaxFilter)
+
+# Can use im.load as needed to access Image pixels
+# Opting to use numpy, I expect this will be faster to operate and easier to manipulate
+
+(xdim, ydim) = slices[0].shape
+pixels_for_hist = []
+for pcol in range(xdim):
+    for pix in range(ydim):
+        pixel_value = slices[0][pcol][pix]
+        # print('Pixel #' + str(pcol * xdim + pix) + ' = ' + str(pixel_value))
+        if(pixel_value != 0): # Can use alternate min threshold and <=
+            pixels.append((pixel_value, pcol, pix))
+            pixels_for_hist.append(pixel_value) #Hack due to current lack of a good way to slice tuple list quickly
+            sum_pixels += pixel_value
+print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(xdim * ydim) + ' pixels')
+# Now to sort by 3rd element/2nd index = pixel value
+sorted_pixels = sorted(pixels, key=lambda tuple: tuple[0])
+# plotHist(pixels_for_hist, 500)
+for (p_num, pixel) in enumerate(sorted_pixels):
+    print(str(p_num) + ': ' + str(pixel))
+
 # im.show()
 # out.show()
 # plotMatrixTrio(slices[0], slices[1], slices[2])
 
-runShell()
+# runShell()
 
 # plt.imsave for saving
 
