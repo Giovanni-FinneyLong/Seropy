@@ -8,9 +8,19 @@ import matplotlib.cm as cm
 import readline
 import code
 import rlcompleter
+from scipy.cluster.vq import vq, kmeans, whiten, kmeans2
+from numpy import zeros
+import math
+import sys
+
 from sklearn.preprocessing import normalize
 from PIL import ImageFilter
 # from collections import OrderedDict
+
+
+
+
+
 
 def plotHist(list, numBins):
     'Take a 1dimensional matrix or a list'
@@ -22,7 +32,10 @@ def plotMatrixBinary(mat):
     plt.show()
 
 def plotMatrixColor(mat):
-    plt.imshow(mat, vmin=55, vmax=99) # 0,99 are min,max defaults
+    plotMatrixColor(mat, 0, 99)
+
+def plotMatrixColor(mat, min_thresh, max_thresh):
+    plt.imshow(mat, vmin=min_thresh, vmax=max_thresh) # 0,99 are min,max defaults
     plt.colorbar()
     plt.show()
 
@@ -53,6 +66,45 @@ def runShell():
     shell = code.InteractiveConsole(vars)
     shell.interact()
 
+def findBestClusterCount(min, max, step):
+    print('Attempting to find optimal number of clusters, range:(' + str(min) + ', ' + str(max))
+    kVals = [] # The number of clusters
+    distortionVSclusters = [] # The distortion per cluster
+    for z in range(math.floor((max - min) / step)):
+        num_clusters = (z * step) + min
+        if(num_clusters == 0):
+            num_clusters = 1
+        print('Trying with ' + str(num_clusters) + ' clusters')
+        (bookC, distortionC)  = kmeans(max_pixel_array_floats, num_clusters)
+        # (centLabels, centroids) = vq(max_pixel_array_floats, bookC
+        kVals.append(num_clusters)
+        distortionVSclusters.append(distortionC)
+    plt.plot(kVals, distortionVSclusters, marker='x')
+    plt.grid(True)
+    plt.xlabel('Number of Clusters (K)')
+    plt.ylabel('Average cluster distortion')
+    plt.title('Elbow method for K-Means Clustering on Pixels\nManually Record the desired K value\n')
+    plt.show()
+
+def getClusterLists(num_clusters):
+    cluster_lists = [[] for i in range(num_clusters)]
+    # for c in range(num_clusters):
+    #     cluster_arrays.append(zeros([xdim, ydim])) # (r,c)
+    (bookC, distortionC)  = kmeans(max_pixel_array_floats, num_clusters)
+    (centLabels, centroids) = vq(max_pixel_array_floats, bookC)
+    for pixlabel in range(len(centLabels)):
+        cluster = centLabels[pixlabel]
+        # pix = max_pixel_array_floats[pixlabel]
+        # cluster_arrays[cluster][pix[1]][pix[2]] = pix[0]
+        cluster_lists[cluster].append(max_pixel_array_floats[pixlabel])
+    print('Done populating array for each cluster')
+    return cluster_lists
+    # TODO convert to sparse
+
+
+
+
+
 class Pixel:
     'This class is being used to hold the coordinates, base info and derived info of a single pixle of a single image\'s layer'
 
@@ -63,7 +115,6 @@ class Pixel:
     def setNeighborValues(self, non_zero_neighbors, neighbor_sum):
         self.nz_neighbors = non_zero_neighbors # The number out of the 8 surrounding pixels that are non-zero
         self.neighbor_sum = neighbor_sum # The sum of the surrounding 8 pixels
-
 
 
 
@@ -92,10 +143,9 @@ for s in range(len(image_channels)): # Better to split image and use splits for 
     if (np.amax(slices[s]) == 0):
         print('Slice #' + str(s) + ' is an empty slice')
 
-plotMatrixColor(slices[0])
 
 im = Image.fromarray(np.uint8(cm.jet(slices[0])*255))
-out = im.filter(ImageFilter.MaxFilter)
+# out = im.filter(ImageFilter.MaxFilter)
 
 # Can use im.load as needed to access Image pixels
 # Opting to use numpy, I expect this will be faster to operate and easier to manipulate
@@ -112,16 +162,37 @@ for pcol in range(xdim):
             sum_pixels += pixel_value
 print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(xdim * ydim) + ' pixels')
 # Now to sort by 3rd element/2nd index = pixel value
-sorted_pixels = sorted(pixels, key=lambda tuple: tuple[0])
-# plotHist(pixels_for_hist, 500)
-for (p_num, pixel) in enumerate(sorted_pixels):
-    print(str(p_num) + ': ' + str(pixel))
+sorted_pixels = sorted(pixels, key=lambda tuple: tuple[0], reverse=True)
+# Lets go further and grab the maximal pixels, which are at the front
+endmax = 0
+while(sorted_pixels[endmax][0] ==  255):
+    endmax += 1
+print('There are  ' + str(endmax) + ' maximal pixels')
+# Time to pre-process the maximal pixels; try and create groups/clusters
 
-# im.show()
-# out.show()
-# plotMatrixTrio(slices[0], slices[1], slices[2])
+max_pixel_list = sorted_pixels[0:endmax] # Pixels with value 255
+max_pixel_array_floats = np.asarray([(float(i[0]), float(i[1]), float(i[2])) for i in max_pixel_list])
 
-# runShell()
+print('mpshape:' + str(max_pixel_array_floats.shape))
+
+# findBestClusterCount(0, 100, 5)
+
+# Now have labels in centLabels for each of the max_pixels
+# For fun, going to make an array for each cluster
+
+
+cluster_count = 20
+cluster_lists = getClusterLists(cluster_count)
+for i in range(len(cluster_lists)):
+    print('Index:' + str(i) + ', size:' + str(len(cluster_lists[i])) + ' pixels:' + str(cluster_lists[i]))
+# for i in range(len(cluster_arrays)):
+#     plotMatrixColor(cluster_arrays[i],0, 99)
+
+# for (p_num, pixel) in enumerate(sorted_pixels):
+#     print(str(p_num) + ': ' + str(pixel))
+
+
+runShell()
 
 # plt.imsave for saving
-
+#TODO recover and use more of the data from kmeans, like the centroids, which can be used to relate blobs?
