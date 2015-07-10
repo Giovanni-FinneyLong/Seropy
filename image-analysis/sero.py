@@ -251,7 +251,7 @@ print('Estimated number of clusters: %d' % n_clusters_)
 print("Silhouette Coefficient: %0.3f"
       % metrics.silhouette_score(max_pixel_array_floats, labels, metric='sqeuclidean'))
 #Plot results
-# plt.close('all')
+# plt.close('all') 
 plt.figure(1)
 plt.clf()
 
