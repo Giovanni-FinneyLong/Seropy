@@ -12,6 +12,8 @@ from scipy.cluster.vq import vq, kmeans, whiten, kmeans2
 from numpy import zeros
 import math
 import sys
+from sklearn.cluster import MeanShift, estimate_bandwidth
+from itertools import cycle
 
 from sklearn.preprocessing import normalize
 from PIL import ImageFilter
@@ -101,7 +103,31 @@ def getClusterLists(num_clusters):
     return cluster_lists
     # TODO convert to sparse
 
+def MeanShiftCluster(array_in):
+    'Does mean shift clustering on an array of max_points, does NOT take lists'
+    #Trying another type of clustering
+    #Largely copied from: http://scikit-learn.org/stable/auto_examples/cluster/plot_mean_shift.html
+    bandwidth = estimate_bandwidth(array_in, quantile=0.2, n_samples=500)
+    ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
+    ms.fit(array_in)
+    labels = ms.labels_
+    cluster_centers = ms.cluster_centers_
+    labels_unique = np.unique(labels)
+    n_clusters_ = len(labels_unique)
+    print("number of estimated clusters : %d" % n_clusters_)
 
+    #PLOTTING THE RESULT
+    plt.figure(1)
+    plt.clf()
+    colors = cycle('bgrcmykbgrcmykbgrcmykbgrcmyk')
+    for k, col in zip(range(n_clusters_), colors):
+        my_members = labels == k
+        cluster_center = cluster_centers[k]
+        plt.plot(max_pixel_array_floats[my_members, 1], max_pixel_array_floats[my_members, 2], col + '.')
+        plt.plot(cluster_center[0], cluster_center[1], 'o', markerfacecolor=col,
+                 markeredgecolor='k', markersize=14)
+    plt.title('Estimated number of clusters: %d' % n_clusters_)
+    plt.show()
 
 
 
@@ -121,8 +147,7 @@ class Pixel:
 imagein = Image.open('..\\data\\Swellshark_Adult_012615_TEL1s1_DorsalPallium_5-HT_CollagenIV_60X_C003Z001.tif')
 #im.show()
 imarray = np.array(imagein)
-# numpy.set_printoptions(threshold='nan')
-print(imarray.shape) # (1600, 1600, 3) => Means that there is one for each channel!!
+# print(imarray.shape) # (1600, 1600, 3) => Means that there is one for each channel!!
                      # Can then store results etc into a 4th channel, and in theory save that back into the tiff
 slices = []
 (xdim, ydim, zdim) = imarray.shape
@@ -184,7 +209,26 @@ print('mpshape:' + str(max_pixel_array_floats.shape))
 cluster_count = 20
 cluster_lists = getClusterLists(cluster_count)
 for i in range(len(cluster_lists)):
-    print('Index:' + str(i) + ', size:' + str(len(cluster_lists[i])) + ' pixels:' + str(cluster_lists[i]))
+    print('Index:' + str(i) + ', size:' + str(len(cluster_lists[i]))) # + ' pixels:' + str(cluster_lists[i]))
+# Now to start working on each cluster, and see if we can generate some blobs!!! :D
+'''
+Rules:
+    A max pixel (mp) has value 255
+    Around a pixel means the 8 pixels that are touching it in the 2d plane
+        123
+        4.5
+        678
+    Any mp next to each other belong together
+    Any mp that has no mp around it is removed as noise
+    TODO: https://books.google.com/books?id=ROHaCQAAQBAJ&pg=PA287&lpg=PA287&dq=python+group+neighborhoods&source=bl&ots=f7Vuu9CQdg&sig=l6ASHdi27nvqbkyO_VvztpO9bRI&hl=en&sa=X&ei=4COgVbGFD8H1-QGTl7aABQ&ved=0CCUQ6AEwAQ#v=onepage&q=python%20group%20neighborhoods&f=false
+        Info on neighborhoods
+'''
+
+MeanShiftCluster(max_pixel_array_floats)
+
+
+# TODO look into DBSCAN from Sklearn as an alternate way to cluster
+# TODO sklearn clustering techniques: http://scikit-learn.org/stable/modules/clustering.html
 # for i in range(len(cluster_arrays)):
 #     plotMatrixColor(cluster_arrays[i],0, 99)
 
