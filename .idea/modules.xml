@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/../LSA/.idea/LSA.iml" filepath="$PROJECT_DIR$/../LSA/.idea/LSA.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/serotonin.iml" filepath="$PROJECT_DIR$/.idea/serotonin.iml" />
+    </modules>
+  </component>
+</project>

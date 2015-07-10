@@ -16,6 +16,7 @@ from sklearn.cluster import MeanShift, estimate_bandwidth
 from itertools import cycle
 from sklearn.cluster import AffinityPropagation
 from sklearn import metrics
+import pickle # Note uses cPickle automatically ONLY IF python 3
 
 from sklearn.preprocessing import normalize
 from PIL import ImageFilter
