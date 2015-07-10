@@ -14,15 +14,12 @@ import math
 import sys
 from sklearn.cluster import MeanShift, estimate_bandwidth
 from itertools import cycle
+from sklearn.cluster import AffinityPropagation
+from sklearn import metrics
 
 from sklearn.preprocessing import normalize
 from PIL import ImageFilter
-# from collections import OrderedDict
-
-
-
-
-
+from collections import OrderedDict
 
 def plotHist(list, numBins):
     'Take a 1dimensional matrix or a list'
@@ -224,7 +221,10 @@ Rules:
         Info on neighborhoods
 '''
 
-MeanShiftCluster(max_pixel_array_floats)
+# MeanShiftCluster(max_pixel_array_floats)
+
+
+
 
 
 # TODO look into DBSCAN from Sklearn as an alternate way to cluster
@@ -234,6 +234,43 @@ MeanShiftCluster(max_pixel_array_floats)
 
 # for (p_num, pixel) in enumerate(sorted_pixels):
 #     print(str(p_num) + ': ' + str(pixel))
+
+af = AffinityPropagation(preference=-50).fit(max_pixel_array_floats)
+cluster_centers_indices = af.cluster_centers_indices_
+labels = af.labels_
+n_clusters_ = len(cluster_centers_indices)
+print('Estimated number of clusters: %d' % n_clusters_)
+# print("Homogeneity: %0.3f" % metrics.homogeneity_score(labels_true, labels))
+# print("Completeness: %0.3f" % metrics.completeness_score(labels_true, labels))
+# print("V-measure: %0.3f" % metrics.v_measure_score(labels_true, labels))
+# print("Adjusted Rand Index: %0.3f"
+#       % metrics.adjusted_rand_score(labels_true, labels))
+# print("Adjusted Mutual Information: %0.3f"
+#       % metrics.adjusted_mutual_info_score(labels_true, labels))
+print("Silhouette Coefficient: %0.3f"
+      % metrics.silhouette_score(max_pixel_array_floats, labels, metric='sqeuclidean'))
+#Plot results
+# plt.close('all')
+plt.figure(1)
+plt.clf()
+
+colors = cycle('bgrcmykbgrcmykbgrcmykbgrcmyk')
+for k, col in zip(range(n_clusters_), colors):
+    class_members = labels == k
+    cluster_center = max_pixel_array_floats[cluster_centers_indices[k]]
+    plt.plot(max_pixel_array_floats[class_members, 1], max_pixel_array_floats[class_members, 2], col + '.')
+    plt.plot(cluster_center[1], cluster_center[2], 'o', markerfacecolor=col,
+             markeredgecolor='k', markersize=14)
+    for x in max_pixel_array_floats[class_members]:
+        plt.plot([cluster_center[0], x[0]], [cluster_center[1], x[1]], col)
+
+plt.title('Estimated number of clusters: %d' % n_clusters_)
+plt.show()
+# TODO NOTE that this process takes 9GB ram for 1M points, and that the demo was only on 300..
+# TODO Took 15 Minutes before estimating the # of clusters, unloading 5GB of RAM,  then encountering an invalid value by getting the mean of an empty slice
+#   IE, this method isn't scalable to use on an entire image of 2.56M pixels..
+#   Perhaps can use K-Means to reduce the points, and then do secondary clustering with above/else?
+#   If the k-means was done loosely, it would have the effect of grouping pixels into neighborhoods
 
 
 runShell()
