@@ -17,7 +17,7 @@ from itertools import cycle
 from sklearn.cluster import AffinityPropagation
 from sklearn import metrics
 import matplotlib.colors as colortools
-
+from matplotlib import animation
 
 
 from mpl_toolkits.mplot3d import Axes3D
@@ -129,6 +129,7 @@ def MeanShiftCluster(array_in):
         avoid_output2 = plt.plot(cluster_center[0], cluster_center[1], 'o', markerfacecolor=col,
                  markeredgecolor='k', markersize=14)
     plt.title('Estimated number of clusters: %d' % n_clusters_)
+    plt.figure.tight_layout()
     plt.show()
 
 def AffinityPropagationCluster(array_in):
@@ -148,7 +149,7 @@ def AffinityPropagationCluster(array_in):
           % metrics.silhouette_score(array_in, labels, metric='sqeuclidean'))
     #Plot results
     # plt.close('all')
-    plt.figure(1)
+    plt.figure()
     plt.clf()
 
     colors = cycle('bgrcmykbgrcmykbgrcmykbgrcmyk')
@@ -162,6 +163,7 @@ def AffinityPropagationCluster(array_in):
             plt.plot([cluster_center[0], x[0]], [cluster_center[1], x[1]], col)
 
     plt.title('Estimated number of clusters: %d' % n_clusters_)
+
     plt.show()
     # TODO NOTE that this process takes 9GB ram for 1M points, and that the demo was only on 300..
     # TODO Took 15 Minutes before estimating the # of clusters, unloading 5GB of RAM,  then encountering an invalid value by getting the mean of an empty slice
@@ -174,16 +176,17 @@ def PlotListofClusterArraysColor(list_of_arrays):
     # Try 3D plot
     colors2 = plt.get_cmap('gist_rainbow')
     num_clusters = len(list_of_arrays)
-    cNorm  = colortools.Normalize(vmin=0, vmax=num_clusters-1)
+    cNorm = colortools.Normalize(vmin=0, vmax=num_clusters-1)
     scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
-    plt.clf()
     fig = plt.figure()
+    plt.clf()
     ax = fig.add_subplot(111, projection='3d')
     # ax.set_color_cycle([scalarMap.to_rgba(i) for i in range(num_clusters)])
-    for (c, color) in zip(range(len(list_of_arrays)), colors):
+    for c in range(len(list_of_arrays)):
         (x,y) = list_of_arrays[c].nonzero()
         ax.scatter(x,y, -c, zdir='z', c=scalarMap.to_rgba(c))
-    #plt.savefig("3D.png")
+        #plt.savefig("3D.png")
+    fig.tight_layout()
     plt.show()
 
 
@@ -255,9 +258,10 @@ max_pixel_list = sorted_pixels[0:endmax] # Pixels with value 255
 max_pixel_array_floats = np.asarray([(float(i[0]), float(i[1]), float(i[2])) for i in max_pixel_list])
 
 # findBestClusterCount(0, 100, 5)
-
 # Now have labels in centLabels for each of the max_pixels
 # For fun, going to make an array for each cluster
+
+
 
 cluster_count = 20
 cluster_lists = KMeansClusterIntoLists(max_pixel_array_floats, cluster_count)
@@ -267,49 +271,38 @@ for i in range(len(cluster_lists)):
 
 # MeanShiftCluster(max_pixel_array_floats)
 # AffinityPropagationCluster(max_pixel_array_floats):
-
-
-
-
-colors = cycle('bgrcmykbgrcmyk')
-cmap=plt.get_cmap('gist_rainbow')
-# fig = plt.figure()
-# ax = fig.add_subplot(111)
-# ax.set_color_cycle([cm(1.*i/cluster_count) for i in range(cluster_count)]) # Making a new color for each POINT not cluster
-
-#colors = cm.rainbow(np.linspace(0, 1, cluster_count))
-
-
-# cluster_arrays = [] # Each entry is an array, filled only with the maximal values from the corresponding
-# for cluster in range(cluster_count):
-#     cluster_arrays.append(zeros([xdim, ydim])) # (r,c)
-#     cluster_color = cmap(float(cluster)/cluster_count)
-#     cur_color = next(colors)
-#     print('Color of cluster #' + str(cluster) + ' is ' + str(cur_color))
-#     print('Color of clustermap #' + str(cluster) + ' is ' + str(cluster_color))
-#     for pixel in cluster_lists[cluster]:
-#         cluster_arrays[cluster][pixel[1]][pixel[2]] = pixel[0]
-#         # avoid_output = plt.plot(pixel[1], pixel[2], str(cur_color + '.'))# Works..
-#         a = plt.plot(pixel[1], pixel[2], c=cur_color)
-# plt.show()
-
-
 # cluster_array = zeros([zdim, xdim, ydim]) #Note that the format is z,x,y
+
 cluster_arrays = [] # Each entry is an array, filled only with the maximal values from the corresponding
-for (cluster, col) in zip(range(cluster_count), colors):
+for cluster in range(cluster_count):
     cluster_arrays.append(zeros([xdim, ydim])) # (r,c)
     for pixel in cluster_lists[cluster]:
         cluster_arrays[cluster][pixel[1]][pixel[2]] = pixel[0]
-        # avoid_output = plt.plot(pixel[1], pixel[2], col + '.')
-    print('Color of cluster #' + str(cluster) + ' is ' + str(col + '.'))
-# plt.show()
+# TODO may want to use numpy 3d array over a list of 2d arrays; remains to be checked for speed/memory
 
 
-# colors2 = cm.rainbow(np.linspace(0, 1, cluster_count))
 
-PlotListofClusterArraysColor(cluster_arrays)
+#PlotListofClusterArraysColor(cluster_arrays)
 
+####WORKING ON ANIMATION, MUCH COPIED FROM PLOTTING ABOVE
 
+def animate(i):
+    ax.view_init(elev=10., azim=i)
+
+list_of_arrays = cluster_arrays
+colors2 = plt.get_cmap('gist_rainbow')
+num_clusters = len(list_of_arrays)
+cNorm = colortools.Normalize(vmin=0, vmax=num_clusters-1)
+scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
+fig = plt.figure()
+plt.clf()
+ax = fig.add_subplot(111, projection='3d')
+# ax.set_color_cycle([scalarMap.to_rgba(i) for i in range(num_clusters)])
+for c in range(len(list_of_arrays)):
+    (x,y) = list_of_arrays[c].nonzero()
+    ax.scatter(x,y, -c, zdir='z', c=scalarMap.to_rgba(c))
+anim = animation.FuncAnimation(fig, animate, frames=360, interval=20, blit=True)
+#anim.save('basic_animation.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
 
 
 
