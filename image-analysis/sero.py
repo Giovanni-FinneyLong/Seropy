@@ -16,6 +16,11 @@ from sklearn.cluster import MeanShift, estimate_bandwidth
 from itertools import cycle
 from sklearn.cluster import AffinityPropagation
 from sklearn import metrics
+import matplotlib.colors as colortools
+
+
+
+from mpl_toolkits.mplot3d import Axes3D
 import pickle # Note uses cPickle automatically ONLY IF python 3
 
 from sklearn.preprocessing import normalize
@@ -86,7 +91,7 @@ def findBestClusterCount(min, max, step):
     plt.title('Elbow method for K-Means Clustering on Pixels\nManually Record the desired K value\n')
     plt.show()
 
-def KMeansClusterIntoList(array_in, num_clusters):
+def KMeansClusterIntoLists(array_in, num_clusters):
     'Take an array of floats and returns a list of lists, each of which contains all the pixels of a cluster'
     cluster_lists = [[] for i in range(num_clusters)]
     # for c in range(num_clusters):
@@ -164,6 +169,24 @@ def AffinityPropagationCluster(array_in):
     #   Perhaps can use K-Means to reduce the points, and then do secondary clustering with above/else?
     #   If the k-means was done loosely, it would have the effect of grouping pixels into neighborhoods
 
+def PlotListofClusterArraysColor(list_of_arrays):
+    'Takes a list of 2D arrays, each of which is a populated cluster, and plots then in 3d.'
+    # Try 3D plot
+    colors2 = plt.get_cmap('gist_rainbow')
+    num_clusters = len(list_of_arrays)
+    cNorm  = colortools.Normalize(vmin=0, vmax=num_clusters-1)
+    scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
+    plt.clf()
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    # ax.set_color_cycle([scalarMap.to_rgba(i) for i in range(num_clusters)])
+    for (c, color) in zip(range(len(list_of_arrays)), colors):
+        (x,y) = list_of_arrays[c].nonzero()
+        ax.scatter(x,y, -c, zdir='z', c=scalarMap.to_rgba(c))
+    #plt.savefig("3D.png")
+    plt.show()
+
+
 
 
 
@@ -237,26 +260,63 @@ max_pixel_array_floats = np.asarray([(float(i[0]), float(i[1]), float(i[2])) for
 # For fun, going to make an array for each cluster
 
 cluster_count = 20
-cluster_lists = KMeansClusterIntoList(max_pixel_array_floats, cluster_count)
+cluster_lists = KMeansClusterIntoLists(max_pixel_array_floats, cluster_count)
 for i in range(len(cluster_lists)):
     print('Index:' + str(i) + ', size:' + str(len(cluster_lists[i]))) # + ' pixels:' + str(cluster_lists[i]))
 
 
 # MeanShiftCluster(max_pixel_array_floats)
 # AffinityPropagationCluster(max_pixel_array_floats):
+
+
+
+
+colors = cycle('bgrcmykbgrcmyk')
+cmap=plt.get_cmap('gist_rainbow')
+# fig = plt.figure()
+# ax = fig.add_subplot(111)
+# ax.set_color_cycle([cm(1.*i/cluster_count) for i in range(cluster_count)]) # Making a new color for each POINT not cluster
+
+#colors = cm.rainbow(np.linspace(0, 1, cluster_count))
+
+
+# cluster_arrays = [] # Each entry is an array, filled only with the maximal values from the corresponding
+# for cluster in range(cluster_count):
+#     cluster_arrays.append(zeros([xdim, ydim])) # (r,c)
+#     cluster_color = cmap(float(cluster)/cluster_count)
+#     cur_color = next(colors)
+#     print('Color of cluster #' + str(cluster) + ' is ' + str(cur_color))
+#     print('Color of clustermap #' + str(cluster) + ' is ' + str(cluster_color))
+#     for pixel in cluster_lists[cluster]:
+#         cluster_arrays[cluster][pixel[1]][pixel[2]] = pixel[0]
+#         # avoid_output = plt.plot(pixel[1], pixel[2], str(cur_color + '.'))# Works..
+#         a = plt.plot(pixel[1], pixel[2], c=cur_color)
+# plt.show()
+
+
+# cluster_array = zeros([zdim, xdim, ydim]) #Note that the format is z,x,y
 cluster_arrays = [] # Each entry is an array, filled only with the maximal values from the corresponding
-for cluster in range(cluster_count):
+for (cluster, col) in zip(range(cluster_count), colors):
     cluster_arrays.append(zeros([xdim, ydim])) # (r,c)
     for pixel in cluster_lists[cluster]:
         cluster_arrays[cluster][pixel[1]][pixel[2]] = pixel[0]
+        # avoid_output = plt.plot(pixel[1], pixel[2], col + '.')
+    print('Color of cluster #' + str(cluster) + ' is ' + str(col + '.'))
+# plt.show()
+
+
+# colors2 = cm.rainbow(np.linspace(0, 1, cluster_count))
+
+PlotListofClusterArraysColor(cluster_arrays)
+
+
 
 
 
 
 sub_cluster_count = 10
-
-
-
+# TODO time to switch to sparse matrices, it seems that there are indeed computational optimizations
+# in addition to memory optimizations
 
 
 
