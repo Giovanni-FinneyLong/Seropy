@@ -18,6 +18,7 @@ from sklearn.cluster import AffinityPropagation
 from sklearn import metrics
 import matplotlib.colors as colortools
 from matplotlib import animation
+import time
 
 
 from mpl_toolkits.mplot3d import Axes3D
@@ -27,9 +28,9 @@ from sklearn.preprocessing import normalize
 from PIL import ImageFilter
 from collections import OrderedDict
 
-def plotHist(list, numBins):
+def plotHist(listin, numBins):
     'Take a 1dimensional matrix or a list'
-    plt.hist(list, bins=numBins)
+    plt.hist(listin, bins=numBins)
     plt.show()
 
 def plotMatrixBinary(mat):
@@ -37,9 +38,9 @@ def plotMatrixBinary(mat):
     plt.show()
 
 def plotMatrixColor(mat):
-    plotMatrixColor(mat, 0, 99)
+    plotMatrixColorThresholds(mat, 0, 99)
 
-def plotMatrixColor(mat, min_thresh, max_thresh):
+def plotMatrixColorThresholds(mat, min_thresh, max_thresh):
     plt.imshow(mat, vmin=min_thresh, vmax=max_thresh) # 0,99 are min,max defaults
     plt.colorbar()
     plt.show()
@@ -64,11 +65,11 @@ def plotMatrixTrio(m1, m2, m3):
     plt.show()
 
 def runShell():
-    vars = globals()
-    vars.update(locals())
-    readline.set_completer(rlcompleter.Completer(vars).complete)
+    gvars = globals()
+    gvars.update(locals())
+    readline.set_completer(rlcompleter.Completer(gvars).complete)
     readline.parse_and_bind("tab: complete")
-    shell = code.InteractiveConsole(vars)
+    shell = code.InteractiveConsole(gvars)
     shell.interact()
 
 def findBestClusterCount(min, max, step):
@@ -171,27 +172,43 @@ def AffinityPropagationCluster(array_in):
     #   Perhaps can use K-Means to reduce the points, and then do secondary clustering with above/else?
     #   If the k-means was done loosely, it would have the effect of grouping pixels into neighborhoods
 
-def PlotListofClusterArraysColor(list_of_arrays):
+def PlotListofClusterArraysColor(list_of_arrays, have_divides): #have_divides is 0 to not show, otherwise show
     'Takes a list of 2D arrays, each of which is a populated cluster, and plots then in 3d.'
     # Try 3D plot
     colors2 = plt.get_cmap('gist_rainbow')
     num_clusters = len(list_of_arrays)
     cNorm = colortools.Normalize(vmin=0, vmax=num_clusters-1)
     scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
-    fig = plt.figure()
+    fig = plt.figure(figsize=(25,15)) # figsize=(x_inches, y_inches), default 80-dpi
     plt.clf()
     ax = fig.add_subplot(111, projection='3d')
     # ax.set_color_cycle([scalarMap.to_rgba(i) for i in range(num_clusters)])
-    for c in range(len(list_of_arrays)):
+
+    #TODO Below are tests to see if there is performance improvement when visualizing plots.
+    ax.set_xlim([0, 1600])
+    ax.set_ylim([0, 1600])
+    ax.set_zlim([0, num_clusters])
+    ax.view_init(elev=10., azim=0) #There is also a dist which can be set
+    ax.dist = 1 # Default is 10, 0 is too low..
+    ###END TODO
+
+
+    for c in range(num_clusters):
         (x,y) = list_of_arrays[c].nonzero()
-        ax.scatter(x,y, -c, zdir='z', c=scalarMap.to_rgba(c))
+        ax.scatter(x,y, c, zdir='z', c=scalarMap.to_rgba(c))
         #plt.savefig("3D.png")
+
+    if have_divides > 0:
+        #HACK TODO(change from static-1600)
+        [xx, yy] = np.meshgrid([0,1600],[0,1600]) # Doing a grid with just the corners yields much better performance.
+        for plane in range(len(list_of_arrays)-1):
+            ax.plot_surface(xx,yy,plane+.5, alpha=.05)
     fig.tight_layout()
     plt.show()
 
 
 
-
+# [x for x in range(1600) if x%100 == 0]
 
 class Pixel:
     'This class is being used to hold the coordinates, base info and derived info of a single pixle of a single image\'s layer'
@@ -246,7 +263,7 @@ for pcol in range(xdim):
             sum_pixels += pixel_value
 print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(xdim * ydim) + ' pixels')
 # Now to sort by 3rd element/2nd index = pixel value
-sorted_pixels = sorted(pixels, key=lambda tuple: tuple[0], reverse=True)
+sorted_pixels = sorted(pixels, key=lambda tuplex: tuplex[0], reverse=True)
 # Lets go further and grab the maximal pixels, which are at the front
 endmax = 0
 while(sorted_pixels[endmax][0] ==  255):
@@ -282,27 +299,97 @@ for cluster in range(cluster_count):
 
 
 
-#PlotListofClusterArraysColor(cluster_arrays)
+# PlotListofClusterArraysColor(cluster_arrays, 1)
 
 ####WORKING ON ANIMATION, MUCH COPIED FROM PLOTTING ABOVE
 
-def animate(i):
-    ax.view_init(elev=10., azim=i)
 
+start_time = time.time()
+
+
+
+
+
+
+
+    #Elev and azim are both in degrees
 list_of_arrays = cluster_arrays
 colors2 = plt.get_cmap('gist_rainbow')
 num_clusters = len(list_of_arrays)
 cNorm = colortools.Normalize(vmin=0, vmax=num_clusters-1)
 scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
-fig = plt.figure()
+
+
+fig = plt.figure(figsize=(32,18), dpi=100) # figsize=(x_inches, y_inches), default 80-dpi
+#HACK
+# fig = plt.figure(figsize=(5, 3)) # figsize=(x_inches, y_inches), default 80-dpi
+#HACK
+
+
 plt.clf()
 ax = fig.add_subplot(111, projection='3d')
 # ax.set_color_cycle([scalarMap.to_rgba(i) for i in range(num_clusters)])
+
+#HACK TODO
+total_frames = 1940
+t0 = time.time()
+
+def animate(i):
+    # if((5000*i)%1760 == 0):
+    #     print('%.1f percent done with animation.' % (float(i)/17.60))
+    if (i%20 == 0):
+        curtime = time.time()
+        temp = curtime - t0
+        m = math.floor(temp / 60)
+        print('Done with: ' + str(i) + '/' + str(total_frames) +
+              ' frames, = %.2f percent' % ((100 * i)/total_frames),end='')
+        print('. Elapsed Time: ' + str(m) + ' minutes & %.0f seconds' % (temp % 60))
+    if(i < 360): # Rotate 360 degrees around horizontal axis
+        ax.view_init(elev=10., azim=i) #There is also a dist which can be set
+    elif (i < 720):# 360 around vertical
+        ax.view_init(elev=(10+i)%360., azim=0) #Going over
+    elif (i < 1080):# 360 diagonal
+        ax.view_init(elev=(10+i)%360., azim=i%360) #There is also a dist which can be set
+    elif (i < 1100):# Quick rest
+        #Sit for a sec to avoid sudden stop
+        ax.view_init(elev=10., azim=0)
+    elif (i < 1250): # zoom in(to)
+        d = 11 - (i-1100)/15 # 11 because 0 is to zoomed.
+        ax.dist = d
+    elif (i < 1790): #Spin from within, 540 degrees so reverse out backwards!
+        ax.view_init(elev=(10+i-1250.), azim=0) #Going over
+        ax.dist = 1
+    else: # zoom back out(through non-penetrated side)
+        d = 1 + (i-1610)/15
+        ax.dist = d
+
+# Performance Increasers:
+ax.set_xlim([0, 1600])
+ax.set_ylim([0, 1600])
+ax.set_zlim([0, num_clusters])
+# ax.view_init(elev=10., azim=0) #There is also a dist which can be set
+# ax.dist = 3 # Default is 10
+
 for c in range(len(list_of_arrays)):
     (x,y) = list_of_arrays[c].nonzero()
-    ax.scatter(x,y, -c, zdir='z', c=scalarMap.to_rgba(c))
-anim = animation.FuncAnimation(fig, animate, frames=360, interval=20, blit=True)
-#anim.save('basic_animation.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
+    ax.scatter(x,y, c, zdir='z', c=scalarMap.to_rgba(c))
+
+[xx, yy] = np.meshgrid([0,1600],[0,1600]) # Doing a grid with just the corners yields much better performance.
+for plane in range(len(list_of_arrays)-1):
+    ax.plot_surface(xx,yy,plane+.5, alpha=.05)
+
+plt.title('KMeans Clustering with 20 bins on SwellShark Scan0')
+fig.tight_layout()
+
+anim = animation.FuncAnimation(fig, animate, frames=total_frames, interval=20, blit=True) # 1100 = 360 + 360 + 360 + 30
+
+print('Saving, start_time: ' + str(time.ctime()))
+anim.save('basic_animation.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
+end_time = time.time()
+print('Time to save animation: ' + str(end_time - start_time))
+
+
+
 
 
 
@@ -316,7 +403,7 @@ sub_cluster_count = 10
 # TODO look into DBSCAN from Sklearn as an alternate way to cluster
 # TODO sklearn clustering techniques: http://scikit-learn.org/stable/modules/clustering.html
 # for i in range(len(cluster_arrays)):
-#     plotMatrixColor(cluster_arrays[i],0, 99)
+#     plotMatrixColorThresholds(cluster_arrays[i],0, 99)
 
 # for (p_num, pixel) in enumerate(sorted_pixels):
 #     print(str(p_num) + ': ' + str(pixel))
@@ -339,3 +426,8 @@ Rules:
     TODO: https://books.google.com/books?id=ROHaCQAAQBAJ&pg=PA287&lpg=PA287&dq=python+group+neighborhoods&source=bl&ots=f7Vuu9CQdg&sig=l6ASHdi27nvqbkyO_VvztpO9bRI&hl=en&sa=X&ei=4COgVbGFD8H1-QGTl7aABQ&ved=0CCUQ6AEwAQ#v=onepage&q=python%20group%20neighborhoods&f=false
         Info on neighborhoods
 '''
+
+####NOTE: intersting to note that sparse groups of pixels, including noise in a general area are often grouped together, probably due to their comparable lack of grouping improvements.
+    # May be able to exploit this when removing sparse pixels.
+
+#NOTE: What would happen if did iterative k-means until all pixels of all groups were touching, or there was a group consisting of a single pixel?
