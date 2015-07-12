@@ -19,7 +19,7 @@ from sklearn import metrics
 import matplotlib.colors as colortools
 from matplotlib import animation
 import time
-
+import glob
 
 from mpl_toolkits.mplot3d import Axes3D
 import pickle # Note uses cPickle automatically ONLY IF python 3
@@ -206,6 +206,75 @@ def PlotListofClusterArraysColor(list_of_arrays, have_divides): #have_divides is
     fig.tight_layout()
     plt.show()
 
+def AnimateClusterArrays(list_of_arrays):
+    'Takes a list of arrays, each of which is a populated cluster.'
+    start_time = time.time()
+    #Elev and azim are both in degrees
+    colors2 = plt.get_cmap('gist_rainbow')
+    num_clusters = len(list_of_arrays)
+    cNorm = colortools.Normalize(vmin=0, vmax=num_clusters-1)
+    scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
+
+
+    fig = plt.figure(figsize=(32,18), dpi=100) # figsize=(x_inches, y_inches), default 80-dpi
+    plt.clf()
+    ax = fig.add_subplot(111, projection='3d')
+    # ax.set_color_cycle([scalarMap.to_rgba(i) for i in range(num_clusters)])
+
+    #HACK TODO
+    total_frames = 1940
+    t0 = time.time()
+    def animate(i):
+        if (i%20 == 0):
+            curtime = time.time()
+            temp = curtime - t0
+            m = math.floor(temp / 60)
+            print('Done with: ' + str(i) + '/' + str(total_frames) +
+                  ' frames, = %.2f percent' % ((100 * i)/total_frames),end='')
+            print('. Elapsed Time: ' + str(m) + ' minutes & %.0f seconds' % (temp % 60))
+        if(i < 360): # Rotate 360 degrees around horizontal axis
+            ax.view_init(elev=10., azim=i) #There is also a dist which can be set
+        elif (i < 720):# 360 around vertical
+            ax.view_init(elev=(10+i)%360., azim=0) #Going over
+        elif (i < 1080):# 360 diagonal
+            ax.view_init(elev=(10+i)%360., azim=i%360) #There is also a dist which can be set
+        elif (i < 1100):# Quick rest
+            #Sit for a sec to avoid sudden stop
+            ax.view_init(elev=10., azim=0)
+        elif (i < 1250): # zoom in(to)
+            d = 13 - (i-1100)/15 # 13 because 0 is to zoomed, now has min zoom of 3
+            ax.dist = d
+        elif (i < 1790): #Spin from within, 540 degrees so reverse out backwards!
+            ax.view_init(elev=(10+i-1250.), azim=0) #Going over
+            ax.dist = 1
+        else: # zoom back out(through non-penetrated side)
+            d = 3 + (i-1790)/15
+            ax.dist = d
+
+    # Performance Increasers:
+    ax.set_xlim([0, 1600])
+    ax.set_ylim([0, 1600])
+    ax.set_zlim([0, num_clusters])
+    # ax.view_init(elev=10., azim=0) #There is also a dist which can be set
+    # ax.dist = 3 # Default is 10
+
+    for c in range(len(list_of_arrays)):
+        (x,y) = list_of_arrays[c].nonzero()
+        ax.scatter(x,y, c, zdir='z', c=scalarMap.to_rgba(c))
+
+    [xx, yy] = np.meshgrid([0,1600],[0,1600]) # Doing a grid with just the corners yields much better performance.
+    for plane in range(len(list_of_arrays)-1):
+        ax.plot_surface(xx,yy,plane+.5, alpha=.05)
+
+    plt.title('KMeans Clustering with 20 bins on ' + str(imagefile[8:-4] + '.mp4'))
+    fig.tight_layout()
+
+    anim = animation.FuncAnimation(fig, animate, frames=total_frames, interval=20, blit=True) # 1100 = 360 + 360 + 360 + 30
+
+    print('Saving, start_time: ' + str(time.ctime()))
+    anim.save('Animation of ' + str(imagefile[8:-4]) + '.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
+    end_time = time.time()
+    print('Time to save animation: ' + str(end_time - start_time))
 
 
 # [x for x in range(1600) if x%100 == 0]
@@ -222,171 +291,95 @@ class Pixel:
         self.neighbor_sum = neighbor_sum # The sum of the surrounding 8 pixels
 
 
+all_images = glob.glob('../data/Swell*.tif')
 
-imagein = Image.open('..\\data\\Swellshark_Adult_012615_TEL1s1_DorsalPallium_5-HT_CollagenIV_60X_C003Z001.tif')
-#im.show()
-imarray = np.array(imagein)
-# print(imarray.shape) # (1600, 1600, 3) => Means that there is one for each channel!!
-                     # Can then store results etc into a 4th channel, and in theory save that back into the tiff
-slices = []
-(xdim, ydim, zdim) = imarray.shape
-# np.set_printoptions(threshold=np.inf)
-print('The are ' + str(zdim) + ' channels')
-image_channels = imagein.split()
-slices = []
-norm_slices = []
-non_zero_count = 0
-pixels = []
-sum_pixels = 0
-sorted_pixels = []
-
-for s in range(len(image_channels)): # Better to split image and use splits for arrays than to split an array
-    buf = np.array(image_channels[s])
-    slices.append(buf)
-    norm_slices.append(255 * buf / np.linalg.norm(buf))
-    if (np.amax(slices[s]) == 0):
-        print('Slice #' + str(s) + ' is an empty slice')
-# im = Image.fromarray(np.uint8(cm.jet(slices[0])*255))
-# out = im.filter(ImageFilter.MaxFilter)
-# Can use im.load as needed to access Image pixels
-# Opting to use numpy, I expect this will be faster to operate and easier to manipulate
-
-(xdim, ydim) = slices[0].shape
-pixels_for_hist = []
-for pcol in range(xdim):
-    for pix in range(ydim):
-        pixel_value = slices[0][pcol][pix]
-        # print('Pixel #' + str(pcol * xdim + pix) + ' = ' + str(pixel_value))
-        if(pixel_value != 0): # Can use alternate min threshold and <=
-            pixels.append((pixel_value, pcol, pix))
-            pixels_for_hist.append(pixel_value) #Hack due to current lack of a good way to slice tuple list quickly
-            sum_pixels += pixel_value
-print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(xdim * ydim) + ' pixels')
-# Now to sort by 3rd element/2nd index = pixel value
-sorted_pixels = sorted(pixels, key=lambda tuplex: tuplex[0], reverse=True)
-# Lets go further and grab the maximal pixels, which are at the front
-endmax = 0
-while(sorted_pixels[endmax][0] ==  255):
-    endmax += 1
-print('There are  ' + str(endmax) + ' maximal pixels')
-# Time to pre-process the maximal pixels; try and create groups/clusters
-
-max_pixel_list = sorted_pixels[0:endmax] # Pixels with value 255
-max_pixel_array_floats = np.asarray([(float(i[0]), float(i[1]), float(i[2])) for i in max_pixel_list])
-
-# findBestClusterCount(0, 100, 5)
-# Now have labels in centLabels for each of the max_pixels
-# For fun, going to make an array for each cluster
+all_images = all_images[0] # HACK
 
 
 
-cluster_count = 20
-cluster_lists = KMeansClusterIntoLists(max_pixel_array_floats, cluster_count)
-for i in range(len(cluster_lists)):
-    print('Index:' + str(i) + ', size:' + str(len(cluster_lists[i]))) # + ' pixels:' + str(cluster_lists[i]))
+for imagefile in all_images:
+    imagein = Image.open(imagefile)
+    print('Starting on image: ' + imagefile)
+
+    imarray = np.array(imagein)
+    slices = []
+    (xdim, ydim, zdim) = imarray.shape
+    # np.set_printoptions(threshold=np.inf)
+    print('The are ' + str(zdim) + ' channels')
+    image_channels = imagein.split()
+    slices = []
+    norm_slices = []
+    non_zero_count = 0
+    pixels = []
+    sum_pixels = 0
+    sorted_pixels = []
+
+    for s in range(len(image_channels)): # Better to split image and use splits for arrays than to split an array
+        buf = np.array(image_channels[s])
+        slices.append(buf)
+        norm_slices.append(255 * buf / np.linalg.norm(buf))
+        if (np.amax(slices[s]) == 0):
+            print('Slice #' + str(s) + ' is an empty slice')
+    # im = Image.fromarray(np.uint8(cm.jet(slices[0])*255))
+    # out = im.filter(ImageFilter.MaxFilter)
+    # Can use im.load as needed to access Image pixels
+    # Opting to use numpy, I expect this will be faster to operate and easier to manipulate
+
+    (xdim, ydim) = slices[0].shape
+    pixels_for_hist = []
+    for pcol in range(xdim):
+        for pix in range(ydim):
+            pixel_value = slices[0][pcol][pix]
+            # print('Pixel #' + str(pcol * xdim + pix) + ' = ' + str(pixel_value))
+            if(pixel_value != 0): # Can use alternate min threshold and <=
+                pixels.append((pixel_value, pcol, pix))
+                pixels_for_hist.append(pixel_value) #Hack due to current lack of a good way to slice tuple list quickly
+                sum_pixels += pixel_value
+    print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(xdim * ydim) + ' pixels')
+    # Now to sort by 3rd element/2nd index = pixel value
+    sorted_pixels = sorted(pixels, key=lambda tuplex: tuplex[0], reverse=True)
+    # Lets go further and grab the maximal pixels, which are at the front
+    endmax = 0
+    while(sorted_pixels[endmax][0] ==  255):
+        endmax += 1
+    print('There are  ' + str(endmax) + ' maximal pixels')
+    # Time to pre-process the maximal pixels; try and create groups/clusters
+
+    max_pixel_list = sorted_pixels[0:endmax] # Pixels with value 255
+    max_pixel_array_floats = np.asarray([(float(i[0]), float(i[1]), float(i[2])) for i in max_pixel_list])
+
+    # findBestClusterCount(0, 100, 5)
+    # Now have labels in centLabels for each of the max_pixels
+    # For fun, going to make an array for each cluster
 
 
-# MeanShiftCluster(max_pixel_array_floats)
-# AffinityPropagationCluster(max_pixel_array_floats):
-# cluster_array = zeros([zdim, xdim, ydim]) #Note that the format is z,x,y
-
-cluster_arrays = [] # Each entry is an array, filled only with the maximal values from the corresponding
-for cluster in range(cluster_count):
-    cluster_arrays.append(zeros([xdim, ydim])) # (r,c)
-    for pixel in cluster_lists[cluster]:
-        cluster_arrays[cluster][pixel[1]][pixel[2]] = pixel[0]
-# TODO may want to use numpy 3d array over a list of 2d arrays; remains to be checked for speed/memory
+    cluster_count = 20
+    cluster_lists = KMeansClusterIntoLists(max_pixel_array_floats, cluster_count)
+    for i in range(len(cluster_lists)):
+        print('Index:' + str(i) + ', size:' + str(len(cluster_lists[i]))) # + ' pixels:' + str(cluster_lists[i]))
 
 
+    # MeanShiftCluster(max_pixel_array_floats)
+    # AffinityPropagationCluster(max_pixel_array_floats):
+    # cluster_array = zeros([zdim, xdim, ydim]) #Note that the format is z,x,y
 
-# PlotListofClusterArraysColor(cluster_arrays, 1)
-
-####WORKING ON ANIMATION, MUCH COPIED FROM PLOTTING ABOVE
-
-
-start_time = time.time()
+    cluster_arrays = [] # Each entry is an array, filled only with the maximal values from the corresponding
+    for cluster in range(cluster_count):
+        cluster_arrays.append(zeros([xdim, ydim])) # (r,c)
+        for pixel in cluster_lists[cluster]:
+            cluster_arrays[cluster][pixel[1]][pixel[2]] = pixel[0]
+    # TODO may want to use numpy 3d array over a list of 2d arrays; remains to be checked for speed/memory
 
 
 
+# TODO 
 
 
 
-
-    #Elev and azim are both in degrees
-list_of_arrays = cluster_arrays
-colors2 = plt.get_cmap('gist_rainbow')
-num_clusters = len(list_of_arrays)
-cNorm = colortools.Normalize(vmin=0, vmax=num_clusters-1)
-scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
+    # PlotListofClusterArraysColor(cluster_arrays, 1)
 
 
-fig = plt.figure(figsize=(32,18), dpi=100) # figsize=(x_inches, y_inches), default 80-dpi
-#HACK
-# fig = plt.figure(figsize=(5, 3)) # figsize=(x_inches, y_inches), default 80-dpi
-#HACK
 
-
-plt.clf()
-ax = fig.add_subplot(111, projection='3d')
-# ax.set_color_cycle([scalarMap.to_rgba(i) for i in range(num_clusters)])
-
-#HACK TODO
-total_frames = 1940
-t0 = time.time()
-
-def animate(i):
-    # if((5000*i)%1760 == 0):
-    #     print('%.1f percent done with animation.' % (float(i)/17.60))
-    if (i%20 == 0):
-        curtime = time.time()
-        temp = curtime - t0
-        m = math.floor(temp / 60)
-        print('Done with: ' + str(i) + '/' + str(total_frames) +
-              ' frames, = %.2f percent' % ((100 * i)/total_frames),end='')
-        print('. Elapsed Time: ' + str(m) + ' minutes & %.0f seconds' % (temp % 60))
-    if(i < 360): # Rotate 360 degrees around horizontal axis
-        ax.view_init(elev=10., azim=i) #There is also a dist which can be set
-    elif (i < 720):# 360 around vertical
-        ax.view_init(elev=(10+i)%360., azim=0) #Going over
-    elif (i < 1080):# 360 diagonal
-        ax.view_init(elev=(10+i)%360., azim=i%360) #There is also a dist which can be set
-    elif (i < 1100):# Quick rest
-        #Sit for a sec to avoid sudden stop
-        ax.view_init(elev=10., azim=0)
-    elif (i < 1250): # zoom in(to)
-        d = 11 - (i-1100)/15 # 11 because 0 is to zoomed.
-        ax.dist = d
-    elif (i < 1790): #Spin from within, 540 degrees so reverse out backwards!
-        ax.view_init(elev=(10+i-1250.), azim=0) #Going over
-        ax.dist = 1
-    else: # zoom back out(through non-penetrated side)
-        d = 1 + (i-1610)/15
-        ax.dist = d
-
-# Performance Increasers:
-ax.set_xlim([0, 1600])
-ax.set_ylim([0, 1600])
-ax.set_zlim([0, num_clusters])
-# ax.view_init(elev=10., azim=0) #There is also a dist which can be set
-# ax.dist = 3 # Default is 10
-
-for c in range(len(list_of_arrays)):
-    (x,y) = list_of_arrays[c].nonzero()
-    ax.scatter(x,y, c, zdir='z', c=scalarMap.to_rgba(c))
-
-[xx, yy] = np.meshgrid([0,1600],[0,1600]) # Doing a grid with just the corners yields much better performance.
-for plane in range(len(list_of_arrays)-1):
-    ax.plot_surface(xx,yy,plane+.5, alpha=.05)
-
-plt.title('KMeans Clustering with 20 bins on SwellShark Scan0')
-fig.tight_layout()
-
-anim = animation.FuncAnimation(fig, animate, frames=total_frames, interval=20, blit=True) # 1100 = 360 + 360 + 360 + 30
-
-print('Saving, start_time: ' + str(time.ctime()))
-anim.save('basic_animation.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
-end_time = time.time()
-print('Time to save animation: ' + str(end_time - start_time))
 
 
 
