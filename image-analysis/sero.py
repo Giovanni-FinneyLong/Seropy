@@ -1,5 +1,5 @@
 __author__ = 'gio'
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from PIL import Image
 import numpy as np
 import matplotlib
@@ -45,13 +45,13 @@ def plotMatrixColorThresholds(mat, min_thresh, max_thresh):
     plt.colorbar()
     plt.show()
 
-def plotMatrixPair(m1, m2, min_thresh): # min_thresh is a value. Points > thresh get plotted
+def plotMatrixPair(m1, m2):
     fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, sharex=True)
     cmap = cm.jet
     # matplotlib.style.use('ggplot')
     plt.set_cmap(cmap)
-    ax1.spy(m1, markersize=1, aspect='auto', origin='lower', precision=min_thresh)
-    ax2.spy(m2, markersize=1, aspect='auto', origin='lower', precision=min_thresh)
+    ax1.spy(m1, markersize=1, aspect='auto', origin='lower')
+    ax2.spy(m2, markersize=1, aspect='auto', origin='lower')
     plt.show()
 
 def plotMatrixTrio(m1, m2, m3):
@@ -126,7 +126,7 @@ def MeanShiftCluster(array_in):
     for k, col in zip(range(n_clusters_), colors):
         my_members = labels == k
         cluster_center = cluster_centers[k]
-        avoid_output = plt.plot(max_floats_array[my_members, 1], max_floats_array[my_members, 2], col + '.')
+        avoid_output = plt.plot(max_pixel_array_floats[my_members, 1], max_pixel_array_floats[my_members, 2], col + '.')
         avoid_output2 = plt.plot(cluster_center[0], cluster_center[1], 'o', markerfacecolor=col,
                  markeredgecolor='k', markersize=14)
     plt.title('Estimated number of clusters: %d' % n_clusters_)
@@ -189,7 +189,7 @@ def PlotListofClusterArraysColor(list_of_arrays, have_divides): #have_divides is
     ax.set_ylim([0, 1600])
     ax.set_zlim([0, num_clusters])
     ax.view_init(elev=10., azim=0) #There is also a dist which can be set
-    ax.dist = 1 # Default is 10, 0 is too low..
+    ax.dist = 8 # Default is 10, 0 is too low..
     ###END TODO
 
 
@@ -222,49 +222,33 @@ def AnimateClusterArrays(list_of_arrays):
     # ax.set_color_cycle([scalarMap.to_rgba(i) for i in range(num_clusters)])
 
     #HACK TODO
-
-
-    mod = 1
-    total_frames = math.floor(1940 * mod) # need to be an integer; float not accepted by animate()
+    total_frames = 1940
     t0 = time.time()
     def animate(i):
-        if(i == 0):
-            ax.view_init(elev=10., azim=i)
-        elif(i%10 == 0):
+        if (i%20 == 0):
             curtime = time.time()
             temp = curtime - t0
             m = math.floor(temp / 60)
             print('Done with: ' + str(i) + '/' + str(total_frames) +
                   ' frames, = %.2f percent' % ((100 * i)/total_frames),end='')
             print('. Elapsed Time: ' + str(m) + ' minutes & %.0f seconds' % (temp % 60))
-        if(i < 360*mod): # Rotate 360 degrees around horizontal axis
-            ax.elev = 10.
-            ax.azim = i
-            # ax.view_init(elev=10., azim=i) #There is also a dist which can be set
-        elif (i < 720*mod):# 360 around vertical
-            ax.elev = (10+i)%(360.*mod)
-            ax.azim = 0
-            # ax.view_init(elev=(10+i)%360., azim=0) #Going over
-        elif (i < 1080*mod):# 360 diagonal
-            # ax.view_init(elev=(10+i)%360., azim=i%360) #There is also a dist which can be set
-            ax.elev = (10+i)%(360.*mod)
-            ax.azim = i%(360*mod)
-        elif (i < 1100*mod):# Quick rest
+        if(i < 360): # Rotate 360 degrees around horizontal axis
+            ax.view_init(elev=10., azim=i) #There is also a dist which can be set
+        elif (i < 720):# 360 around vertical
+            ax.view_init(elev=(10+i)%360., azim=0) #Going over
+        elif (i < 1080):# 360 diagonal
+            ax.view_init(elev=(10+i)%360., azim=i%360) #There is also a dist which can be set
+        elif (i < 1100):# Quick rest
             #Sit for a sec to avoid sudden stop
-            # ax.view_init(elev=10., azim=0)
-            ax.elev = 10.
-            ax.azim = 0.
-        elif (i < 1250*mod): # zoom in(to)
-            d = 13 - (i-(1100*mod))/15 # 13 because 0 is to zoomed, now has min zoom of 3
+            ax.view_init(elev=10., azim=0)
+        elif (i < 1250): # zoom in(to)
+            d = 13 - (i-1100)/15 # 13 because 0 is to zoomed, now has min zoom of 3
             ax.dist = d
-        elif (i < 1790*mod): #Spin from within, 540 degrees so reverse out backwards!
-            # ax.view_init(elev=(10+i-1250.), azim=0) #Going over
-            ax.elev = (10+i-(1250.*mod))
-            ax.azim = 0
+        elif (i < 1790): #Spin from within, 540 degrees so reverse out backwards!
+            ax.view_init(elev=(10+i-1250.), azim=0) #Going over
             ax.dist = 1
-        else:
-            # zoom back out(through non-penetrated side)
-            d = 3 + (i-(1790*mod))/15
+        else: # zoom back out(through non-penetrated side)
+            d = 3 + (i-1790)/15
             ax.dist = d
 
     # Performance Increasers:
@@ -293,37 +277,23 @@ def AnimateClusterArrays(list_of_arrays):
     print('Time to save animation: ' + str(end_time - start_time))
 
 
-# [x for x in range(1600) if x%100 == 0]
-
 class Pixel:
     'This class is being used to hold the coordinates, base info and derived info of a single pixle of a single image\'s layer'
 
-    def __init__(self, value, xin, yin):
+    def __init__(self, xin, yin, value):
         self.x = xin # The x coordinate
         self.y = yin # The y coordinate
         self.val = value
-        self.nz_neighbors = 0
-        self.maximal_neighbors = 0
-        self.neighbor_sum = 0
-        self.neighbors_checked = 0
-        self.neighbors_set = False # For keeping track later, incase things get nasty
-    def setNeighborValues(self, non_zero_neighbors, max_neighbors, neighbor_sum, neighbors_checked):
+    def setNeighborValues(self, non_zero_neighbors, neighbor_sum):
         self.nz_neighbors = non_zero_neighbors # The number out of the 8 surrounding pixels that are non-zero
-        self.maximal_neighbors = max_neighbors
         self.neighbor_sum = neighbor_sum # The sum of the surrounding 8 pixels
-        self.neighbors_checked = neighbors_checked
-        self.neighbors_set = True
-    def __str__(self):
-        'Method used to convert Pixel to string, generall for printing'
-        return str('P{[v:' + str(self.val) + ', x:' + str(self.x) + ', y:' + str(self.y) + '], [nzn:' + str(self.nz_neighbors) + ', mn:' + str(self.maximal_neighbors) + ', ns:' + str(self.neighbor_sum ) + ', nc:' + str(self.neighbors_checked) + ']}')
-    __repr__ = __str__
 
 
-all_images = glob.glob('../data/Swell*.tif')
+all_images = glob.glob('..\\data\\Swell*.tif')
+print(all_images)
 
 all_images = [all_images[0]] # HACK
-
-
+print(all_images)
 
 for imagefile in all_images:
     imagein = Image.open(imagefile)
@@ -365,164 +335,45 @@ for imagefile in all_images:
                 sum_pixels += pixel_value
     print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(xdim * ydim) + ' pixels')
     # Now to sort by 3rd element/2nd index = pixel value
-    sorted_pixel_tuples = sorted(pixels, key=lambda tuplex: tuplex[0], reverse=True) # TODO change to sort l;ike so: http://stackoverflow.com/questions/4010322/sort-a-list-of-class-instances-python
-    ##Note that at this point none of the above structures are holding pixels, just tuples(v,x,y).
-    # This could be changed if Pixels can support indexing (for sorting)
-    # For now will just reconstruct pixels
-    sorted_pixels = [] # Not much faster to pre-allocate space..
-    for p in sorted_pixel_tuples:
-        sorted_pixels.append(Pixel(p[0], p[1], p[2]))
-
-
-
+    sorted_pixels = sorted(pixels, key=lambda tuplex: tuplex[0], reverse=True)
     # Lets go further and grab the maximal pixels, which are at the front
     endmax = 0
-    while(sorted_pixels[endmax].val ==  255):
+    while(sorted_pixels[endmax][0] ==  255):
         endmax += 1
     print('There are  ' + str(endmax) + ' maximal pixels')
     # Time to pre-process the maximal pixels; try and create groups/clusters
 
     max_pixel_list = sorted_pixels[0:endmax] # Pixels with value 255
-    max_floats_array = np.zeros((ydim, xdim))
-    for i in max_pixel_list:
-        max_floats_array[i.x][i.y] = i.val
+    max_pixel_array_floats = np.asarray([(float(i[0]), float(i[1]), float(i[2])) for i in max_pixel_list])
 
-
-
+    # findBestClusterCount(0, 100, 5)
     # Now have labels in centLabels for each of the max_pixels
     # For fun, going to make an array for each cluster
 
 
-
-
-# preprocess the arrays here, so that they are correctly added into panes
-
-
     cluster_count = 20
-    cluster_lists = KMeansClusterIntoLists(max_floats_array, cluster_count)
+    cluster_lists = KMeansClusterIntoLists(max_pixel_array_floats, cluster_count)
     for i in range(len(cluster_lists)):
         print('Index:' + str(i) + ', size:' + str(len(cluster_lists[i]))) # + ' pixels:' + str(cluster_lists[i]))
 
 
-
-
-
     # MeanShiftCluster(max_pixel_array_floats)
     # AffinityPropagationCluster(max_pixel_array_floats):
-    # cluster_array = zeros([zdim, xdim, ydim]) #Note that the format is z,x,y
 
-    cluster_arrays = [zeros([xdim, ydim])] * cluster_count # Each entry is an array, filled only with the maximal values from the corresponding
-    max_pixel_array = np.empty((xdim, ydim), dtype=object)
-
+    cluster_arrays = [] # Each entry is an array, filled only with the maximal values from the corresponding
     for cluster in range(cluster_count):
+        cluster_arrays.append(zeros([xdim, ydim])) # (r,c)
         for pixel in cluster_lists[cluster]:
             cluster_arrays[cluster][pixel[1]][pixel[2]] = pixel[0]
-
-
-    for pixel in max_pixel_list:
-        print('Adding pixel:' + str(pixel))
-        p = Pixel(pixel.val, pixel.x, pixel.y)
-        print(p)
-        max_pixel_array[pixel.x][pixel.y] = p
-        print(max_pixel_array[pixel.x][pixel.y])
-
-
-
-
     # TODO may want to use numpy 3d array over a list of 2d arrays; remains to be checked for speed/memory
 
-    # AnimateClusterArrays(cluster_arrays)
 
 
-    #Note, am writing the pixel filters below, so that images can be compared to their unfilterd counterparts (which are already gen)..
-
-
-    dead_pixels = [] # Still in other list
-    alive_pixels = [] # Could do set difference later, but this should be faster..
-
-    for (pixn, pixel) in enumerate(max_pixel_list): #pixel_number and the actual pixel (value, x-coordinate, y-coordinate)
-        col = pixel.x
-        row = pixel.y
-        # print(str(pixn) + ':' + str(pixel) + '. Row:' + str(row) + ', Col:' + str(col))
-        # Keep track of nz-neighbors, maximal-neighbors, neighbor sum
-        buf_nzn = 0
-        buf_maxn = 0
-        buf_sumn = 0
-
-        neighbors_checked = 0
-        debug_examined_floats = []
-        debug_examined_pixels = []
-
-        for left_shift in range(-2, 3, 1): # NOTE CURRENTLY 2x2
-            for up_shift in range(-2, 3, 1): # NOTE CURRENTLY 2x2
-                if(left_shift != 0 or up_shift != 0): # Don't measure the current pixel
-                    if(row + left_shift < xdim and row + left_shift >= 0 and col + up_shift < ydim and col + up_shift >= 0): # Boundary check.
-                        # print('---in bounds')
-                        # print('pixel: (' + str(row + left_shift) + ', ' + str(col + up_shift) + ')' )
-                        neighbors_checked += 1
-                        cur_neighbor_val = max_floats_array[row + left_shift][col + up_shift]
-                        debug_examined_floats.append((max_floats_array[row + left_shift][col + up_shift], row + left_shift, col + up_shift))
-                        debug_examined_pixels.append(max_pixel_array[row + left_shift][col + up_shift])
-                        # if(max_pixel_array[row + left_shift][col + up_shift] is not None):
-                        #     print('Found non-none!!!!')
-                        #     print('Pixel:' + str(pixel))
-                        #     print(max_pixel_array[row + left_shift][col + up_shift])
-                        # print('mpaf: ' + str(max_pixel_array_floats))
-                        # print('mpaf[0]: ' + str(max_pixel_array_floats[0]))
-                        # runShell()
-
-                        if(cur_neighbor_val > 0):
-                            #print('Checking neighbor with value:' + str(cur_neighbor_val))
-                            buf_nzn += 1
-                            if(cur_neighbor_val == 255):
-                                buf_maxn += 1
-                            buf_sumn += cur_neighbor_val
-                    else:
-
-                        print('---out of bounds: (' + str(row + left_shift) + ', ' + str(col + up_shift) + ')')
-                        '''
-                        print('---ls:' + str(left_shift))
-                        print('---us:' + str(up_shift))
-                        if not (row + left_shift < xdim):
-                            print(1)
-                        if not (row + left_shift >= 0):
-                            print(2)
-                        if not (col + up_shift < ydim):
-                            print(3)
-                        if not (col + up_shift >= 0):
-                            print(4)
-                        '''
-
-
-        if(buf_nzn != 0):
-            print('Setting pixel vals to: nzn:' + str(buf_nzn) + ', maxn:' + str(buf_maxn) + ', sumn:' + str(buf_sumn))
-        else:
-            # print(' pixel dying.')
-            # print(' ef:' + str(debug_examined_floats))
-            for x in debug_examined_floats:
-                if(x[0] != 0):
-                    print('*******' + str(debug_examined_floats))
-            # print(' ep:' + str(debug_examined_pixels))
-        # addP = Pixel(pixel[0], pixel[1], pixel[2])
-        # addP.setNeighborValues(buf_nzn, buf_maxn, buf_sumn)
-        # proc_pixels.append(addP)
-        pixel.setNeighborValues(buf_nzn, buf_maxn, buf_sumn, neighbors_checked)
-        if(buf_nzn == 0):
-            dead_pixels.append(pixel)
-        else:
-            alive_pixels.append(pixel)
-print('There are ' + str(len(dead_pixels)) + ' dead pixels & ' + str(len(alive_pixels)) + ' still alive')
-runShell()
+# TODO
 
 
 
-
-
-# PlotListofClusterArraysColor(cluster_arrays, 1)
-
-
-
-
+PlotListofClusterArraysColor(cluster_arrays, 1)
 
 
 
