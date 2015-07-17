@@ -1,0 +1,1 @@
+A quick visualization of the result of k-means clustering: 
