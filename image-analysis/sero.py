@@ -14,6 +14,7 @@ import sys
 
 import time
 import glob
+import collections
 
 from serodraw import *
 # import serodraw
@@ -58,6 +59,9 @@ def KMeansClusterIntoLists(array_in, num_clusters):
 class Pixel:
     '''This class is being used to hold the coordinates, base info and derived info of a pixle of a single image\'s layer'''
 
+    id_num = -1 # ***STARTS AT ZERO
+
+
     def __init__(self, value, xin, yin):
         self.x = xin  # The x coordinate, int
         self.y = yin  # The y coordinate, int
@@ -67,6 +71,13 @@ class Pixel:
         self.neighbor_sum = 0
         self.neighbors_checked = 0
         self.neighbors_set = False  # For keeping track later, incase things get nasty
+        self.blob_id = 0 # 0 means that it is unset
+
+    @staticmethod
+    def getNextBlobId(): # Starts at 0
+        Pixel.id_num += 1
+        #print('New id count:' + str(Pixel.id_count))
+        return Pixel.id_num
 
     def setNeighborValues(self, non_zero_neighbors, max_neighbors, neighbor_sum, neighbors_checked):
         self.nz_neighbors = non_zero_neighbors  # The number out of the 8 surrounding pixels that are non-zero
@@ -75,8 +86,14 @@ class Pixel:
         self.neighbors_checked = neighbors_checked
         self.neighbors_set = True
 
+    def setBlobID(self, new_val):
+        self.blob_id = new_val
+
     def toTuple(self):
         return (self.val, self.x, self.y)
+
+    def toArray(self):
+        return np.array([self.val, self.x, self.y])
 
     def __str__(self):
         '''Method used to convert Pixel to string, generall for printing'''
@@ -88,7 +105,13 @@ class Pixel:
 
 
 def main():
-    all_images = glob.glob('..\\data\\Swell*.tif')
+
+    min_val_threshold = 250
+    max_val_step = 5 # The maximim amount that two neighboring pixels can differ in val and be grouped by blob_id
+
+
+    all_images = glob.glob('../data/Swell*.tif')
+    # all_images = glob.glob('../data/Tests/*') # DEBUG used for testing
     all_images = [all_images[0]]  # HACK
 
     for imagefile in all_images:
@@ -115,7 +138,12 @@ def main():
         # Can use im.load as needed to access Image pixels
         # Opting to use numpy, I expect this will be faster to operate and easier to manipulate
 
-        (xdim, ydim) = slices[0].shape
+        (xdim, ydim) = slices[0].shape # HACK
+
+
+
+
+
         pixels_for_hist = []
         for pcol in range(xdim):
             for pix in range(ydim):
@@ -127,11 +155,16 @@ def main():
                         pixel_value)  # Hack due to current lack of a good way to slice tuple list quickly
                     sum_pixels += pixel_value
         print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(xdim * ydim) + ' pixels')
+
+        #DEBUG print(pixels)
+
+
+
         # Now to sort by 3rd element/2nd index = pixel value
         sorted_pixels = sorted(pixels, key=lambda tuplex: tuplex[0], reverse=True)
         # Lets go further and grab the maximal pixels, which are at the front
         endmax = 0
-        while (sorted_pixels[endmax][0] >= 250):
+        while (endmax < len(sorted_pixels) and sorted_pixels[endmax][0] >= min_val_threshold ):
             endmax += 1
         print('There are  ' + str(endmax) + ' maximal pixels')
         # Time to pre-process the maximal pixels; try and create groups/clusters
@@ -150,8 +183,6 @@ def main():
             max_tuple_array[pixel[1]][pixel[2]] = pixel
 
         # Now have labels in centLabels for each of the max_pixels
-
-
         cluster_count = 20
         cluster_lists = KMeansClusterIntoLists(max_tuples_as_arrays, cluster_count)
         # NOTE max_tuples_as_arrays is replacing max_float_array which was not working, kmeans takes arrays of arrays not arrays of tuples
@@ -165,13 +196,6 @@ def main():
                 cluster_arrays[cluster][pixel[1]][pixel[2]] = int(pixel[0])
 
         # PlotListofClusterArraysColor(cluster_arrays, 1)
-
-
-
-
-
-
-
         dead_pixels = []  # Still in other list
         alive_pixels = []  # Could do set difference later, but this should be faster..
         for (pixn, pixel) in enumerate(
@@ -186,8 +210,7 @@ def main():
             for left_shift in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
                 for up_shift in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
                     if (left_shift != 0 or up_shift != 0):  # Don't measure the current pixel
-                        if (
-                                            col + left_shift < xdim and col + left_shift >= 0 and row + up_shift < ydim and row + up_shift >= 0):  # Boundary check.
+                        if (col + left_shift < xdim and col + left_shift >= 0 and row + up_shift < ydim and row + up_shift >= 0):  # Boundary check.
                             neighbors_checked += 1
                             cur_neighbor_val = max_float_array[col + left_shift][row + up_shift]
                             if (cur_neighbor_val > 0):
@@ -204,13 +227,101 @@ def main():
                 alive_pixels.append(pixel)
         print('There are ' + str(len(dead_pixels)) + ' dead pixels & ' + str(len(alive_pixels)) + ' still alive')
         alive_float_array = zeros([xdim, ydim])
+        alive_pixel_array = np.zeros([xdim, ydim], dtype=object) # Can use zeros instead of empty; moderately slower, but better to have non-empty entries incase of issues
         for pixel in alive_pixels:
             alive_float_array[pixel.x][pixel.y] = pixel.val
+            alive_pixel_array[pixel.x][pixel.y] = pixel # Pointer :) Modifications to the pixels in the list affect the array
 
-        plotMatrixColor(alive_float_array)
-        PlotListofClusterArraysColor(cluster_arrays, 1)
+        derived_count = 0
+        derived_pixels = []
+        derived_ids = []
+        pixel_id_groups = []
+        # DEBUG
+        debug_pixel_ops = False
+
+
+        conflict_differences = []
+        for pixel in alive_pixels: # Need second iteration so that all of the pixels of the array have been set
+           if pixel.blob_id == 0: # Value not yet set
+               col = pixel.x
+               row = pixel.y
+               for left_shift in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
+                    for up_shift in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
+                        if (left_shift != 0 or up_shift != 0):  # Don't measure the current pixel
+                            if (col + left_shift < xdim and col + left_shift >= 0 and row + up_shift < ydim and row + up_shift >= 0):  # Boundary check.
+                                neighbor = alive_pixel_array[col + left_shift][row + up_shift]
+                                if (neighbor != 0):
+                                    #print('db: Pixel:' + str(pixel) + ' found a neighbor:' + str(neighbor))
+                                    #print('col:' + str(col) + ' ls:' + str(left_shift) + ' row:' + str(row) + ' us:' + str(up_shift))
+                                    if abs(pixel.val - neighbor.val) <= max_val_step: # Within acceptrable bound to be grouped by id
+                                        if neighbor.blob_id != 0:
+                                            if(pixel.blob_id != 0):
+                                                if debug_pixel_ops:
+                                                    print('Pixel:' + str(pixel) + ' conflicts on neighbor with non-zero blob_id:' + str(neighbor))
+                                                conflict_differences.append(abs(neighbor.val - pixel.val))
+                                            else: # Pixel hasn't yet set it's id; give it the id of its neighbor
+                                                if debug_pixel_ops:
+                                                    print('Assigning the derived id:' + str(neighbor.blob_id) + ' to pixel:' + str(pixel))
+                                                pixel.blob_id = neighbor.blob_id
+                                                derived_pixels.append(pixel)
+                                                derived_ids.append(pixel.blob_id)
+                                                derived_count += 1
+                                                pixel_id_groups[pixel.blob_id].append(pixel)
+                                        elif pixel.blob_id != 0:
+                                            # neighboring blob is a zero, and the current pixel has an id, so we can assign this id to the neighbor
+                                            if debug_pixel_ops:
+                                                print('Derived a neighbor\'s id: assigning id:' + str(pixel.blob_id) + ' to neigbor:' + str(neighbor) + ' from pixel:' + str(pixel))
+                                            neighbor.blob_id = pixel.blob_id
+                                            derived_pixels.append(neighbor)
+                                            derived_ids.append(neighbor.blob_id)
+                                            derived_count += 1
+                                            pixel_id_groups[neighbor.blob_id].append(neighbor)
+           if pixel.blob_id == 0:
+                pixel.blob_id = Pixel.getNextBlobId()
+                pixel_id_groups.append([pixel])
+                #print('Never derived a value for pixel:' + str(pixel) + ', assigning it a new one:' + str(pixel.blob_id))
+
+        counter = collections.Counter(derived_ids)
+
+        print('Total Derived Count:' + str(derived_count))
+        print('Number of Ids:' + str(Pixel.id_num))
+        # print('Abs difference between conflicting pixels:' + str(conflict_differences))
+        # print('Derived pixels:' + str(derived_pixels))
+        # print('Derived Ids:' + str(derived_ids))
+        print('There were: ' + str(len(alive_pixels)) + ' alive pixels assigned with ids')
+        # print('Count of blob_ids: ' + str(counter))
+        # print('====Pixel groups====')
+        # for (group_num, group) in enumerate(pixel_id_groups):
+        #     # Group is a list
+        #     print(str(group_num) + ':' + str(group))
+
+
+        top_common_id_count = Pixel.id_num # Grabbing all for now
+        most_common_ids = counter.most_common(top_common_id_count)
+
+        id_arrays = []  # Each entry is an array, filled only with the maximal values from the corresponding
+        for id in range(top_common_id_count):
+            id_arrays.append(zeros([xdim, ydim]))  # (r,c)
+            for pixel in pixel_id_groups[id]:
+                id_arrays[id][pixel.x][pixel.y] = int(pixel.val)
+
+        # PlotListofClusterArraysColor2D(id_arrays, 20)
+        # PlotListofClusterArraysColor(id_arrays, 0)
+        AnimateClusterArrays(id_arrays, imagefile, 0)
+
         pdb.set_trace()
+        runShell()
 
+
+
+        # PlotMatrixColor(alive_float_array)
+        # PlotListofClusterArraysColor(cluster_arrays, 1)
+
+        ab = [pixel for pixel in derived_pixels if pixel.blob_id == 14579]
+        fa = np.zeros([xdim, ydim])
+        for pix in ab:
+            fa[pix.x][pix.y] = 255
+        PlotMatrixColor(fa)
         sub_cluster_count = 10
         # findBestClusterCount(0, 100, 5)
         # MeanShiftCluster(max_float_array)

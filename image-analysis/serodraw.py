@@ -11,44 +11,57 @@ from matplotlib import animation
 import matplotlib.pylab as plt
 import matplotlib.cm as cm
 import numpy as np
+import time
+import math
 
-def plotHist(listin, numBins):
+def PlotHist(listin, numBins):
     'Take a 1dimensional matrix or a list'
     plt.hist(listin, bins=numBins)
     plt.show()
+def PlotCounterHist(counter, numBins):
+    PlotHist(list(counter.values()), numBins)
 
-def plotMatrixBinary(mat):
+def PlotCounter(counter):
+    labels, values = zip(*counter.items())
+    indexes = np.arange(len(labels))
+    width = 1
+    plt.bar(indexes, values, width)
+    plt.xticks(indexes + width * 0.5, labels)
+    plt.show()
+
+def PlotMatrixBinary(mat):
     plt.spy(mat, markersize=1, aspect='auto', origin='lower')
     plt.show()
 
-def plotMatrixColor(mat):
-    plotMatrixColorThresholds(mat, 0, 99)
+def PlotMatrixColor(mat):
+    PlotMatrixColorThresholds(mat, 0, 99)
 
-def plotMatrixColorThresholds(mat, min_thresh, max_thresh):
+def PlotMatrixColorThresholds(mat, min_thresh, max_thresh):
     plt.imshow(mat, vmin=min_thresh, vmax=max_thresh) # 0,99 are min,max defaults
     plt.colorbar()
     plt.show()
 
 def plotMatrixPair(m1, m2):
-    fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, sharex=True)
+    fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, sharex=True, figsize=(32,18))
     cmap = cm.jet
     # matplotlib.style.use('ggplot')
     plt.set_cmap(cmap)
     ax1.spy(m1, markersize=1, aspect='auto', origin='lower')
     ax2.spy(m2, markersize=1, aspect='auto', origin='lower')
+    plt.tight_layout()
     plt.show()
 
-def plotMatrixTrio(m1, m2, m3):
-    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, sharey=True, sharex=True)
+def PlotMatrixTrio(m1, m2, m3):
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, sharey=True, sharex=True, figsize=(32,18))
     cmap = cm.jet
-    matplotlib.style.use('ggplot')
+    #plt.style.use('ggplot')
     plt.set_cmap(cmap)
     ax1.spy(m1, markersize=1, aspect='auto', origin='lower')
     ax2.spy(m2, markersize=1, aspect='auto', origin='lower')
     ax3.spy(m3, markersize=1, aspect='auto', origin='lower')
     plt.show()
 
-def findBestClusterCount(min, max, step):
+def FindBestClusterCount(min, max, step):
     print('Attempting to find optimal number of clusters, range:(' + str(min) + ', ' + str(max))
     kVals = [] # The number of clusters
     distortionVSclusters = [] # The distortion per cluster
@@ -102,7 +115,28 @@ def PlotListofClusterArraysColor(list_of_arrays, have_divides): #have_divides is
     fig.tight_layout()
     plt.show()
 
-def AnimateClusterArrays(list_of_arrays):
+def PlotListofClusterArraysColor2D(list_of_arrays, markersize):
+    colors2 = plt.get_cmap('gist_rainbow')
+    num_clusters = len(list_of_arrays)
+    cNorm = colortools.Normalize(vmin=0, vmax=num_clusters-1)
+    scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
+    fig = plt.figure(figsize=(32,18)) # figsize=(x_inches, y_inches), default 80-dpi
+    plt.clf()
+    ax = fig.add_subplot(111)
+    ax.set_xlim([0, 1600])
+    ax.set_ylim([0, 1600])
+
+    for c in range(num_clusters):
+        (x,y) = list_of_arrays[c].nonzero()
+        ax.scatter(x,y, s=markersize, c=scalarMap.to_rgba(c))
+        #plt.savefig("3D.png")
+    fig.tight_layout()
+    plt.show()
+
+
+
+
+def AnimateClusterArrays(list_of_arrays, imagefile, draw_divides): #Image file just used for name
     'Takes a list of arrays, each of which is a populated cluster.'
     start_time = time.time()
     #Elev and azim are both in degrees
@@ -157,10 +191,10 @@ def AnimateClusterArrays(list_of_arrays):
     for c in range(len(list_of_arrays)):
         (x,y) = list_of_arrays[c].nonzero()
         ax.scatter(x,y, c, zdir='z', c=scalarMap.to_rgba(c))
-
-    [xx, yy] = np.meshgrid([0,1600],[0,1600]) # Doing a grid with just the corners yields much better performance.
-    for plane in range(len(list_of_arrays)-1):
-        ax.plot_surface(xx,yy,plane+.5, alpha=.05)
+    if draw_divides != 0:
+        [xx, yy] = np.meshgrid([0, 1600],[0, 1600]) # Doing a grid with just the corners yields much better performance.
+        for plane in range(len(list_of_arrays)-1):
+            ax.plot_surface(xx, yy, plane+.5, alpha=.05)
 
     plt.title('KMeans Clustering with 20 bins on ' + str(imagefile[8:-4] + '.mp4'))
     fig.tight_layout()
