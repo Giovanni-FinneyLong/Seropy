@@ -1,2 +1,3 @@
 *.pickle
 /pickles/
+/temp/

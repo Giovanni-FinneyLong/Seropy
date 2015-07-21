@@ -1,6 +1,6 @@
 __author__ = 'gio'
 # import matplotlib.pyplot as plt
-from PIL import Image
+
 
 # import matplotlib
 
@@ -13,7 +13,7 @@ import math
 import sys
 
 import time
-import glob
+
 import collections
 
 from serodraw import *
@@ -32,13 +32,7 @@ def debug():
     pdb.set_trace()
 
 
-def runShell():
-    gvars = globals()
-    gvars.update(locals())
-    readline.set_completer(rlcompleter.Completer(gvars).complete)
-    readline.parse_and_bind("tab: complete")
-    shell = code.InteractiveConsole(gvars)
-    shell.interact()
+
 
 
 def KMeansClusterIntoLists(array_in, num_clusters):
@@ -307,8 +301,8 @@ def main():
 
         # PlotListofClusterArraysColor2D(id_arrays, 20)
         # PlotListofClusterArraysColor(id_arrays, 0)
-        AnimateClusterArrays(id_arrays, imagefile, 0)
-
+        #AnimateClusterArrays(id_arrays, imagefile, 0)
+        AnimateClusterArraysGif(id_arrays, imagefile, 0)
         pdb.set_trace()
         runShell()
 

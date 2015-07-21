@@ -13,11 +13,31 @@ import matplotlib.cm as cm
 import numpy as np
 import time
 import math
+from PIL import Image
+from visvis.vvmovie.images2gif import writeGif
+# from Scripts.images2gif import writeGif
+import readline
+import code
+import rlcompleter
+import glob
+# import wand
+# import cv2 # OpenCV version 2
+import subprocess
+
+
+def runShell():
+    gvars = globals()
+    gvars.update(locals())
+    readline.set_completer(rlcompleter.Completer(gvars).complete)
+    readline.parse_and_bind("tab: complete")
+    shell = code.InteractiveConsole(gvars)
+    shell.interact()
 
 def PlotHist(listin, numBins):
     'Take a 1dimensional matrix or a list'
     plt.hist(listin, bins=numBins)
     plt.show()
+
 def PlotCounterHist(counter, numBins):
     PlotHist(list(counter.values()), numBins)
 
@@ -133,8 +153,129 @@ def PlotListofClusterArraysColor2D(list_of_arrays, markersize):
     fig.tight_layout()
     plt.show()
 
+def AnimateClusterArraysGif(list_of_arrays, imagefile, draw_divides):
+    total_frames = 1940 #HACK
+
+    speed_scale = 1. # Default is 1 (normal speed), 2 = 2x speed, .5 = .5x speed
+    total_frames = math.floor(total_frames / speed_scale)
+
+    colors2 = plt.get_cmap('gist_rainbow')
+    num_clusters = len(list_of_arrays)
+    cNorm = colortools.Normalize(vmin=0, vmax=num_clusters-1)
+    scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
+    fig = plt.figure(figsize=(8.0,4.5), dpi=100) # figsize=(x_inches, y_inches), default 80-dpi
+    plt.clf()
+    ax = fig.add_subplot(111, projection='3d')
+    t0 = time.time()
+
+    def animate(i):
+        i = i * speed_scale
+        if (i%20 == 0):
+            curtime = time.time()
+            temp = curtime - t0
+            m = math.floor(temp / 60)
+            print('Done with: ' + str(i) + '/' + str(total_frames * speed_scale) + ' frames, = %.2f percent' % ((100 * i)/(total_frames * speed_scale)), end='')
+            print('. Elapsed Time: ' + str(m) + ' minutes & %.0f seconds' % (temp % 60))
+        if(i < 360): # Rotate 360 degrees around horizontal axis
+            ax.view_init(elev=10., azim=i) #There is also a dist which can be set
+        elif (i < 720):# 360 around vertical
+            ax.view_init(elev=(10+i)%360., azim=0) #Going over
+        elif (i < 1080):# 360 diagonal
+            ax.view_init(elev=(10+i)%360., azim=i%360) #There is also a dist which can be set
+        elif (i < 1100):# Quick rest
+            #Sit for a sec to avoid sudden stop
+            ax.view_init(elev=10., azim=0)
+        elif (i < 1250): # zoom in(to)
+            d = 13 - (i-1100)/15 # 13 because 0 is to zoomed, now has min zoom of 3
+            ax.dist = d
+        elif (i < 1790): #Spin from within, 540 degrees so reverse out backwards!
+            ax.view_init(elev=(10+i-1250.), azim=0) #Going over
+            ax.dist = 1
+        else: # zoom back out(through non-penetrated side)
+            d = 3 + (i-1790)/15
+            ax.dist = d
+
+    def generateFrames():
+        'Takes a list of arrays, each of which is a populated cluster.'
+
+        #Elev and azim are both in degrees
+        # Performance Increasers:
+        ax.set_xlim([0, 1600])
+        ax.set_ylim([0, 1600])
+        ax.set_zlim([0, num_clusters])
+
+        for c in range(len(list_of_arrays)):
+            (x,y) = list_of_arrays[c].nonzero()
+            ax.scatter(x, y, c, zdir='z', c=scalarMap.to_rgba(c))
+        if draw_divides != 0:
+            [xx, yy] = np.meshgrid([0, 1600],[0, 1600]) # Doing a grid with just the corners yields much better performance.
+            for plane in range(len(list_of_arrays)-1):
+                ax.plot_surface(xx, yy, plane+.5, alpha=.05)
+        fig.tight_layout()
+        print('Generating and saving frames, start_time: ' + str(time.ctime()))
+        for i in range(total_frames):
+
+            animate(i)
+            #im = fig2img(fig)
+            #im.show()
+            plt.savefig('temp/gif_frame' + str(i) + '.png', bbox_inches='tight')
+            #frames.append(im)
+    def framesToGif(): # TODO convert to calling executable with: http://pastebin.com/JJ6ZuXdz
+        # HACK
+        imagemagick_convert_exec = 'C:\\Program Files\\ImageMagick-6.9.1-Q8\\convert.exe'
+        # HACK
+        frame_names = 'temp/*.png' # glob.glob('temp/*.png')
+        #print('Frame names:' + str(frame_names))
+        #frames = [Image.open(frame_name) for frame_name in frame_names]
+        imagex = 800
+        imagey = 450
+        filename_out = str(imagefile[-12:-4] + '.gif')
+        print('Now writing gif to:' + str(filename_out))
+
+        command = [imagemagick_convert_exec, "-delay", "0", "-size", str(imagex)+'x'+str(imagey)] + [frame_names] + [filename_out]
+        t1 = time.time()
+        m = math.floor((t1-t0) / 60)
+        s = (t1-t0) % 60
+        print('It has been:' + str(m) + ' mins & ' + str(s) + ' seconds, now calling imagemagick_executable to generate gif')
+        subprocess.call(command)
+        t2 = time.time()
+        m = math.floor((t2-t1) / 60)
+        s = (t2-t1) % 60
+        print('Done saving animated gif; took: ' + str(m) + ' mins & ' + str(s) + ' seconds.')
+        runShell()
+
+        # writeGif(filename, frames, duration=100, dither=0)
 
 
+
+        print('Done writing gif')
+    def framesToGifOpenCV():
+        frame_names = glob.glob('temp/*.png')
+        print('Frame names:' + str(frame_names))
+        frames = [Image.open(frame_name) for frame_name in frame_names]
+        print('Now writing gif')
+        filename = imagefile[-12:-4] + '.gif'
+        width = 800
+        height = 450
+
+        video = cv2.VideoWriter(filename,
+                                -1, # Manual codec selection
+                                10, #FPS
+                                (width, height))
+    def GifImageMagick():
+        print('Generating image-magick anim')
+        anim = animation.FuncAnimation(fig, animate, frames=total_frames, interval=20, blit=True) # 1100 = 360 + 360 + 360 + 30
+        print('Now writing gif')
+        filename = imagefile[-12:-4] + '.gif'
+        print('Saving ImageMagick gif as:' + str(filename))
+        anim.save("test.gif", writer='imagemagick', fps=10)
+        # runShell()
+        print('Done writing gif')
+
+    #generateFrames()
+    framesToGif()
+    #framesToGifOpenCV()
+    # GifImageMagick()
 
 def AnimateClusterArrays(list_of_arrays, imagefile, draw_divides): #Image file just used for name
     'Takes a list of arrays, each of which is a populated cluster.'
@@ -144,8 +285,6 @@ def AnimateClusterArrays(list_of_arrays, imagefile, draw_divides): #Image file j
     num_clusters = len(list_of_arrays)
     cNorm = colortools.Normalize(vmin=0, vmax=num_clusters-1)
     scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
-
-
     fig = plt.figure(figsize=(32,18), dpi=100) # figsize=(x_inches, y_inches), default 80-dpi
     plt.clf()
     ax = fig.add_subplot(111, projection='3d')
