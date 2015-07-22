@@ -26,12 +26,20 @@ import pickle  # Note uses cPickle automatically ONLY IF python 3
 from sklearn.preprocessing import normalize
 from PIL import ImageFilter
 from collections import OrderedDict
-
+import readline
+import code
+import rlcompleter
 
 def debug():
     pdb.set_trace()
 
-
+def runShell():
+    gvars = globals()
+    gvars.update(locals())
+    readline.set_completer(rlcompleter.Completer(gvars).complete)
+    readline.parse_and_bind("tab: complete")
+    shell = code.InteractiveConsole(gvars)
+    shell.interact()
 
 
 
@@ -97,12 +105,22 @@ class Pixel:
 
     __repr__ = __str__
 
+    def __lt__(self, other): # Used for sorting; 'less than'
+        # Sort by y then x, so that (1,0) comes before (0,1) (x,y)
+        if self.y < other.y:
+            return True
+        elif self.y == other.y:
+            return self.x < other.x
+        else:
+            return False
+
 
 def main():
 
+    debug_pixel_ops = False
+
     min_val_threshold = 250
     max_val_step = 5 # The maximim amount that two neighboring pixels can differ in val and be grouped by blob_id
-
 
     all_images = glob.glob('../data/Swell*.tif')
     # all_images = glob.glob('../data/Tests/*') # DEBUG used for testing
@@ -118,52 +136,40 @@ def main():
         print('The are ' + str(zdim) + ' channels')
         image_channels = imagein.split()
         slices = []
-        pixels = []
+        tuples = []
         sum_pixels = 0
         sorted_pixels = []
 
         for s in range(len(image_channels)):  # Better to split image and use splits for arrays than to split an array
             buf = np.array(image_channels[s])
             slices.append(buf)
-            if (np.amax(slices[s]) == 0):
+            if np.amax(slices[s]) == 0:
                 print('Slice #' + str(s) + ' is an empty slice')
         # im = Image.fromarray(np.uint8(cm.jet(slices[0])*255))
         # out = im.filter(ImageFilter.MaxFilter)
-        # Can use im.load as needed to access Image pixels
-        # Opting to use numpy, I expect this will be faster to operate and easier to manipulate
 
         (xdim, ydim) = slices[0].shape # HACK
 
-
-
-
-
-        pixels_for_hist = []
         for pcol in range(xdim):
             for pix in range(ydim):
                 pixel_value = slices[0][pcol][pix]
                 # print('Pixel #' + str(pcol * xdim + pix) + ' = ' + str(pixel_value))
                 if (pixel_value != 0):  # Can use alternate min threshold and <=
-                    pixels.append((pixel_value, pcol, pix))
-                    pixels_for_hist.append(
-                        pixel_value)  # Hack due to current lack of a good way to slice tuple list quickly
+                    tuples.append((pixel_value, pcol, pix))
                     sum_pixels += pixel_value
-        print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(xdim * ydim) + ' pixels')
+        print('The are ' + str(len(tuples)) + ' non-zero pixels from the original ' + str(xdim * ydim) + ' pixels')
 
-        #DEBUG print(pixels)
+        tuples.sort(key=lambda tuplex: tuplex[0], reverse=True) # Note that sorting is being done like so to sort based on value not position as is normal with pixels. Sorting is better as no new list; saves 10MB!
 
-
-
-        # Now to sort by 3rd element/2nd index = pixel value
-        sorted_pixels = sorted(pixels, key=lambda tuplex: tuplex[0], reverse=True)
         # Lets go further and grab the maximal pixels, which are at the front
         endmax = 0
-        while (endmax < len(sorted_pixels) and sorted_pixels[endmax][0] >= min_val_threshold ):
+
+        while (endmax < len(tuples) and tuples[endmax][0] >= min_val_threshold ):
             endmax += 1
         print('There are  ' + str(endmax) + ' maximal pixels')
         # Time to pre-process the maximal pixels; try and create groups/clusters
 
-        max_tuple_list = sorted_pixels[0:endmax]  # Pixels with value 255
+        max_tuple_list = tuples[0:endmax]  # Pixels with value 255
         max_pixel_list = [Pixel(float(i[0]), float(i[1]), float(i[2])) for i in max_tuple_list]
 
         max_tuples_as_arrays = np.asarray([(float(i[0]), float(i[1]), float(i[2])) for i in max_tuple_list])
@@ -231,16 +237,22 @@ def main():
         derived_ids = []
         pixel_id_groups = []
         # DEBUG
-        debug_pixel_ops = False
-
 
         conflict_differences = []
+        alive_pixels.sort() # Sorted here so that still in order
+
+        # NOTE Up increases downwards, across increaes to the right. (Origin top left)
+        # Order of neighboring pixels visitation:
+        # 0 1 2
+        # 3 X 4
+        # 5 6 7
+
         for pixel in alive_pixels: # Need second iteration so that all of the pixels of the array have been set
            if pixel.blob_id == 0: # Value not yet set
                col = pixel.x
                row = pixel.y
-               for left_shift in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
-                    for up_shift in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
+               for up_shift in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
+                   for left_shift in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
                         if (left_shift != 0 or up_shift != 0):  # Don't measure the current pixel
                             if (col + left_shift < xdim and col + left_shift >= 0 and row + up_shift < ydim and row + up_shift >= 0):  # Boundary check.
                                 neighbor = alive_pixel_array[col + left_shift][row + up_shift]
@@ -279,9 +291,6 @@ def main():
 
         print('Total Derived Count:' + str(derived_count))
         print('Number of Ids:' + str(Pixel.id_num))
-        # print('Abs difference between conflicting pixels:' + str(conflict_differences))
-        # print('Derived pixels:' + str(derived_pixels))
-        # print('Derived Ids:' + str(derived_ids))
         print('There were: ' + str(len(alive_pixels)) + ' alive pixels assigned with ids')
         # print('Count of blob_ids: ' + str(counter))
         # print('====Pixel groups====')
@@ -293,17 +302,19 @@ def main():
         top_common_id_count = Pixel.id_num # Grabbing all for now
         most_common_ids = counter.most_common(top_common_id_count)
 
+
         id_arrays = []  # Each entry is an array, filled only with the maximal values from the corresponding
         for id in range(top_common_id_count):
             id_arrays.append(zeros([xdim, ydim]))  # (r,c)
             for pixel in pixel_id_groups[id]:
                 id_arrays[id][pixel.x][pixel.y] = int(pixel.val)
 
+
         # PlotListofClusterArraysColor2D(id_arrays, 20)
-        # PlotListofClusterArraysColor(id_arrays, 0)
-        #AnimateClusterArrays(id_arrays, imagefile, 0)
-        AnimateClusterArraysGif(id_arrays, imagefile, 0)
+        PlotListofClusterArraysColor(id_arrays, 0)
         pdb.set_trace()
+        #AnimateClusterArrays(id_arrays, imagefile, 0)
+        # AnimateClusterArraysGif(id_arrays, imagefile, 0)
         runShell()
 
 

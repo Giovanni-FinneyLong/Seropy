@@ -16,22 +16,14 @@ import math
 from PIL import Image
 from visvis.vvmovie.images2gif import writeGif
 # from Scripts.images2gif import writeGif
-import readline
-import code
-import rlcompleter
+
 import glob
 # import wand
 # import cv2 # OpenCV version 2
 import subprocess
 
 
-def runShell():
-    gvars = globals()
-    gvars.update(locals())
-    readline.set_completer(rlcompleter.Completer(gvars).complete)
-    readline.parse_and_bind("tab: complete")
-    shell = code.InteractiveConsole(gvars)
-    shell.interact()
+
 
 def PlotHist(listin, numBins):
     'Take a 1dimensional matrix or a list'
@@ -154,42 +146,50 @@ def PlotListofClusterArraysColor2D(list_of_arrays, markersize):
     plt.show()
 
 def AnimateClusterArraysGif(list_of_arrays, imagefile, draw_divides):
-    total_frames = 1940 #HACK
+    total_frames = 630 #1940 #HACK
 
-    speed_scale = 1. # Default is 1 (normal speed), 2 = 2x speed, .5 = .5x speed
+    speed_scale = 1 # Default is 1 (normal speed), 2 = 2x speed, **must be int for now due to range()
     total_frames = math.floor(total_frames / speed_scale)
+
+    frame_offset = 615
 
     colors2 = plt.get_cmap('gist_rainbow')
     num_clusters = len(list_of_arrays)
     cNorm = colortools.Normalize(vmin=0, vmax=num_clusters-1)
     scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
-    fig = plt.figure(figsize=(8.0,4.5), dpi=100) # figsize=(x_inches, y_inches), default 80-dpi
+    fig = plt.figure(figsize=(8,4.5), dpi=100) # figsize=(x_inches, y_inches), default 80-dpi
     plt.clf()
     ax = fig.add_subplot(111, projection='3d')
     t0 = time.time()
 
+    # DEBUG
+    # Frame continuitiny issues between frames:
+    # 620/621 # Changed to be % 270..
+
+
+
     def animate(i):
-        i = i * speed_scale
-        if (i%20 == 0):
+        # i = (i * speed_scale) + frame_offset
+        if i%1 == 0:
             curtime = time.time()
             temp = curtime - t0
             m = math.floor(temp / 60)
-            print('Done with: ' + str(i) + '/' + str(total_frames * speed_scale) + ' frames, = %.2f percent' % ((100 * i)/(total_frames * speed_scale)), end='')
+            print('Done with: ' + str(i) + '/' + str(total_frames / speed_scale) + ' frames, = %.2f percent' % (100 * ( i - frame_offset)/(total_frames / speed_scale)), end='')
             print('. Elapsed Time: ' + str(m) + ' minutes & %.0f seconds' % (temp % 60))
-        if(i < 360): # Rotate 360 degrees around horizontal axis
+        if i < 360: # Rotate 360 degrees around horizontal axis
             ax.view_init(elev=10., azim=i) #There is also a dist which can be set
-        elif (i < 720):# 360 around vertical
+        elif i < 720:# 360 around vertical
             ax.view_init(elev=(10+i)%360., azim=0) #Going over
-        elif (i < 1080):# 360 diagonal
-            ax.view_init(elev=(10+i)%360., azim=i%360) #There is also a dist which can be set
-        elif (i < 1100):# Quick rest
+        elif i < 1080:# 360 diagonal
+            ax.view_init(elev=(ax.elev + 1), azim=i%360) #There is also a dist which can be set
+        elif i < 1100:# Quick rest
             #Sit for a sec to avoid sudden stop
             ax.view_init(elev=10., azim=0)
-        elif (i < 1250): # zoom in(to)
+        elif i < 1250: # zoom in(to)
             d = 13 - (i-1100)/15 # 13 because 0 is to zoomed, now has min zoom of 3
             ax.dist = d
-        elif (i < 1790): #Spin from within, 540 degrees so reverse out backwards!
-            ax.view_init(elev=(10+i-1250.), azim=0) #Going over
+        elif i < 1790: #Spin from within, 540 degrees so reverse out backwards!
+            ax.view_init(elev=(ax.elev + 1), azim=0) #Going over
             ax.dist = 1
         else: # zoom back out(through non-penetrated side)
             d = 3 + (i-1790)/15
@@ -213,12 +213,18 @@ def AnimateClusterArraysGif(list_of_arrays, imagefile, draw_divides):
                 ax.plot_surface(xx, yy, plane+.5, alpha=.05)
         fig.tight_layout()
         print('Generating and saving frames, start_time: ' + str(time.ctime()))
-        for i in range(total_frames):
+        for i in range(frame_offset,total_frames, speed_scale):
 
             animate(i)
             #im = fig2img(fig)
             #im.show()
-            plt.savefig('temp/gif_frame' + str(i) + '.png', bbox_inches='tight')
+            buf = (i * speed_scale) + frame_offset
+            padding = '00000' # Hack
+            buf_digits = buf
+            while buf_digits >= 10:
+                padding = padding[1:]
+                buf_digits = buf_digits / 10
+            plt.savefig('temp/gif_frame_' + padding + str(buf) + '.png', bbox_inches='tight')
             #frames.append(im)
     def framesToGif(): # TODO convert to calling executable with: http://pastebin.com/JJ6ZuXdz
         # HACK
@@ -245,7 +251,13 @@ def AnimateClusterArraysGif(list_of_arrays, imagefile, draw_divides):
         runShell()
 
         # writeGif(filename, frames, duration=100, dither=0)
-
+        # TODO Change rotation over vertical 270 degrees
+        # TODO Check that isnt also an issue horizontally
+        # TODO Adjust the percentages output by animate(i)
+        # TODO Check the ram issue's source; see if theres a way to view usage via debug somehow within pycharm
+        # TODO Remove Anaconda3(Safely)
+        # TODO
+        # TODO
 
 
         print('Done writing gif')
@@ -272,7 +284,7 @@ def AnimateClusterArraysGif(list_of_arrays, imagefile, draw_divides):
         # runShell()
         print('Done writing gif')
 
-    #generateFrames()
+    generateFrames()
     framesToGif()
     #framesToGifOpenCV()
     # GifImageMagick()
@@ -293,6 +305,7 @@ def AnimateClusterArrays(list_of_arrays, imagefile, draw_divides): #Image file j
     #HACK TODO
     total_frames = 1940
     t0 = time.time()
+
     def animate(i):
         if (i%20 == 0):
             curtime = time.time()
