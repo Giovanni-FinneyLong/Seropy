@@ -4,23 +4,14 @@ __author__ = 'gio'
 
 # import matplotlib
 
-import readline
-import code
-import rlcompleter
+
 from scipy.cluster.vq import vq, kmeans, whiten, kmeans2
 from numpy import zeros
-import math
 import sys
-
-import time
-
 import collections
-
 from serodraw import *
 from config import *
-# import serodraw
-# __import__('serodraw')
-import pdb
+
 
 from mpl_toolkits.mplot3d import Axes3D
 import pickle  # Note uses cPickle automatically ONLY IF python 3
@@ -30,17 +21,6 @@ from collections import OrderedDict
 import readline
 import code
 import rlcompleter
-
-def debug():
-    pdb.set_trace()
-
-def runShell():
-    gvars = globals()
-    gvars.update(locals())
-    readline.set_completer(rlcompleter.Completer(gvars).complete)
-    readline.parse_and_bind("tab: complete")
-    shell = code.InteractiveConsole(gvars)
-    shell.interact()
 
 
 
@@ -117,12 +97,13 @@ class Pixel:
 def main():
 
     debug_pixel_ops = False
-
+    remap_ids_by_group_size = True
     min_val_threshold = 250
     max_val_step = 5 # The maximim amount that two neighboring pixels can differ in val and be grouped by blob_id
 
+
+
     all_images = glob.glob(DATA_DIR + 'Swell*.tif')
-    # all_images = glob.glob('../data/Tests/*') # DEBUG used for testing
     all_images = [all_images[0]]  # HACK
 
     for imagefile in all_images:
@@ -137,7 +118,6 @@ def main():
         slices = []
         tuples = []
         sum_pixels = 0
-        sorted_pixels = []
 
         for s in range(len(image_channels)):  # Better to split image and use splits for arrays than to split an array
             buf = np.array(image_channels[s])
@@ -295,9 +275,9 @@ def main():
 
         id_arrays = []  # Each entry is an array, filled only with the maximal values from the corresponding
         remap = [None] * (top_common_id_count)
-        print(counter)
-        print(len(most_common_ids))
-        print(most_common_ids)
+        # print(counter)
+        # print(len(most_common_ids))
+        # print(most_common_ids)
 
 
         #TODO DEBUG strange error where getting the most common from the counter is only getting a subset of the entries (540/564).
@@ -306,13 +286,17 @@ def main():
             id_arrays.append(zeros([xdim, ydim]))  # (r,c)
             #print(id)
             remap[most_common_ids[id][0]] = id
-        print(remap)
 
-        for pixel in alive_pixels:
-            # id_arrays[remap[pixel.blob_id]][pixel.x][pixel.y] = int(pixel.val)
-            id_arrays[pixel.blob_id][pixel.x][pixel.y] = int(pixel.val)
+        if remap_ids_by_group_size:
+            for pixel in alive_pixels:
+                id_arrays[remap[pixel.blob_id]][pixel.x][pixel.y] = int(pixel.val)
+        else:
+            for pixel in alive_pixels:
+                id_arrays[pixel.blob_id][pixel.x][pixel.y] = int(pixel.val)
 
-        PlotListofClusterArraysColor2D(id_arrays, 20)
+
+        AnimateClusterArraysGif(id_arrays, imagefile, 0)
+        #PlotListofClusterArraysColor2D(id_arrays, 20)
         #PlotListofClusterArraysColor(id_arrays, 0)
         debug()
         pdb.set_trace()

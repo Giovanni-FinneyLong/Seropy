@@ -21,9 +21,40 @@ import glob
 # import wand
 # import cv2 # OpenCV version 2
 import subprocess
+import readline
+import code
+import rlcompleter
+import pdb
+import os
+
+
+# NOTE  ##########################
+# NOTE  Setting up env. vars:
+current_path = os.getcwd()
+
+# NOTE  ##########################
 
 
 
+
+
+
+
+
+
+def runShell():
+    gvars = globals()
+    gvars.update(locals())
+    readline.set_completer(rlcompleter.Completer(gvars).complete)
+    readline.parse_and_bind("tab: complete")
+    shell = code.InteractiveConsole(gvars)
+    shell.interact()
+
+def debug():
+    pdb.set_trace()
+
+def timeNoSpaces():
+    return time.ctime().replace(' ', '_').replace(':', '-')
 
 def PlotHist(listin, numBins):
     'Take a 1dimensional matrix or a list'
@@ -132,7 +163,7 @@ def PlotListofClusterArraysColor2D(list_of_arrays, markersize):
     num_clusters = len(list_of_arrays)
     cNorm = colortools.Normalize(vmin=0, vmax=num_clusters-1)
     scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
-    fig = plt.figure(figsize=(32,18)) # figsize=(x_inches, y_inches), default 80-dpi
+    fig = plt.figure(figsize=(32,32)) # figsize=(x_inches, y_inches), default 80-dpi
     plt.clf()
     ax = fig.add_subplot(111)
     ax.set_xlim([0, 1600])
@@ -140,13 +171,14 @@ def PlotListofClusterArraysColor2D(list_of_arrays, markersize):
 
     for c in range(num_clusters):
         (x,y) = list_of_arrays[c].nonzero()
-        ax.scatter(x,y, s=markersize, c=scalarMap.to_rgba(c))
+        ax.scatter(x,y, s=markersize, c=scalarMap.to_rgba(c), edgecolor=scalarMap.to_rgba(c))
         #plt.savefig("3D.png")
     fig.tight_layout()
+    plt.savefig('temp/2D_Plot_of_Cluster_Arrays__' + timeNoSpaces() + '.png')
     plt.show()
 
 def AnimateClusterArraysGif(list_of_arrays, imagefile, draw_divides):
-    total_frames = 630 #1940 #HACK
+    total_frames = 617 #1940 #HACK
 
     speed_scale = 1 # Default is 1 (normal speed), 2 = 2x speed, **must be int for now due to range()
     total_frames = math.floor(total_frames / speed_scale)
@@ -166,6 +198,10 @@ def AnimateClusterArraysGif(list_of_arrays, imagefile, draw_divides):
     # Frame continuitiny issues between frames:
     # 620/621 # Changed to be % 270..
 
+    # NOTE making new directory for animation for organization:
+    animation_time_string = timeNoSpaces()
+    animation_folder = current_path + '\\temp\\' + animation_time_string
+    os.makedirs(animation_folder)
 
 
     def animate(i):
@@ -212,30 +248,31 @@ def AnimateClusterArraysGif(list_of_arrays, imagefile, draw_divides):
             for plane in range(len(list_of_arrays)-1):
                 ax.plot_surface(xx, yy, plane+.5, alpha=.05)
         fig.tight_layout()
-        print('Generating and saving frames, start_time: ' + str(time.ctime()))
+        print('Generating and saving frames, start_time: ' + str(time.ctime()) + ', saving to folder: ' + str(animation_folder))
         for i in range(frame_offset,total_frames, speed_scale):
 
             animate(i)
             #im = fig2img(fig)
             #im.show()
-            buf = (i * speed_scale) + frame_offset
+            buf = i
             padding = '00000' # Hack
             buf_digits = buf
             while buf_digits >= 10:
                 padding = padding[1:]
                 buf_digits = buf_digits / 10
-            plt.savefig('temp/gif_frame_' + padding + str(buf) + '.png', bbox_inches='tight')
+            plt.savefig(animation_folder + '/gif_frame_' + padding + str(buf) + '.png', bbox_inches='tight')
             #frames.append(im)
+
     def framesToGif(): # TODO convert to calling executable with: http://pastebin.com/JJ6ZuXdz
         # HACK
         imagemagick_convert_exec = 'C:\\Program Files\\ImageMagick-6.9.1-Q8\\convert.exe'
         # HACK
-        frame_names = 'temp/*.png' # glob.glob('temp/*.png')
+        frame_names = animation_folder + '/*.png' # glob.glob('temp/*.png')
         #print('Frame names:' + str(frame_names))
         #frames = [Image.open(frame_name) for frame_name in frame_names]
         imagex = 800
         imagey = 450
-        filename_out = str(imagefile[-12:-4] + '.gif')
+        filename_out = (imagefile[-12:-4] + '_' + animation_time_string + '.gif')
         print('Now writing gif to:' + str(filename_out))
 
         command = [imagemagick_convert_exec, "-delay", "0", "-size", str(imagex)+'x'+str(imagey)] + [frame_names] + [filename_out]
@@ -248,7 +285,6 @@ def AnimateClusterArraysGif(list_of_arrays, imagefile, draw_divides):
         m = math.floor((t2-t1) / 60)
         s = (t2-t1) % 60
         print('Done saving animated gif; took: ' + str(m) + ' mins & ' + str(s) + ' seconds.')
-        runShell()
 
         # writeGif(filename, frames, duration=100, dither=0)
         # TODO Change rotation over vertical 270 degrees
