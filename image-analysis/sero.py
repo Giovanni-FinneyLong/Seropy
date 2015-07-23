@@ -163,15 +163,13 @@ def main():
 
         # Lets go further and grab the maximal pixels, which are at the front
         endmax = 0
-
         while (endmax < len(tuples) and tuples[endmax][0] >= min_val_threshold ):
             endmax += 1
         print('There are  ' + str(endmax) + ' maximal pixels')
-        # Time to pre-process the maximal pixels; try and create groups/clusters
 
+        # Time to pre-process the maximal pixels; try and create groups/clusters
         max_tuple_list = tuples[0:endmax]  # Pixels with value 255
         max_pixel_list = [Pixel(float(i[0]), float(i[1]), float(i[2])) for i in max_tuple_list]
-
         max_tuples_as_arrays = np.asarray([(float(i[0]), float(i[1]), float(i[2])) for i in max_tuple_list])
         # NOTE: Is an array of shape (#pixels, 3), where each element is an array representing a tuple.
         # NOTE: This is the required format for kmeans/vq
@@ -207,12 +205,12 @@ def main():
             buf_maxn = 0
             buf_sumn = 0.
             neighbors_checked = 0
-            for left_shift in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
-                for up_shift in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
-                    if (left_shift != 0 or up_shift != 0):  # Don't measure the current pixel
-                        if (col + left_shift < xdim and col + left_shift >= 0 and row + up_shift < ydim and row + up_shift >= 0):  # Boundary check.
+            for horizontal_offset in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
+                for vertical_offset in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
+                    if (vertical_offset != 0 or horizontal_offset != 0):  # Don't measure the current pixel
+                        if (col + vertical_offset < xdim and col + vertical_offset >= 0 and row + horizontal_offset < ydim and row + horizontal_offset >= 0):  # Boundary check.
                             neighbors_checked += 1
-                            cur_neighbor_val = max_float_array[col + left_shift][row + up_shift]
+                            cur_neighbor_val = max_float_array[col + vertical_offset][row + horizontal_offset]
                             if (cur_neighbor_val > 0):
                                 buf_nzn += 1
                                 if (cur_neighbor_val == 255):
@@ -236,7 +234,6 @@ def main():
         derived_pixels = []
         derived_ids = []
         pixel_id_groups = []
-        # DEBUG
 
         conflict_differences = []
         alive_pixels.sort() # Sorted here so that still in order
@@ -246,43 +243,41 @@ def main():
         # 0 1 2
         # 3 X 4
         # 5 6 7
+        vertical_offsets   = [-1, -1 , -1,  0]
+        horizontal_offsets = [-1,  0,   1, -1]
 
         for pixel in alive_pixels: # Need second iteration so that all of the pixels of the array have been set
-           if pixel.blob_id == 0: # Value not yet set
-               col = pixel.x
-               row = pixel.y
-               for up_shift in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
-                   for left_shift in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
-                        if (left_shift != 0 or up_shift != 0):  # Don't measure the current pixel
-                            if (col + left_shift < xdim and col + left_shift >= 0 and row + up_shift < ydim and row + up_shift >= 0):  # Boundary check.
-                                neighbor = alive_pixel_array[col + left_shift][row + up_shift]
-                                if (neighbor != 0):
-                                    #print('db: Pixel:' + str(pixel) + ' found a neighbor:' + str(neighbor))
-                                    #print('col:' + str(col) + ' ls:' + str(left_shift) + ' row:' + str(row) + ' us:' + str(up_shift))
-                                    if abs(pixel.val - neighbor.val) <= max_val_step: # Within acceptrable bound to be grouped by id
-                                        if neighbor.blob_id != 0:
-                                            if(pixel.blob_id != 0):
-                                                if debug_pixel_ops:
-                                                    print('Pixel:' + str(pixel) + ' conflicts on neighbor with non-zero blob_id:' + str(neighbor))
-                                                conflict_differences.append(abs(neighbor.val - pixel.val))
-                                            else: # Pixel hasn't yet set it's id; give it the id of its neighbor
-                                                if debug_pixel_ops:
-                                                    print('Assigning the derived id:' + str(neighbor.blob_id) + ' to pixel:' + str(pixel))
-                                                pixel.blob_id = neighbor.blob_id
-                                                derived_pixels.append(pixel)
-                                                derived_ids.append(pixel.blob_id)
-                                                derived_count += 1
-                                                pixel_id_groups[pixel.blob_id].append(pixel)
-                                        elif pixel.blob_id != 0:
-                                            # neighboring blob is a zero, and the current pixel has an id, so we can assign this id to the neighbor
-                                            if debug_pixel_ops:
-                                                print('Derived a neighbor\'s id: assigning id:' + str(pixel.blob_id) + ' to neigbor:' + str(neighbor) + ' from pixel:' + str(pixel))
-                                            neighbor.blob_id = pixel.blob_id
-                                            derived_pixels.append(neighbor)
-                                            derived_ids.append(neighbor.blob_id)
-                                            derived_count += 1
-                                            pixel_id_groups[neighbor.blob_id].append(neighbor)
-           if pixel.blob_id == 0:
+            if pixel.blob_id == 0: # Value not yet set
+                col = pixel.x
+                row = pixel.y
+                for (vertical_offset, horizontal_offset) in zip(horizontal_offsets, vertical_offsets):
+                    if (col + vertical_offset < xdim and col + vertical_offset >= 0 and row + horizontal_offset < ydim and row + horizontal_offset >= 0):  # Boundary check.
+                        neighbor = alive_pixel_array[col + vertical_offset][row + horizontal_offset]
+                        if (neighbor != 0):
+                            if abs(pixel.val - neighbor.val) <= max_val_step: # Within acceptrable bound to be grouped by id
+                                if neighbor.blob_id != 0:
+                                    if(pixel.blob_id != 0):
+                                        if debug_pixel_ops:
+                                            print('Pixel:' + str(pixel) + ' conflicts on neighbor with non-zero blob_id:' + str(neighbor))
+                                        conflict_differences.append(abs(neighbor.val - pixel.val))
+                                    else: # Pixel hasn't yet set it's id; give it the id of its neighbor
+                                        if debug_pixel_ops:
+                                            print('Assigning the derived id:' + str(neighbor.blob_id) + ' to pixel:' + str(pixel))
+                                        pixel.blob_id = neighbor.blob_id
+                                        derived_pixels.append(pixel)
+                                        derived_ids.append(pixel.blob_id)
+                                        derived_count += 1
+                                        pixel_id_groups[pixel.blob_id].append(pixel)
+                                elif pixel.blob_id != 0:
+                                    # neighboring blob is a zero, and the current pixel has an id, so we can assign this id to the neighbor
+                                    if debug_pixel_ops:
+                                        print('Derived a neighbor\'s id: assigning id:' + str(pixel.blob_id) + ' to neigbor:' + str(neighbor) + ' from pixel:' + str(pixel))
+                                    neighbor.blob_id = pixel.blob_id
+                                    derived_pixels.append(neighbor)
+                                    derived_ids.append(neighbor.blob_id)
+                                    derived_count += 1
+                                    pixel_id_groups[neighbor.blob_id].append(neighbor)
+            if pixel.blob_id == 0:
                 pixel.blob_id = Pixel.getNextBlobId()
                 pixel_id_groups.append([pixel])
                 #print('Never derived a value for pixel:' + str(pixel) + ', assigning it a new one:' + str(pixel.blob_id))
@@ -290,43 +285,28 @@ def main():
         counter = collections.Counter(derived_ids)
 
         print('Total Derived Count:' + str(derived_count))
-        print('Number of Ids:' + str(Pixel.id_num))
-        print('There were: ' + str(len(alive_pixels)) + ' alive pixels assigned with ids')
-        # print('Count of blob_ids: ' + str(counter))
-        # print('====Pixel groups====')
-        # for (group_num, group) in enumerate(pixel_id_groups):
-        #     # Group is a list
-        #     print(str(group_num) + ':' + str(group))
+        print('There were: ' + str(len(alive_pixels)) + ' alive pixels assigned to ' + str(Pixel.id_num) + ' ids')
 
+        top_common_id_count = Pixel.id_num + 1# HACK Grabbing all for now, +1 b/c we start at 0
 
-        top_common_id_count = Pixel.id_num # Grabbing all for now
         most_common_ids = counter.most_common(top_common_id_count)
-
-
         id_arrays = []  # Each entry is an array, filled only with the maximal values from the corresponding
-        for id in range(top_common_id_count):
+        for id in range(top_common_id_count): # Supposedly up to 2.5x faster than using numpy's .tolist()
             id_arrays.append(zeros([xdim, ydim]))  # (r,c)
-            for pixel in pixel_id_groups[id]:
-                id_arrays[id][pixel.x][pixel.y] = int(pixel.val)
+        for pixel in alive_pixels:
+            id_arrays[pixel.blob_id][pixel.x][pixel.y] = int(pixel.val)
 
 
-        # PlotListofClusterArraysColor2D(id_arrays, 20)
-        PlotListofClusterArraysColor(id_arrays, 0)
+        PlotListofClusterArraysColor2D(id_arrays, 20)
+        # PlotListofClusterArraysColor(id_arrays, 0)
         pdb.set_trace()
         #AnimateClusterArrays(id_arrays, imagefile, 0)
         # AnimateClusterArraysGif(id_arrays, imagefile, 0)
         runShell()
 
+        # NOTE 504 Ids generated using new neighbor filtering approach, but not yet using the new method of connected component labeling
+        # NOTE there are some interesting pixel disparties, where a pixel
 
-
-        # PlotMatrixColor(alive_float_array)
-        # PlotListofClusterArraysColor(cluster_arrays, 1)
-
-        ab = [pixel for pixel in derived_pixels if pixel.blob_id == 14579]
-        fa = np.zeros([xdim, ydim])
-        for pix in ab:
-            fa[pix.x][pix.y] = 255
-        PlotMatrixColor(fa)
         sub_cluster_count = 10
         # findBestClusterCount(0, 100, 5)
         # MeanShiftCluster(max_float_array)
