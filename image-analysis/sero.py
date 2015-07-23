@@ -61,7 +61,7 @@ def KMeansClusterIntoLists(array_in, num_clusters):
 class Pixel:
     '''This class is being used to hold the coordinates, base info and derived info of a pixle of a single image\'s layer'''
 
-    id_num = -1 # ***STARTS AT ZERO
+    id_num = 0 # ***STARTS AT ZERO
 
 
     def __init__(self, value, xin, yin):
@@ -79,7 +79,7 @@ class Pixel:
     def getNextBlobId(): # Starts at 0
         Pixel.id_num += 1
         #print('New id count:' + str(Pixel.id_count))
-        return Pixel.id_num
+        return Pixel.id_num - 1 #HACK this -1 is so that id's start at zero
 
     def setNeighborValues(self, non_zero_neighbors, max_neighbors, neighbor_sum, neighbors_checked):
         self.nz_neighbors = non_zero_neighbors  # The number out of the 8 surrounding pixels that are non-zero
@@ -280,25 +280,42 @@ def main():
             if pixel.blob_id == 0:
                 pixel.blob_id = Pixel.getNextBlobId()
                 pixel_id_groups.append([pixel])
+                derived_ids.append(pixel.blob_id) # Todo should refactor 'derived_ids' to be more clear
                 #print('Never derived a value for pixel:' + str(pixel) + ', assigning it a new one:' + str(pixel.blob_id))
+
 
         counter = collections.Counter(derived_ids)
 
         print('Total Derived Count:' + str(derived_count))
         print('There were: ' + str(len(alive_pixels)) + ' alive pixels assigned to ' + str(Pixel.id_num) + ' ids')
 
-        top_common_id_count = Pixel.id_num + 1# HACK Grabbing all for now, +1 b/c we start at 0
+        # top_common_id_count = Pixel.id_num# HACK Grabbing all for now, +1 b/c we start at 0
 
-        most_common_ids = counter.most_common(top_common_id_count)
+        most_common_ids = counter.most_common()#top_common_id_count) # NOTE Stored as (id, count)
+        top_common_id_count = len(most_common_ids)
+
         id_arrays = []  # Each entry is an array, filled only with the maximal values from the corresponding
+        remap = [None] * (top_common_id_count)
+        print(counter)
+        print(len(most_common_ids))
+        print(most_common_ids)
+
+
+        #TODO DEBUG strange error where getting the most common from the counter is only getting a subset of the entries (540/564).
+
         for id in range(top_common_id_count): # Supposedly up to 2.5x faster than using numpy's .tolist()
             id_arrays.append(zeros([xdim, ydim]))  # (r,c)
+            #print(id)
+            remap[most_common_ids[id][0]] = id
+        print(remap)
+
         for pixel in alive_pixels:
-            id_arrays[pixel.blob_id][pixel.x][pixel.y] = int(pixel.val)
+            id_arrays[remap[pixel.blob_id]][pixel.x][pixel.y] = int(pixel.val)
 
 
         PlotListofClusterArraysColor2D(id_arrays, 20)
-        # PlotListofClusterArraysColor(id_arrays, 0)
+        PlotListofClusterArraysColor(id_arrays, 0)
+        debug()
         pdb.set_trace()
         #AnimateClusterArrays(id_arrays, imagefile, 0)
         # AnimateClusterArraysGif(id_arrays, imagefile, 0)
