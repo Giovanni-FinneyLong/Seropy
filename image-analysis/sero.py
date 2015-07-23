@@ -17,6 +17,7 @@ import time
 import collections
 
 from serodraw import *
+from config import *
 # import serodraw
 # __import__('serodraw')
 import pdb
@@ -62,8 +63,6 @@ class Pixel:
     '''This class is being used to hold the coordinates, base info and derived info of a pixle of a single image\'s layer'''
 
     id_num = 0 # ***STARTS AT ZERO
-
-
     def __init__(self, value, xin, yin):
         self.x = xin  # The x coordinate, int
         self.y = yin  # The y coordinate, int
@@ -122,7 +121,7 @@ def main():
     min_val_threshold = 250
     max_val_step = 5 # The maximim amount that two neighboring pixels can differ in val and be grouped by blob_id
 
-    all_images = glob.glob('../data/Swell*.tif')
+    all_images = glob.glob(DATA_DIR + 'Swell*.tif')
     # all_images = glob.glob('../data/Tests/*') # DEBUG used for testing
     all_images = [all_images[0]]  # HACK
 
@@ -310,11 +309,11 @@ def main():
         print(remap)
 
         for pixel in alive_pixels:
-            id_arrays[remap[pixel.blob_id]][pixel.x][pixel.y] = int(pixel.val)
-
+            # id_arrays[remap[pixel.blob_id]][pixel.x][pixel.y] = int(pixel.val)
+            id_arrays[pixel.blob_id][pixel.x][pixel.y] = int(pixel.val)
 
         PlotListofClusterArraysColor2D(id_arrays, 20)
-        PlotListofClusterArraysColor(id_arrays, 0)
+        #PlotListofClusterArraysColor(id_arrays, 0)
         debug()
         pdb.set_trace()
         #AnimateClusterArrays(id_arrays, imagefile, 0)
