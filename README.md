@@ -1,3 +1,5 @@
+All visuals & data are hosted: [Here](https://www.dropbox.com/sh/s136nj2b780e22d/AACy854x31kk4U11daFO1Z-0a?dl=0)
+
 ### A quick visualization of the result of k-means clustering: ###
 ![2D-Image](Readme-Visuals/KMeans%20SwellShark1%20Color%20bins=20.png)
 ![3D-Gif](Readme-Visuals/Swell1%20Kmeans20.gif)
