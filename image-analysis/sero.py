@@ -23,6 +23,18 @@ import code
 import rlcompleter
 
 
+def setglobaldims(x,y,z):
+    def setserodims(x,y,z):
+        global xdim
+        global ydim
+        global zdim
+        xdim = x
+        ydim = y
+        zdim = z
+
+    setserodims(x, y, z) # Need both calls, one to set the global vars in each file, otherwise they don't carry
+    setseerodrawdims(x, y, z) # Even when using 'global'; one method needs to be in each file
+
 
 
 
@@ -135,18 +147,24 @@ def KMeansClusterIntoLists(listin, num_clusters):
     tuple_array = np.asarray([(float(pixel.val), float(pixel.x), float(pixel.y)) for pixel in listin])
     return doClustering(tuple_array, num_clusters)
 
+def getIdArrays(pixels, id_count):
+    '''
+    Returns a list of filled arrays, each of which corresponding to an id
+    '''
+    id_arrays = []  # Each entry is an array, filled only with the maximal values from the corresponding
+    for id in range(id_count): # Supposedly up to 2.5x faster than using numpy's .tolist()
+        id_arrays.append(zeros([xdim, ydim]))  # (r,c)
+    if remap_ids_by_group_size:
+        remap = [None] * (id_count)
+        for id in range(id_count): # Supposedly up to 2.5x faster than using numpy's .tolist()
+            remap[id_count[id][0]] = id
+        for pixel in pixels:
+            id_arrays[remap[pixel.blob_id]][pixel.x][pixel.y] = int(pixel.val)
+    else:
+        for pixel in pixels:
+            id_arrays[pixel.blob_id][pixel.x][pixel.y] = int(pixel.val)
+    return id_arrays
 
-def PlotClusterLists(list_of_lists):
-    '''
-    Takes a list of lists, each list is a the pixels of the corresponding cluster
-    '''
-    cluster_count = len(list_of_lists)
-    cluster_arrays = []  # Each entry is an array, filled only with the maximal values from the corresponding
-    for cluster in range(cluster_count):
-        cluster_arrays.append(zeros([xdim, ydim]))  # (r,c)
-        for pixel in list_of_lists[cluster]:
-            cluster_arrays[cluster][pixel[1]][pixel[2]] = int(pixel[0])
-    PlotListofClusterArraysColor(cluster_arrays, 1)
 
 def firstPass(pixel_list):
 
@@ -158,7 +176,6 @@ def firstPass(pixel_list):
     # For 8 way connectivity, should check NE, N, NW, W (2,1,0,3)
     horizontal_offsets = [-1,  0,   1, -1] #, 1, -1, 0, 1]
     vertical_offsets   = [-1, -1, -1,  0] #, 0, 1, 1, 1]
-
 
     derived_count = 0
     derived_pixels = []
@@ -227,25 +244,11 @@ def firstPass(pixel_list):
     return (derived_ids, derived_count)
 
 
-
-
-
-
-
-
-
-
-
-
-
 def main():
 
-
-    global xdim # Must be declared global so that their values can adjusted, otherwise new locals are created when trying to mod
-    global ydim # See: http://stackoverflow.com/questions/10588317/python-function-global-variables
-    global zdim
-
-
+    # global xdim # Must be declared global so that their values can adjusted, otherwise new locals are created when trying to mod
+    # global ydim # See: http://stackoverflow.com/questions/10588317/python-function-global-variables
+    # global zdim
 
 
     if(test_instead_of_data):
@@ -258,9 +261,12 @@ def main():
         imagein = Image.open(imagefile)
         print('Starting on image: ' + imagefile)
         imarray = np.array(imagein)
-        slices = []
 
-        (xdim, ydim, zdim) = imarray.shape
+
+
+        (im_xdim, im_ydim, im_zdim) = imarray.shape
+        setglobaldims(im_xdim, im_ydim, im_zdim)
+
 
         # np.set_printoptions(threshold=np.inf)
         print('The are ' + str(zdim) + ' channels')
@@ -309,41 +315,27 @@ def main():
         most_common_ids = counter.most_common()# HACK Grabbing all for now, +1 b/c we start at 0 # NOTE Stored as (id, count)
         top_common_id_count = len(most_common_ids)
 
-        id_arrays = []  # Each entry is an array, filled only with the maximal values from the corresponding
-        remap = [None] * (top_common_id_count)
+        id_arrays = getIdArrays(alive_pixels, top_common_id_count)
+        print('xd:' + str(xdim))
+        print('yd:' + str(ydim))
 
-        for id in range(top_common_id_count): # Supposedly up to 2.5x faster than using numpy's .tolist()
-            id_arrays.append(zeros([xdim, ydim]))  # (r,c)
-            remap[most_common_ids[id][0]] = id
-
-        if remap_ids_by_group_size:
-            for pixel in alive_pixels:
-                id_arrays[remap[pixel.blob_id]][pixel.x][pixel.y] = int(pixel.val)
-        else:
-            for pixel in alive_pixels:
-                id_arrays[pixel.blob_id][pixel.x][pixel.y] = int(pixel.val)
-
-
-        # AnimateClusterArraysGif(id_arrays, imagefile, 0)
-        PlotListofClusterArraysColor2D(id_arrays, 30, xdim, ydim)
+        PlotListofClusterArraysColor2D(id_arrays, 30)
         #PlotListofClusterArraysColor(id_arrays, 0)
         pdb.set_trace()
-        #AnimateClusterArrays(id_arrays, imagefile, 0)
+
+
         # AnimateClusterArraysGif(id_arrays, imagefile, 0)
 
 
-        # NOTE 504 Ids generated using new neighbor filtering approach, but not yet using the new method of connected component labeling
-        # NOTE there are some interesting pixel disparties, where a pixel
 
         # TODO NOTICED THAT BOTTOM LEFT CORNER IS THE ORIGIN IN PYPLOT, whereas I expected it to be in the top left like in images
 
 
-        sub_cluster_count = 10
+
         # findBestClusterCount(0, 100, 5)
         # MeanShiftCluster(max_float_array)
         # AffinityPropagationCluster(max_float_array):
 
-# NOTE Now to start working on each cluster, and see if we can generate some blobs!!! :D
 '''
 My informal Rules:
     A max pixel (mp) has value 255

@@ -46,9 +46,13 @@ max_val_step = 5 # The maximim amount that two neighboring pixels can differ in 
 
 
 
-
-
-
+def setseerodrawdims(x,y,z):
+    global xdim
+    global ydim
+    global zdim
+    xdim = x
+    ydim = y
+    zdim = z
 
 
 
@@ -114,7 +118,19 @@ def PlotMatrixTrio(m1, m2, m3):
     ax3.spy(m3, markersize=1, aspect='auto', origin='lower')
     plt.show()
 
-def FindBestClusterCount(min, max, step):
+def PlotClusterLists(list_of_lists):
+    '''
+    Takes a list of lists, each list is a the pixels of the corresponding cluster
+    '''
+    cluster_count = len(list_of_lists)
+    cluster_arrays = []  # Each entry is an array, filled only with the maximal values from the corresponding
+    for cluster in range(cluster_count):
+        cluster_arrays.append(zeros([xdim, ydim]))  # (r,c)
+        for pixel in list_of_lists[cluster]:
+            cluster_arrays[cluster][pixel[1]][pixel[2]] = int(pixel[0])
+    PlotListofClusterArraysColor(cluster_arrays, 1)
+
+def FindBestClusterCount(array_of_floats, min, max, step):
     print('Attempting to find optimal number of clusters, range:(' + str(min) + ', ' + str(max))
     kVals = [] # The number of clusters
     distortionVSclusters = [] # The distortion per cluster
@@ -123,7 +139,7 @@ def FindBestClusterCount(min, max, step):
         if(num_clusters == 0):
             num_clusters = 1
         print('Trying with ' + str(num_clusters) + ' clusters')
-        (bookC, distortionC)  = kmeans(max_pixel_array_floats, num_clusters)
+        (bookC, distortionC)  = kmeans(array_of_floats, num_clusters)
         # (centLabels, centroids) = vq(max_pixel_array_floats, bookC
         kVals.append(num_clusters)
         distortionVSclusters.append(distortionC)
@@ -168,7 +184,7 @@ def PlotListofClusterArraysColor(list_of_arrays, have_divides): #have_divides is
     fig.tight_layout()
     plt.show()
 
-def PlotListofClusterArraysColor2D(list_of_arrays, markersize, xdim, ydim):
+def PlotListofClusterArraysColor2D(list_of_arrays, markersize):
     colors2 = plt.get_cmap('gist_rainbow')
     num_clusters = len(list_of_arrays)
     cNorm = colortools.Normalize(vmin=0, vmax=num_clusters-1)
@@ -176,6 +192,9 @@ def PlotListofClusterArraysColor2D(list_of_arrays, markersize, xdim, ydim):
     fig = plt.figure(figsize=(32,32)) # figsize=(x_inches, y_inches), default 80-dpi
     plt.clf()
     ax = fig.add_subplot(111)
+
+    print('xdim:' + str(xdim))
+    print('ydim:' + str(ydim))
     ax.set_xlim([0, xdim])
     ax.set_ylim([ydim, 0])
 
