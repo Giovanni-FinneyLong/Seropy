@@ -14,6 +14,7 @@ import numpy as np
 import time
 import math
 from PIL import Image
+from numpy import zeros
 from visvis.vvmovie.images2gif import writeGif
 # from Scripts.images2gif import writeGif
 
@@ -163,8 +164,8 @@ def PlotListofClusterArraysColor(list_of_arrays, have_divides): #have_divides is
     # ax.set_color_cycle([scalarMap.to_rgba(i) for i in range(num_clusters)])
 
     #TODO Below are tests to see if there is performance improvement when visualizing plots.
-    ax.set_xlim([0, 1600])
-    ax.set_ylim([0, 1600])
+    ax.set_xlim([0, xdim])
+    ax.set_ylim([ydim, 0])
     ax.set_zlim([0, num_clusters])
     ax.view_init(elev=10., azim=0) #There is also a dist which can be set
     ax.dist = 8 # Default is 10, 0 is too low..
@@ -272,8 +273,8 @@ def AnimateClusterArraysGif(list_of_arrays, imagefile, draw_divides):
 
         #Elev and azim are both in degrees
         # Performance Increasers:
-        ax.set_xlim([0, 1600])
-        ax.set_ylim([16000, 0])
+        ax.set_xlim([0, xdim])
+        ax.set_ylim([ydim, 0])
         ax.set_zlim([0, num_clusters])
 
         for c in range(len(list_of_arrays)):
@@ -406,8 +407,8 @@ def AnimateClusterArrays(list_of_arrays, imagefile, draw_divides): #Image file j
             ax.dist = d
 
     # Performance Increasers:
-    ax.set_xlim([0, 1600])
-    ax.set_ylim([0, 1600])
+    ax.set_xlim([0, xdim])
+    ax.set_ylim([ydim, 0])
     ax.set_zlim([0, num_clusters])
     # ax.view_init(elev=10., azim=0) #There is also a dist which can be set
     # ax.dist = 3 # Default is 10
