@@ -181,8 +181,8 @@ def main():
         alive_pixels = []  # Could do set difference later, but this should be faster..
         for (pixn, pixel) in enumerate(
                 max_pixel_list):  # pixel_number and the actual pixel (value, x-coordinate, y-coordinate)
-            col = pixel.x  # Note: The naming scheme has been repaired
-            row = pixel.y
+            xpos = pixel.x  # Note: The naming scheme has been repaired
+            ypos = pixel.y
             # Keep track of nz-neighbors, maximal-neighbors, neighbor sum
             buf_nzn = 0
             buf_maxn = 0
@@ -191,9 +191,9 @@ def main():
             for horizontal_offset in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
                 for vertical_offset in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
                     if (vertical_offset != 0 or horizontal_offset != 0):  # Don't measure the current pixel
-                        if (col + vertical_offset < xdim and col + vertical_offset >= 0 and row + horizontal_offset < ydim and row + horizontal_offset >= 0):  # Boundary check.
+                        if (xpos + vertical_offset < xdim and xpos + vertical_offset >= 0 and ypos + horizontal_offset < ydim and ypos + horizontal_offset >= 0):  # Boundary check.
                             neighbors_checked += 1
-                            cur_neighbor_val = max_float_array[col + vertical_offset][row + horizontal_offset]
+                            cur_neighbor_val = max_float_array[xpos + vertical_offset][ypos + horizontal_offset]
                             if (cur_neighbor_val > 0):
                                 buf_nzn += 1
                                 if (cur_neighbor_val == 255):
@@ -226,21 +226,27 @@ def main():
         # 0 1 2
         # 3 X 4
         # 5 6 7
-        vertical_offsets   = [1, 1 , 1,  0]
-        horizontal_offsets = [-1,  0,   1, -1]
+        horizontal_offsets = [-1,  0,   1, -1] #, 1, -1, 0, 1]
+        vertical_offsets   = [-1, -1 , -1,  0] #, 0, 1, 1, 1]
 
         for pixel in alive_pixels: # Need second iteration so that all of the pixels of the array have been set
             if pixel.blob_id == 0: # Value not yet set
-                col = pixel.x
-                row = pixel.y
-                for (vertical_offset, horizontal_offset) in zip(horizontal_offsets, vertical_offsets):
-                    if (col + vertical_offset < xdim and col + vertical_offset >= 0 and row + horizontal_offset < ydim and row + horizontal_offset >= 0):  # Boundary check.
-                        neighbor = alive_pixel_array[col + vertical_offset][row + horizontal_offset]
+                xpos = pixel.x
+                ypos = pixel.y
+                if debug_pixel_ops:
+                    print('New cursor pixel:' + str(pixel))
+                for (horizontal_offset, vertical_offset) in zip(horizontal_offsets, vertical_offsets):
+                    if debug_pixel_ops:
+                        print(' Trying offsets:' + str(horizontal_offset) + ':' + str(vertical_offset))
+                    if (ypos + vertical_offset < ydim and ypos + vertical_offset >= 0 and xpos + horizontal_offset < xdim and xpos + horizontal_offset >= 0):  # Boundary check.
+                        neighbor = alive_pixel_array[xpos + horizontal_offset][ypos + vertical_offset]
+                        print('Checking neigbor:' + str(neighbor) + 'at offsets:(' + str(horizontal_offset) + ',' + str(vertical_offset) +')')
                         if (neighbor != 0):
-                            print('Pixel:' + str(pixel) + ' found a nzn:' + str(neighbor))
+                            if debug_pixel_ops and pixel.y < 10: # DEBUG
+                                print('Pixel:' + str(pixel) + ' found a nzn:' + str(neighbor))
                             if abs(pixel.val - neighbor.val) <= max_val_step: # Within acceptrable bound to be grouped by id
                                 if neighbor.blob_id != 0:
-                                    if(pixel.blob_id != 0):
+                                    if(pixel.blob_id != 0 and pixel.blob_id != neighbor.blob_id):
                                         if debug_pixel_ops:
                                             print('Pixel:' + str(pixel) + ' conflicts on neighbor with non-zero blob_id:' + str(neighbor))
                                         conflict_differences.append(abs(neighbor.val - pixel.val))
@@ -261,6 +267,9 @@ def main():
                                     derived_ids.append(neighbor.blob_id)
                                     derived_count += 1
                                     pixel_id_groups[neighbor.blob_id].append(neighbor)
+            else:
+                if debug_pixel_ops:
+                    print('Pixel:' + str(pixel) + ' already had an id when the cursor reached it')
             if pixel.blob_id == 0:
                 pixel.blob_id = Pixel.getNextBlobId()
                 pixel_id_groups.append([pixel])

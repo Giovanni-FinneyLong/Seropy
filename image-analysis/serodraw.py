@@ -174,7 +174,10 @@ def PlotListofClusterArraysColor2D(list_of_arrays, markersize, xdim, ydim):
         (x,y) = list_of_arrays[c].nonzero()
         ax.scatter(x,y, s=markersize, c=scalarMap.to_rgba(c), edgecolor=scalarMap.to_rgba(c))
         ax.plot(x[0], y[0], marker='x', markersize=markersize)
+        ax.plot(x[-1], y[-1], marker='+', markersize=markersize)
         ax.annotate(str(c), xy=(x[0], y[0]))
+        ax.annotate('\\'+str(c), xy=(x[-1], y[-1]))
+
         #plt.savefig("3D.png")
     fig.tight_layout()
     plt.savefig('temp/2D_Plot_of_Cluster_Arrays__' + timeNoSpaces() + '.png')
