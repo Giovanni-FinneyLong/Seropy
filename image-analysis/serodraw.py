@@ -29,10 +29,11 @@ import os
 
 
 # NOTE  ##########################
-# NOTE  Setting up env. vars:
+# NOTE  Setting up global vars:
 current_path = os.getcwd()
-
-
+xdim = -1
+ydim = -1
+zdim = -1
 # NOTE  ##########################
 
 
@@ -177,6 +178,8 @@ def PlotListofClusterArraysColor2D(list_of_arrays, markersize, xdim, ydim):
         ax.plot(x[-1], y[-1], marker='+', markersize=markersize)
         ax.annotate(str(c), xy=(x[0], y[0]))
         ax.annotate('\\'+str(c), xy=(x[-1], y[-1]))
+        for lab in range(len(x)):
+            ax.annotate(str(c) + '.' + str(lab), xy=(x[lab], y[lab]))
 
         #plt.savefig("3D.png")
     fig.tight_layout()
