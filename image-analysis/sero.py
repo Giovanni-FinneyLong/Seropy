@@ -6,7 +6,7 @@ __author__ = 'gio'
 
 
 from scipy.cluster.vq import vq, kmeans, whiten, kmeans2
-from numpy import zeros
+
 import sys
 import collections
 from serodraw import *
@@ -23,24 +23,21 @@ import code
 import rlcompleter
 
 
-def setglobaldims(x,y,z):
-    def setserodims(x,y,z):
+def setglobaldims(x, y, z):
+    def setserodims(x, y, z):
         global xdim
         global ydim
         global zdim
         xdim = x
         ydim = y
         zdim = z
-
     setserodims(x, y, z) # Need both calls, one to set the global vars in each file, otherwise they don't carry
     setseerodrawdims(x, y, z) # Even when using 'global'; one method needs to be in each file
 
-
-
-
-
 class Pixel:
-    '''This class is being used to hold the coordinates, base info and derived info of a pixle of a single image\'s layer'''
+    '''
+    This class is being used to hold the coordinates, base info and derived info of a pixel of a single image\'s layer
+    '''
 
     id_num = 0 # ***STARTS AT ZERO
     def __init__(self, value, xin, yin):
@@ -95,6 +92,7 @@ class Pixel:
         else:
             return False
 
+
 def filterSparsePixelsFromList(listin):
     max_float_array = zeros([xdim, ydim])
     for pixel in listin:
@@ -127,6 +125,7 @@ def filterSparsePixelsFromList(listin):
     print('There are ' + str(len(listin) - len(filtered_pixels)) + ' dead pixels & ' + str(len(filtered_pixels)) + ' still alive')
     return filtered_pixels
 
+
 def KMeansClusterIntoLists(listin, num_clusters):
 
     def doClustering(array_in, num_clusters):
@@ -146,6 +145,7 @@ def KMeansClusterIntoLists(listin, num_clusters):
     # NOTE: This is the required format for kmeans/vq
     tuple_array = np.asarray([(float(pixel.val), float(pixel.x), float(pixel.y)) for pixel in listin])
     return doClustering(tuple_array, num_clusters)
+
 
 def getIdArrays(pixels, id_count):
     '''
@@ -168,7 +168,7 @@ def getIdArrays(pixels, id_count):
 
 def firstPass(pixel_list):
 
-    # NOTE Up increases downwards, across increaes to the right. (Origin top left)
+    # NOTE Vertical increases downwards, horizontal increases to the right. (Origin top left)
     # Order of neighboring pixels visitation:
     # 0 1 2
     # 3 X 4
@@ -246,12 +246,7 @@ def firstPass(pixel_list):
 
 def main():
 
-    # global xdim # Must be declared global so that their values can adjusted, otherwise new locals are created when trying to mod
-    # global ydim # See: http://stackoverflow.com/questions/10588317/python-function-global-variables
-    # global zdim
-
-
-    if(test_instead_of_data):
+    if test_instead_of_data:
         all_images = glob.glob(TEST_DIR + '*.png')
     else:
         all_images = glob.glob(DATA_DIR + 'Swell*.tif')
@@ -262,11 +257,8 @@ def main():
         print('Starting on image: ' + imagefile)
         imarray = np.array(imagein)
 
-
-
         (im_xdim, im_ydim, im_zdim) = imarray.shape
         setglobaldims(im_xdim, im_ydim, im_zdim)
-
 
         # np.set_printoptions(threshold=np.inf)
         print('The are ' + str(zdim) + ' channels')

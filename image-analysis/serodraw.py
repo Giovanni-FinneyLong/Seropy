@@ -14,6 +14,7 @@ import numpy as np
 import time
 import math
 from PIL import Image
+from numpy import zeros
 from visvis.vvmovie.images2gif import writeGif
 # from Scripts.images2gif import writeGif
 
