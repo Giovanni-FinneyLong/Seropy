@@ -1,0 +1,12 @@
+Command used on TS140 to setup opencv 3.0.0 after extraction:setx -m OPENCV_DIR C:\OpenCV\build\x64\vc12\bin
+	Was set according to:http://docs.opencv.org/doc/tutorials/introduction/windows_install/windows_install.html#windowssetpathandenviromentvariable
+	vc12 for VS2013
+	Installed 3.0.0 from static libs 7/20
+
+Now building on top of basic install: Instructions: http://docs.opencv.org/doc/tutorials/introduction/windows_install/windows_install.html#windows-installation
+	Installed sphinx with: c:\Anaconda\envs\py3k\Scripts\easy_install.exe sphinx
+	Installed Wand(Python bindings of imagemagick) with: c:\Anaconda\envs\py3k\Scripts\easy_install.exe Wand
+		Followed guide here:http://docs.wand-py.org/en/latest/guide/install.html
+		Then setup with:setx -m MAGICK_HOME "C:\Program Files\ImageMagick-6.9.1-Q8"
+Installed visvis to get access to images2gif.py:pip install visvis
+	
