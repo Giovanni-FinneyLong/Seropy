@@ -148,20 +148,105 @@ def PlotClusterLists(list_of_lists):
             cluster_arrays[cluster][pixel[1]][pixel[2]] = int(pixel[0])
     PlotListofClusterArraysColor(cluster_arrays, 1)
 
+def firstPass(pixel_list):
+
+    # NOTE Up increases downwards, across increaes to the right. (Origin top left)
+    # Order of neighboring pixels visitation:
+    # 0 1 2
+    # 3 X 4
+    # 5 6 7
+    # For 8 way connectivity, should check NE, N, NW, W (2,1,0,3)
+    horizontal_offsets = [-1,  0,   1, -1] #, 1, -1, 0, 1]
+    vertical_offsets   = [-1, -1, -1,  0] #, 0, 1, 1, 1]
+
+
+    derived_count = 0
+    derived_pixels = []
+    derived_ids = []
+    pixel_id_groups = []
+    conflict_differences = []
+
+    pixel_array = np.zeros([xdim, ydim], dtype=object) # Can use zeros instead of empty; moderately slower, but better to have non-empty entries incase of issues
+    for pixel in pixel_list:
+        pixel_array[pixel.x][pixel.y] = pixel # Pointer :) Modifications to the pixels in the list affect the array
+    for pixel in pixel_list: # Need second iteration so that all of the pixels of the array have been set
+        if pixel.blob_id == -1: # Value not yet set
+            xpos = pixel.x
+            ypos = pixel.y
+            if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
+                print('New cursor pixel:' + str(pixel))
+            for (horizontal_offset, vertical_offset) in zip(horizontal_offsets, vertical_offsets):
+                # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
+                #     print(' Trying offsets:' + str(horizontal_offset) + ':' + str(vertical_offset))
+                if (ypos + vertical_offset < ydim and ypos + vertical_offset >= 0 and xpos + horizontal_offset < xdim and xpos + horizontal_offset >= 0):  # Boundary check.
+                    neighbor = pixel_array[xpos + horizontal_offset][ypos + vertical_offset]
+                    # print('  Checking neigbor:' + str(neighbor) + 'at offsets:(' + str(horizontal_offset) + ',' + str(vertical_offset) +')')
+                    if (neighbor != 0):
+                        if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
+                            print('   Pixel:' + str(pixel) + ' found a nzn:' + str(neighbor))
+                        if abs(pixel.val - neighbor.val) <= max_val_step: # Within acceptrable bound to be grouped by id
+                            # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
+                                # print('   DEBUG: Neighbor was within range.')
+                            if neighbor.blob_id != -1:
+                                if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
+                                    print('   DEBUG: Neighbor already has an id.')
+                                    print('   ' + str(pixel))
+                                    print('   ' + str(neighbor))
+                                if(pixel.blob_id != -1 and pixel.blob_id != neighbor.blob_id):
+                                    if debug_pixel_ops:
+                                        print('  Pixel:' + str(pixel) + ' conflicts on neighbor with non-zero blob_id:' + str(neighbor))
+                                    conflict_differences.append(abs(neighbor.val - pixel.val))
+                                else: # Pixel hasn't yet set it's id; give it the id of its neighbor
+                                    if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG:
+                                        print('**Assigning the derived id:' + str(neighbor.blob_id) + ' to pixel:' + str(pixel))
+                                    pixel.blob_id = neighbor.blob_id
+                                    derived_pixels.append(pixel)
+                                    derived_ids.append(pixel.blob_id)
+                                    derived_count += 1
+                                    pixel_id_groups[pixel.blob_id].append(pixel)
+                            else:
+                                if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
+                                    print('   DEBUG: neighbor didnt have an id')
+                                if pixel.blob_id != -1:
+                                    # neighboring blob is a zero, and the current pixel has an id, so we can assign this id to the neighbor
+                                    if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG:
+                                        print('**Derived a neighbor\'s id: assigning id:' + str(pixel.blob_id) + ' to neigbor:' + str(neighbor) + ' from pixel:' + str(pixel))
+                                    neighbor.blob_id = pixel.blob_id
+                                    derived_pixels.append(neighbor)
+                                    derived_ids.append(neighbor.blob_id)
+                                    derived_count += 1
+                                    pixel_id_groups[neighbor.blob_id].append(neighbor)
+        else:
+            if debug_pixel_ops:
+                print('Pixel:' + str(pixel) + ' already had an id when the cursor reached it')
+        if pixel.blob_id == -1:
+            pixel.blob_id = Pixel.getNextBlobId()
+            pixel_id_groups.append([pixel])
+            derived_ids.append(pixel.blob_id) # Todo should refactor 'derived_ids' to be more clear
+            print('**Never derived a value for pixel:' + str(pixel) + ', assigning it a new one:' + str(pixel.blob_id))
+    return (derived_ids, derived_count)
+
+
+
+
+
+
+
+
+
+
+
+
 
 def main():
-    debug_pixel_ops = False
-    remap_ids_by_group_size = False
-    test_instead_of_data = True
-    debug_pixel_ops_y_depth = 5
+
 
     global xdim # Must be declared global so that their values can adjusted, otherwise new locals are created when trying to mod
     global ydim # See: http://stackoverflow.com/questions/10588317/python-function-global-variables
     global zdim
 
 
-    min_val_threshold = 250
-    max_val_step = 5 # The maximim amount that two neighboring pixels can differ in val and be grouped by blob_id
+
 
     if(test_instead_of_data):
         all_images = glob.glob(TEST_DIR + '*.png')
@@ -177,12 +262,11 @@ def main():
 
         (xdim, ydim, zdim) = imarray.shape
 
-
         # np.set_printoptions(threshold=np.inf)
         print('The are ' + str(zdim) + ' channels')
         image_channels = imagein.split()
         slices = []
-        tuples = []
+        pixels = []
         sum_pixels = 0
 
         for s in range(len(image_channels)):  # Better to split image and use splits for arrays than to split an array
@@ -193,134 +277,40 @@ def main():
         # im = Image.fromarray(np.uint8(cm.jet(slices[0])*255))
         # out = im.filter(ImageFilter.MaxFilter)
 
-
-
-        for pcol in range(xdim):
-            for pix in range(ydim):
-                pixel_value = slices[0][pcol][pix]
-                # print('Pixel #' + str(pcol * xdim + pix) + ' = ' + str(pixel_value))
+        for curx in range(xdim):
+            for cury in range(ydim):
+                pixel_value = slices[0][curx][cury] # HACK
                 if (pixel_value != 0):  # Can use alternate min threshold and <=
-                    tuples.append((pixel_value, pcol, pix))
+                    pixels.append(Pixel(pixel_value, curx, cury))
                     sum_pixels += pixel_value
-        print('The are ' + str(len(tuples)) + ' non-zero pixels from the original ' + str(xdim * ydim) + ' pixels')
-
-        tuples.sort(key=lambda tuplex: tuplex[0], reverse=True) # Note that sorting is being done like so to sort based on value not position as is normal with pixels. Sorting is better as no new list; saves 10MB!
+        print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(xdim * ydim) + ' pixels')
+        pixels.sort(key=lambda pix: pix.val, reverse=True)# Note that sorting is being done like so to sort based on value not position as is normal with pixels. Sorting is better as no new list
 
         # Lets go further and grab the maximal pixels, which are at the front
         endmax = 0
-        while (endmax < len(tuples) and tuples[endmax][0] >= min_val_threshold ):
+        while (endmax < len(pixels) and pixels[endmax].val >= min_val_threshold ):
             endmax += 1
         print('There are ' + str(endmax) + ' maximal pixels')
 
         # Time to pre-process the maximal pixels; try and create groups/clusters
-        max_tuple_list = tuples[0:endmax]  # Pixels with value 255
-        max_pixel_list = [Pixel(float(i[0]), float(i[1]), float(i[2])) for i in max_tuple_list]
-
+        max_pixel_list = pixels[0:endmax]
         #PlotClusterLists(KMeansClusterIntoLists(max_pixel_list, 20))
 
-
         alive_pixels = filterSparsePixelsFromList(max_pixel_list)
-        alive_pixel_array = np.zeros([xdim, ydim], dtype=object) # Can use zeros instead of empty; moderately slower, but better to have non-empty entries incase of issues
-        for pixel in alive_pixels:
-            alive_pixel_array[pixel.x][pixel.y] = pixel # Pointer :) Modifications to the pixels in the list affect the array
-
-
-
-        derived_count = 0
-        derived_pixels = []
-        derived_ids = []
-        pixel_id_groups = []
-
-        conflict_differences = []
         alive_pixels.sort() # Sorted here so that still in order
 
-        # NOTE Up increases downwards, across increaes to the right. (Origin top left)
-        # Order of neighboring pixels visitation:
-        # 0 1 2
-        # 3 X 4
-        # 5 6 7
-        # For 8 way connectivity, should check NE, N, NW, W (2,1,0,3)
-        horizontal_offsets = [-1,  0,   1, -1] #, 1, -1, 0, 1]
-        vertical_offsets   = [-1, -1 , -1,  0] #, 0, 1, 1, 1]
-
-
-
-
-        for pixel in alive_pixels: # Need second iteration so that all of the pixels of the array have been set
-            if pixel.blob_id == -1: # Value not yet set
-                xpos = pixel.x
-                ypos = pixel.y
-                if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
-                    print('New cursor pixel:' + str(pixel))
-                for (horizontal_offset, vertical_offset) in zip(horizontal_offsets, vertical_offsets):
-                    # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
-                    #     print(' Trying offsets:' + str(horizontal_offset) + ':' + str(vertical_offset))
-                    if (ypos + vertical_offset < ydim and ypos + vertical_offset >= 0 and xpos + horizontal_offset < xdim and xpos + horizontal_offset >= 0):  # Boundary check.
-                        neighbor = alive_pixel_array[xpos + horizontal_offset][ypos + vertical_offset]
-                        # print('  Checking neigbor:' + str(neighbor) + 'at offsets:(' + str(horizontal_offset) + ',' + str(vertical_offset) +')')
-                        if (neighbor != 0):
-                            if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
-                                print('   Pixel:' + str(pixel) + ' found a nzn:' + str(neighbor))
-                            if abs(pixel.val - neighbor.val) <= max_val_step: # Within acceptrable bound to be grouped by id
-                                # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
-                                    # print('   DEBUG: Neighbor was within range.')
-                                if neighbor.blob_id != -1:
-                                    if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
-                                        print('   DEBUG: Neighbor already has an id.')
-                                        print('   ' + str(pixel))
-                                        print('   ' + str(neighbor))
-                                    if(pixel.blob_id != -1 and pixel.blob_id != neighbor.blob_id):
-                                        if debug_pixel_ops:
-                                            print('  Pixel:' + str(pixel) + ' conflicts on neighbor with non-zero blob_id:' + str(neighbor))
-                                        conflict_differences.append(abs(neighbor.val - pixel.val))
-                                    else: # Pixel hasn't yet set it's id; give it the id of its neighbor
-                                        if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG:
-                                            print('**Assigning the derived id:' + str(neighbor.blob_id) + ' to pixel:' + str(pixel))
-                                        pixel.blob_id = neighbor.blob_id
-                                        derived_pixels.append(pixel)
-                                        derived_ids.append(pixel.blob_id)
-                                        derived_count += 1
-                                        pixel_id_groups[pixel.blob_id].append(pixel)
-                                else:
-                                    if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
-                                        print('   DEBUG: neighbor didnt have an id')
-                                    if pixel.blob_id != -1:
-                                        # neighboring blob is a zero, and the current pixel has an id, so we can assign this id to the neighbor
-                                        if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG:
-                                            print('**Derived a neighbor\'s id: assigning id:' + str(pixel.blob_id) + ' to neigbor:' + str(neighbor) + ' from pixel:' + str(pixel))
-                                        neighbor.blob_id = pixel.blob_id
-                                        derived_pixels.append(neighbor)
-                                        derived_ids.append(neighbor.blob_id)
-                                        derived_count += 1
-                                        pixel_id_groups[neighbor.blob_id].append(neighbor)
-            else:
-                if debug_pixel_ops:
-                    print('Pixel:' + str(pixel) + ' already had an id when the cursor reached it')
-            if pixel.blob_id == -1:
-                pixel.blob_id = Pixel.getNextBlobId()
-                pixel_id_groups.append([pixel])
-                derived_ids.append(pixel.blob_id) # Todo should refactor 'derived_ids' to be more clear
-                print('**Never derived a value for pixel:' + str(pixel) + ', assigning it a new one:' + str(pixel.blob_id))
+        (derived_ids, derived_count) = firstPass(alive_pixels)
 
 
         counter = collections.Counter(derived_ids)
-
         print('Total Derived Count:' + str(derived_count))
         print('There were: ' + str(len(alive_pixels)) + ' alive pixels assigned to ' + str(Pixel.id_num) + ' ids')
 
-        # top_common_id_count = Pixel.id_num# HACK Grabbing all for now, +1 b/c we start at 0
-
-        most_common_ids = counter.most_common()#top_common_id_count) # NOTE Stored as (id, count)
+        most_common_ids = counter.most_common()# HACK Grabbing all for now, +1 b/c we start at 0 # NOTE Stored as (id, count)
         top_common_id_count = len(most_common_ids)
 
         id_arrays = []  # Each entry is an array, filled only with the maximal values from the corresponding
         remap = [None] * (top_common_id_count)
-        # print(counter)
-        # print(len(most_common_ids))
-        # print(most_common_ids)
-
-
-        #TODO DEBUG strange error where getting the most common from the counter is only getting a subset of the entries (540/564).
 
         for id in range(top_common_id_count): # Supposedly up to 2.5x faster than using numpy's .tolist()
             id_arrays.append(zeros([xdim, ydim]))  # (r,c)
