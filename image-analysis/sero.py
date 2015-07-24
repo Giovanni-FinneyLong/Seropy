@@ -96,14 +96,18 @@ class Pixel:
 
 def main():
 
-    debug_pixel_ops = False
-    remap_ids_by_group_size = True
+    debug_pixel_ops = True
+    remap_ids_by_group_size = False
+    test_instead_of_data = True
+
+
     min_val_threshold = 250
     max_val_step = 5 # The maximim amount that two neighboring pixels can differ in val and be grouped by blob_id
 
-
-
-    all_images = glob.glob(DATA_DIR + 'Swell*.tif')
+    if(test_instead_of_data):
+        all_images = glob.glob(TEST_DIR + '*.png')
+    else:
+        all_images = glob.glob(DATA_DIR + 'Swell*.tif')
     all_images = [all_images[0]]  # HACK
 
     for imagefile in all_images:
@@ -222,7 +226,7 @@ def main():
         # 0 1 2
         # 3 X 4
         # 5 6 7
-        vertical_offsets   = [-1, -1 , -1,  0]
+        vertical_offsets   = [1, 1 , 1,  0]
         horizontal_offsets = [-1,  0,   1, -1]
 
         for pixel in alive_pixels: # Need second iteration so that all of the pixels of the array have been set
@@ -233,6 +237,7 @@ def main():
                     if (col + vertical_offset < xdim and col + vertical_offset >= 0 and row + horizontal_offset < ydim and row + horizontal_offset >= 0):  # Boundary check.
                         neighbor = alive_pixel_array[col + vertical_offset][row + horizontal_offset]
                         if (neighbor != 0):
+                            print('Pixel:' + str(pixel) + ' found a nzn:' + str(neighbor))
                             if abs(pixel.val - neighbor.val) <= max_val_step: # Within acceptrable bound to be grouped by id
                                 if neighbor.blob_id != 0:
                                     if(pixel.blob_id != 0):
@@ -260,7 +265,7 @@ def main():
                 pixel.blob_id = Pixel.getNextBlobId()
                 pixel_id_groups.append([pixel])
                 derived_ids.append(pixel.blob_id) # Todo should refactor 'derived_ids' to be more clear
-                #print('Never derived a value for pixel:' + str(pixel) + ', assigning it a new one:' + str(pixel.blob_id))
+                print('Never derived a value for pixel:' + str(pixel) + ', assigning it a new one:' + str(pixel.blob_id))
 
 
         counter = collections.Counter(derived_ids)
@@ -284,7 +289,6 @@ def main():
 
         for id in range(top_common_id_count): # Supposedly up to 2.5x faster than using numpy's .tolist()
             id_arrays.append(zeros([xdim, ydim]))  # (r,c)
-            #print(id)
             remap[most_common_ids[id][0]] = id
 
         if remap_ids_by_group_size:
@@ -295,17 +299,19 @@ def main():
                 id_arrays[pixel.blob_id][pixel.x][pixel.y] = int(pixel.val)
 
 
-        AnimateClusterArraysGif(id_arrays, imagefile, 0)
-        #PlotListofClusterArraysColor2D(id_arrays, 20)
+        # AnimateClusterArraysGif(id_arrays, imagefile, 0)
+        PlotListofClusterArraysColor2D(id_arrays, 30, xdim, ydim)
         #PlotListofClusterArraysColor(id_arrays, 0)
-        debug()
         pdb.set_trace()
         #AnimateClusterArrays(id_arrays, imagefile, 0)
         # AnimateClusterArraysGif(id_arrays, imagefile, 0)
-        runShell()
+
 
         # NOTE 504 Ids generated using new neighbor filtering approach, but not yet using the new method of connected component labeling
         # NOTE there are some interesting pixel disparties, where a pixel
+
+        # TODO NOTICED THAT BOTTOM LEFT CORNER IS THE ORIGIN IN PYPLOT, whereas I expected it to be in the top left like in images
+
 
         sub_cluster_count = 10
         # findBestClusterCount(0, 100, 5)

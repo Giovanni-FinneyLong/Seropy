@@ -32,6 +32,7 @@ import os
 # NOTE  Setting up env. vars:
 current_path = os.getcwd()
 
+
 # NOTE  ##########################
 
 
@@ -158,7 +159,7 @@ def PlotListofClusterArraysColor(list_of_arrays, have_divides): #have_divides is
     fig.tight_layout()
     plt.show()
 
-def PlotListofClusterArraysColor2D(list_of_arrays, markersize):
+def PlotListofClusterArraysColor2D(list_of_arrays, markersize, xdim, ydim):
     colors2 = plt.get_cmap('gist_rainbow')
     num_clusters = len(list_of_arrays)
     cNorm = colortools.Normalize(vmin=0, vmax=num_clusters-1)
@@ -166,12 +167,14 @@ def PlotListofClusterArraysColor2D(list_of_arrays, markersize):
     fig = plt.figure(figsize=(32,32)) # figsize=(x_inches, y_inches), default 80-dpi
     plt.clf()
     ax = fig.add_subplot(111)
-    ax.set_xlim([0, 1600])
-    ax.set_ylim([0, 1600])
+    ax.set_xlim([0, xdim])
+    ax.set_ylim([ydim, 0])
 
     for c in range(num_clusters):
         (x,y) = list_of_arrays[c].nonzero()
         ax.scatter(x,y, s=markersize, c=scalarMap.to_rgba(c), edgecolor=scalarMap.to_rgba(c))
+        ax.plot(x[0], y[0], marker='x', markersize=markersize)
+        ax.annotate(str(c), xy=(x[0], y[0]))
         #plt.savefig("3D.png")
     fig.tight_layout()
     plt.savefig('temp/2D_Plot_of_Cluster_Arrays__' + timeNoSpaces() + '.png')
@@ -237,7 +240,7 @@ def AnimateClusterArraysGif(list_of_arrays, imagefile, draw_divides):
         #Elev and azim are both in degrees
         # Performance Increasers:
         ax.set_xlim([0, 1600])
-        ax.set_ylim([0, 1600])
+        ax.set_ylim([16000, 0])
         ax.set_zlim([0, num_clusters])
 
         for c in range(len(list_of_arrays)):
