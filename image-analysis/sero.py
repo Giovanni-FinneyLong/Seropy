@@ -24,6 +24,12 @@ import rlcompleter
 
 
 
+
+
+
+
+
+
 def setglobaldims(x, y, z):
     def setserodims(x, y, z):
         global xdim
@@ -121,10 +127,12 @@ def filterSparsePixelsFromList(listin):
                             # if buf_nzn != 0:
                             # print('Setting pixel vals to: nzn:' + str(buf_nzn) + ', maxn:' + str(buf_maxn) + ', sumn:' + str(buf_sumn))
         pixel.setNeighborValues(buf_nzn, buf_maxn, buf_sumn, neighbors_checked)
-        if buf_nzn != 0:
+        if buf_nzn >= minimal_nonzero_neighbors:
             filtered_pixels.append(pixel)
     print('There are ' + str(len(listin) - len(filtered_pixels)) + ' dead pixels & ' + str(len(filtered_pixels)) + ' still alive')
     return filtered_pixels
+
+
 
 
 def KMeansClusterIntoLists(listin, num_clusters):
@@ -218,7 +226,8 @@ def firstPass(pixel_list):
                     if (neighbor != 0):
                         # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
                         #     print('   Pixel:' + str(pixel) + ' found a nzn:' + str(neighbor))
-                        if abs(pixel.val - neighbor.val) <= max_val_step: # Within acceptrable bound to be grouped by id
+                        difference = abs(float(pixel.val) - float(neighbor.val)) # Note: Need to convert to floats, otherwise there's an overflow error due to the value range being int8 (0-255)
+                        if difference <= max_val_step: # Within acceptrable bound to be grouped by id
                             # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
                                 # print('   DEBUG: Neighbor was within range.')
                             if neighbor.blob_id != -1:
@@ -229,7 +238,7 @@ def firstPass(pixel_list):
                                 if pixel.blob_id != -1 and pixel.blob_id != neighbor.blob_id:
                                     if debug_pixel_ops:
                                         print('\n*****Pixel:' + str(pixel) + ' conflicts on neighbor with non-zero blob_id:' + str(neighbor))
-                                    conflict_differences.append(abs(neighbor.val - pixel.val))
+                                    conflict_differences.append(difference)
 
                                     if pixel.blob_id < neighbor.blob_id:
                                         pair = (pixel.blob_id, neighbor.blob_id)
@@ -270,9 +279,10 @@ def firstPass(pixel_list):
             pixel_id_groups.append([pixel])
             derived_ids.append(pixel.blob_id) # Todo should refactor 'derived_ids' to be more clear
             equivalent_labels.append(pixel.blob_id) # Map the new pixel to itself until a low equivalent is found
-            print('**Never derived a value for pixel:' + str(pixel) + ', assigning it a new one:' + str(pixel.blob_id))
-
-    print('EQUIVALENT LABELS: ' + str(equivalent_labels))
+            if debug_pixel_ops:
+                print('**Never derived a value for pixel:' + str(pixel) + ', assigning it a new one:' + str(pixel.blob_id))
+    if debug_pixel_ops:
+        print('EQUIVALENT LABELS: ' + str(equivalent_labels))
     # Time to clean up the first member of each id group-as they are skipped from the remapping
 
     #TODO TODO need to do more fixes to the equivalent labels; basically condense them, to remove the issue of a trailing larger number
@@ -282,35 +292,27 @@ def firstPass(pixel_list):
 
     for id in range(Pixel.id_num):
         if id not in equivalent_labels:
-            print('ID #' + str(id) + ' wasnt in the list, adding to ids_to _replace')
+            if debug_blob_ids:
+                print('ID #' + str(id) + ' wasnt in the list, adding to ids_to _replace')
             id_to_reuse.append(id)
         else:
             if(len(id_to_reuse) != 0):
                 buf = id_to_reuse[0]
-                print('Replacing ' + str(id) + ' with ' + str(buf) + ' and adding ' + str(id) + ' to the ids to be reused')
+                if debug_blob_ids:
+                    print('Replacing ' + str(id) + ' with ' + str(buf) + ' and adding ' + str(id) + ' to the ids to be reused')
                 id_to_reuse.append(id)
                 for id_fix in range(len(equivalent_labels)):
                     if equivalent_labels[id_fix] == id:
                         equivalent_labels[id_fix] = buf
                 id_to_reuse.pop(0)
-        print('New equiv labels:' + str(equivalent_labels))
-    print('Remaining id_to_reuse: ' + str(id_to_reuse))
+        if debug_blob_ids:
+            print('New equiv labels:' + str(equivalent_labels))
+    if debug_blob_ids:
+        print('Remaining id_to_reuse: ' + str(id_to_reuse))
 
 
-
-
-
-
-        #     for id_index in range(len(equivalent_labels)):
-        #         if equivalent_labels[id_index] >= id:
-        #             # print('Found id_index:' + str(id_index) + ' with value ' + str(equivalent_labels[id_index]))
-        #             equivalent_labels[id_index] -= 1
-        #             # print(' NEW id_index:' + str(id_index) + ' with value ' + str(equivalent_labels[id_index]))
-        # print('New equiv labels:' + str(equivalent_labels))
-    for z in range(len(equivalent_labels)):
-        print(str(z) + ':' + str(equivalent_labels[z]) + ', ', end='')
-
-
+    # for z in range(len(equivalent_labels)):
+    #     print(str(z) + ':' + str(equivalent_labels[z]) + ', ', end='')
 
 
     for pixel in pixel_list:
@@ -327,7 +329,7 @@ def firstPass(pixel_list):
             removed_id_count += 1
     print('There were ' + str(removed_id_count) + ' removed ids')
 
-    print('DEBUG:DERIVED_IDS:' + str(derived_ids))
+    # print('DEBUG:DERIVED_IDS:' + str(derived_ids))
 
     # TODO TODO due to the way that the groups are removed (in different segments)
     # See if we can reverse the adjusting of the actual pixel ids until after the equivalent labels are cleaned up, to reflect the merged labels
@@ -397,19 +399,17 @@ def main():
         counter = collections.Counter(derived_ids)
         total_ids = len(counter.items())
 
-
-        print('Counter:' + str(counter))
-
-        print('Total Derived Count:' + str(derived_count))
+        # print('Counter:' + str(counter))
+        # print('Total Derived Count:' + str(derived_count))
         print('There were: ' + str(len(alive_pixels)) + ' alive pixels assigned to ' + str(total_ids) + ' ids')
 
         most_common_ids = counter.most_common()# HACK Grabbing all for now, +1 b/c we start at 0 # NOTE Stored as (id, count)
         top_common_id_count = len(most_common_ids)# HACK HACK HACK
-        print('tcidc:' + str(top_common_id_count))
+        #print('tcidc:' + str(top_common_id_count))
         id_arrays = getIdArrays(alive_pixels, top_common_id_count)
 
 
-        PlotListofClusterArraysColor2D(id_arrays, 30)
+        PlotListofClusterArraysColor2D(id_arrays, 30)# , numbered=True)
 
         #PlotListofClusterArraysColor(id_arrays, 0)
         pdb.set_trace()

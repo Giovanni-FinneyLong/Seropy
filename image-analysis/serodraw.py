@@ -36,13 +36,18 @@ xdim = -1
 ydim = -1
 zdim = -1
 
-debug_pixel_ops = True
+debug_blob_ids = False
+debug_pixel_ops = False
 remap_ids_by_group_size = False
-test_instead_of_data = True
+test_instead_of_data = False
 debug_pixel_ops_y_depth = 500
 
 min_val_threshold = 250
-max_val_step = 5 # The maximim amount that two neighboring pixels can differ in val and be grouped by blob_id
+    # Recommended = 250
+max_val_step = 5 # The maximum amount that two neighboring pixels can differ in val and be grouped by blob_id
+    # Recommended = 5
+minimal_nonzero_neighbors = 2 # The minimal amount of nzn a pixel must have to avoid being filtered; 0 = no filter
+    # Recommended = 2
 # NOTE  ##########################
 
 
@@ -185,7 +190,12 @@ def PlotListofClusterArraysColor(list_of_arrays, have_divides): #have_divides is
     fig.tight_layout()
     plt.show()
 
-def PlotListofClusterArraysColor2D(list_of_arrays, markersize):
+def PlotListofClusterArraysColor2D(list_of_arrays, markersize, **kwargs):
+    numbered = kwargs.get('numbered', False) # Output the pixel's blob id and order in the id list
+    label_start_finish = kwargs.get('marked', False) # X on the first element of a blob, + on the last
+
+
+
     colors2 = plt.get_cmap('gist_rainbow')
     num_clusters = len(list_of_arrays)
     cNorm = colortools.Normalize(vmin=0, vmax=num_clusters-1)
@@ -200,12 +210,14 @@ def PlotListofClusterArraysColor2D(list_of_arrays, markersize):
     for c in range(num_clusters):
         (x,y) = list_of_arrays[c].nonzero()
         ax.scatter(x,y, s=markersize, c=scalarMap.to_rgba(c), edgecolor=scalarMap.to_rgba(c))
-        ax.plot(x[0], y[0], marker='x', markersize=markersize)
-        ax.plot(x[-1], y[-1], marker='+', markersize=markersize)
-        ax.annotate(str(c), xy=(x[0], y[0]))
-        ax.annotate('\\'+str(c), xy=(x[-1], y[-1]))
-        for lab in range(len(x)):
-            ax.annotate(str(c) + '.' + str(lab), xy=(x[lab], y[lab]))
+        if label_start_finish:
+            ax.plot(x[0], y[0], marker='x', markersize=markersize)
+            ax.plot(x[-1], y[-1], marker='+', markersize=markersize)
+            ax.annotate(str(c), xy=(x[0], y[0]))
+            ax.annotate('\\'+str(c), xy=(x[-1], y[-1]))
+        if numbered:
+            for lab in range(len(x)):
+                ax.annotate(str(c) + '.' + str(lab), xy=(x[lab], y[lab]))
 
         #plt.savefig("3D.png")
     fig.tight_layout()
