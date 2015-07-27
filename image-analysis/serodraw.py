@@ -17,7 +17,7 @@ from PIL import Image
 from numpy import zeros
 from visvis.vvmovie.images2gif import writeGif
 # from Scripts.images2gif import writeGif
-
+from scipy.cluster.vq import vq, kmeans, whiten, kmeans2
 import glob
 # import wand
 # import cv2 # OpenCV version 2
@@ -27,6 +27,8 @@ import code
 import rlcompleter
 import pdb
 import os
+
+from config import *
 
 
 # NOTE  ##########################
@@ -38,7 +40,7 @@ zdim = -1
 
 debug_blob_ids = False
 debug_pixel_ops = False
-remap_ids_by_group_size = False
+remap_ids_by_group_size = True
 test_instead_of_data = False
 debug_pixel_ops_y_depth = 500
 
@@ -59,7 +61,6 @@ def setseerodrawdims(x,y,z):
     xdim = x
     ydim = y
     zdim = z
-
 
 
 def runShell():
@@ -134,7 +135,7 @@ def PlotClusterLists(list_of_lists):
         cluster_arrays.append(zeros([xdim, ydim]))  # (r,c)
         for pixel in list_of_lists[cluster]:
             cluster_arrays[cluster][pixel[1]][pixel[2]] = int(pixel[0])
-    PlotListofClusterArraysColor(cluster_arrays, 1)
+    PlotListofClusterArraysColor3D(cluster_arrays, 1)
 
 def FindBestClusterCount(array_of_floats, min, max, step):
     print('Attempting to find optimal number of clusters, range:(' + str(min) + ', ' + str(max))
@@ -156,7 +157,7 @@ def FindBestClusterCount(array_of_floats, min, max, step):
     plt.title('Elbow method for K-Means Clustering on Pixels\nManually Record the desired K value\n')
     plt.show()
 
-def PlotListofClusterArraysColor(list_of_arrays, have_divides): #have_divides is 0 to not show, otherwise show
+def PlotListofClusterArraysColor3D(list_of_arrays, have_divides): #have_divides is 0 to not show, otherwise show
     'Takes a list of 2D arrays, each of which is a populated cluster, and plots then in 3d.'
     # Try 3D plot
     colors2 = plt.get_cmap('gist_rainbow')
@@ -184,23 +185,24 @@ def PlotListofClusterArraysColor(list_of_arrays, have_divides): #have_divides is
 
     if have_divides > 0:
         #HACK TODO(change from static-1600)
-        [xx, yy] = np.meshgrid([0,1600],[0,1600]) # Doing a grid with just the corners yields much better performance.
+        [xx, yy] = np.meshgrid([0, xdim], [0, ydim]) # Doing a grid with just the corners yields much better performance.
         for plane in range(len(list_of_arrays)-1):
-            ax.plot_surface(xx,yy,plane+.5, alpha=.05)
+            ax.plot_surface(xx, yy, plane+.5, alpha=.05)
     fig.tight_layout()
     plt.show()
 
-def PlotListofClusterArraysColor2D(list_of_arrays, markersize, **kwargs):
+def PlotListofClusterArraysColor2D(list_of_arrays, **kwargs):
     numbered = kwargs.get('numbered', False) # Output the pixel's blob id and order in the id list
+    # Note: Greatly increases draw time
     label_start_finish = kwargs.get('marked', False) # X on the first element of a blob, + on the last
-
-
+    figsize = kwargs.get('figsize', (32, 32))
+    markersize = kwargs.get('markersize', 30)
 
     colors2 = plt.get_cmap('gist_rainbow')
     num_clusters = len(list_of_arrays)
     cNorm = colortools.Normalize(vmin=0, vmax=num_clusters-1)
     scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
-    fig = plt.figure(figsize=(32,32)) # figsize=(x_inches, y_inches), default 80-dpi
+    fig = plt.figure(figsize=figsize) # figsize=(x_inches, y_inches), default 80-dpi
     plt.clf()
     ax = fig.add_subplot(111)
 
@@ -218,37 +220,47 @@ def PlotListofClusterArraysColor2D(list_of_arrays, markersize, **kwargs):
         if numbered:
             for lab in range(len(x)):
                 ax.annotate(str(c) + '.' + str(lab), xy=(x[lab], y[lab]))
-
         #plt.savefig("3D.png")
     fig.tight_layout()
     plt.savefig('temp/2D_Plot_of_Cluster_Arrays__' + timeNoSpaces() + '.png')
     plt.show()
 
-def AnimateClusterArraysGif(list_of_arrays, imagefile, draw_divides):
-    total_frames = 617 #1940 #HACK
+def AnimateClusterArraysGif(list_of_arrays, imagefile, **kwargs):
+    start_time = time.time()
+    draw_divides = kwargs.get('divides', False)
+    video_format = kwargs.get('format', 'MP4') # Either Mp4 or gif
+    video_format = video_format.lower()
+    figsize = kwargs.get('figsize', (8,4.5))
 
-    speed_scale = 1 # Default is 1 (normal speed), 2 = 2x speed, **must be int for now due to range()
-    total_frames = math.floor(total_frames / speed_scale)
+    ok_to_run = True
 
-    frame_offset = 615
+    if video_format != 'mp4' and video_format != 'gif':
+        print('INVALID VIDEO FORMAT PROVIDED:' + str(video_format))
+        ok_to_run = False
+    else:
+        total_frames = 617 #1940 #HACK
+        speed_scale = 1 # Default is 1 (normal speed), 2 = 2x speed, **must be int for now due to range()
+        total_frames = math.floor(total_frames / speed_scale)
+        frame_offset = 615
 
-    colors2 = plt.get_cmap('gist_rainbow')
-    num_clusters = len(list_of_arrays)
-    cNorm = colortools.Normalize(vmin=0, vmax=num_clusters-1)
-    scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
-    fig = plt.figure(figsize=(8,4.5), dpi=100) # figsize=(x_inches, y_inches), default 80-dpi
-    plt.clf()
-    ax = fig.add_subplot(111, projection='3d')
-    t0 = time.time()
+        colors2 = plt.get_cmap('gist_rainbow')
+        num_clusters = len(list_of_arrays)
+        cNorm = colortools.Normalize(vmin=0, vmax=num_clusters-1)
+        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
+        fig = plt.figure(figsize=figsize, dpi=100) # figsize=(x_inches, y_inches), default 80-dpi
+        plt.clf()
+        ax = fig.add_subplot(111, projection='3d')
+        t0 = time.time()
 
-    # DEBUG
-    # Frame continuitiny issues between frames:
-    # 620/621 # Changed to be % 270..
+        # DEBUG
+        # Frame continuitiny issues between frames:
+        # 620/621 # Changed to be % 270..
 
-    # NOTE making new directory for animation for organization:
-    animation_time_string = timeNoSpaces()
-    animation_folder = current_path + '\\temp\\' + animation_time_string
-    os.makedirs(animation_folder)
+        # NOTE making new directory for animation for organization:
+        animation_time_string = timeNoSpaces()
+        animation_folder = current_path + '\\temp\\' + animation_time_string
+        os.makedirs(animation_folder)
+
 
 
     def animate(i):
@@ -312,17 +324,17 @@ def AnimateClusterArraysGif(list_of_arrays, imagefile, draw_divides):
 
     def framesToGif(): # TODO convert to calling executable with: http://pastebin.com/JJ6ZuXdz
         # HACK
-        imagemagick_convert_exec = 'C:\\Program Files\\ImageMagick-6.9.1-Q8\\convert.exe'
+        # IMAGEMAGICK_CONVERT_EXEC = 'C:\\Program Files\\ImageMagick-6.9.1-Q8\\convert.exe'
         # HACK
         frame_names = animation_folder + '/*.png' # glob.glob('temp/*.png')
         #print('Frame names:' + str(frame_names))
         #frames = [Image.open(frame_name) for frame_name in frame_names]
-        imagex = 800
-        imagey = 450
+        imagex = 10 * figsize[0]
+        imagey = 10 * figsize[1]
         filename_out = (imagefile[-12:-4] + '_' + animation_time_string + '.gif')
         print('Now writing gif to:' + str(filename_out))
 
-        command = [imagemagick_convert_exec, "-delay", "0", "-size", str(imagex)+'x'+str(imagey)] + [frame_names] + [filename_out]
+        command = [IMAGEMAGICK_CONVERT_EXEC, "-delay", "0", "-size", str(imagex)+'x'+str(imagey)] + [frame_names] + [filename_out]
         t1 = time.time()
         m = math.floor((t1-t0) / 60)
         s = (t1-t0) % 60
@@ -339,11 +351,8 @@ def AnimateClusterArraysGif(list_of_arrays, imagefile, draw_divides):
         # TODO Adjust the percentages output by animate(i)
         # TODO Check the ram issue's source; see if theres a way to view usage via debug somehow within pycharm
         # TODO Remove Anaconda3(Safely)
-        # TODO
-        # TODO
-
-
         print('Done writing gif')
+
     def framesToGifOpenCV():
         frame_names = glob.glob('temp/*.png')
         print('Frame names:' + str(frame_names))
@@ -367,144 +376,28 @@ def AnimateClusterArraysGif(list_of_arrays, imagefile, draw_divides):
         # runShell()
         print('Done writing gif')
 
-    generateFrames()
-    framesToGif()
+    if ok_to_run:
+        if video_format == 'mp4':
+            for c in range(len(list_of_arrays)):
+                (x,y) = list_of_arrays[c].nonzero()
+                ax.scatter(x,y, c, zdir='z', c=scalarMap.to_rgba(c))
+            if draw_divides:
+                [xx, yy] = np.meshgrid([0, xdim],[0, ydim]) # Doing a grid with just the corners yields much better performance.
+                for plane in range(len(list_of_arrays)-1):
+                    ax.plot_surface(xx, yy, plane+.5, alpha=.05)
+
+            plt.title('Animation_of_ ' + str(imagefile[8:-4] + '.mp4'))
+            fig.tight_layout()
+            anim = animation.FuncAnimation(fig, animate, frames=total_frames, interval=20, blit=True) # 1100 = 360 + 360 + 360 + 30
+            print('Saving, start_time: ' + str(time.ctime()))
+            anim.save('Animation_of ' + str(imagefile[8:-4]) + '.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
+            end_time = time.time()
+            print('Time to save animation: ' + str(end_time - start_time))
+        elif video_format == 'gif':
+            generateFrames()
+            framesToGif()
+
+
+
     #framesToGifOpenCV()
     # GifImageMagick()
-
-def AnimateClusterArrays(list_of_arrays, imagefile, draw_divides): #Image file just used for name
-    'Takes a list of arrays, each of which is a populated cluster.'
-    start_time = time.time()
-    #Elev and azim are both in degrees
-    colors2 = plt.get_cmap('gist_rainbow')
-    num_clusters = len(list_of_arrays)
-    cNorm = colortools.Normalize(vmin=0, vmax=num_clusters-1)
-    scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
-    fig = plt.figure(figsize=(32,18), dpi=100) # figsize=(x_inches, y_inches), default 80-dpi
-    plt.clf()
-    ax = fig.add_subplot(111, projection='3d')
-    # ax.set_color_cycle([scalarMap.to_rgba(i) for i in range(num_clusters)])
-
-    #HACK TODO
-    total_frames = 1940
-    t0 = time.time()
-
-    def animate(i):
-        if (i%20 == 0):
-            curtime = time.time()
-            temp = curtime - t0
-            m = math.floor(temp / 60)
-            print('Done with: ' + str(i) + '/' + str(total_frames) +
-                  ' frames, = %.2f percent' % ((100 * i)/total_frames),end='')
-            print('. Elapsed Time: ' + str(m) + ' minutes & %.0f seconds' % (temp % 60))
-        if(i < 360): # Rotate 360 degrees around horizontal axis
-            ax.view_init(elev=10., azim=i) #There is also a dist which can be set
-        elif (i < 720):# 360 around vertical
-            ax.view_init(elev=(10+i)%360., azim=0) #Going over
-        elif (i < 1080):# 360 diagonal
-            ax.view_init(elev=(10+i)%360., azim=i%360) #There is also a dist which can be set
-        elif (i < 1100):# Quick rest
-            #Sit for a sec to avoid sudden stop
-            ax.view_init(elev=10., azim=0)
-        elif (i < 1250): # zoom in(to)
-            d = 13 - (i-1100)/15 # 13 because 0 is to zoomed, now has min zoom of 3
-            ax.dist = d
-        elif (i < 1790): #Spin from within, 540 degrees so reverse out backwards!
-            ax.view_init(elev=(10+i-1250.), azim=0) #Going over
-            ax.dist = 1
-        else: # zoom back out(through non-penetrated side)
-            d = 3 + (i-1790)/15
-            ax.dist = d
-
-    # Performance Increasers:
-    ax.set_xlim([0, xdim])
-    ax.set_ylim([ydim, 0])
-    ax.set_zlim([0, num_clusters])
-    # ax.view_init(elev=10., azim=0) #There is also a dist which can be set
-    # ax.dist = 3 # Default is 10
-
-    for c in range(len(list_of_arrays)):
-        (x,y) = list_of_arrays[c].nonzero()
-        ax.scatter(x,y, c, zdir='z', c=scalarMap.to_rgba(c))
-    if draw_divides != 0:
-        [xx, yy] = np.meshgrid([0, 1600],[0, 1600]) # Doing a grid with just the corners yields much better performance.
-        for plane in range(len(list_of_arrays)-1):
-            ax.plot_surface(xx, yy, plane+.5, alpha=.05)
-
-    plt.title('KMeans Clustering with 20 bins on ' + str(imagefile[8:-4] + '.mp4'))
-    fig.tight_layout()
-
-    anim = animation.FuncAnimation(fig, animate, frames=total_frames, interval=20, blit=True) # 1100 = 360 + 360 + 360 + 30
-
-    print('Saving, start_time: ' + str(time.ctime()))
-    anim.save('Animation of ' + str(imagefile[8:-4]) + '.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
-    end_time = time.time()
-    print('Time to save animation: ' + str(end_time - start_time))
-
-# Note that these last methods are not exclusively meant for drawing, but for now fulfill only that function
-def MeanShiftCluster(array_in):
-    'Does mean shift clustering on an array of max_points, does NOT take lists'
-    #Trying another type of clustering
-    #Largely copied from: http://scikit-learn.org/stable/auto_examples/cluster/plot_mean_shift.html
-    bandwidth = estimate_bandwidth(array_in, quantile=0.2, n_samples=500)
-    ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
-    ms.fit(array_in)
-    labels = ms.labels_
-    cluster_centers = ms.cluster_centers_
-    labels_unique = np.unique(labels)
-    n_clusters_ = len(labels_unique)
-    print("number of estimated clusters : %d" % n_clusters_)
-
-    #PLOTTING THE RESULT
-    plt.figure(2)
-    plt.clf()
-    colors = cycle('bgrcmykbgrcmykbgrcmykbgrcmyk')
-    for k, col in zip(range(n_clusters_), colors):
-        my_members = labels == k
-        cluster_center = cluster_centers[k]
-        avoid_output = plt.plot(max_pixel_array_floats[my_members, 1], max_pixel_array_floats[my_members, 2], col + '.')
-        avoid_output2 = plt.plot(cluster_center[0], cluster_center[1], 'o', markerfacecolor=col,
-                 markeredgecolor='k', markersize=14)
-    plt.title('Estimated number of clusters: %d' % n_clusters_)
-    plt.figure.tight_layout()
-    plt.show()
-
-def AffinityPropagationCluster(array_in):
-    af = AffinityPropagation(preference=-50).fit(array_in)
-    cluster_centers_indices = af.cluster_centers_indices_
-    labels = af.labels_
-    n_clusters_ = len(cluster_centers_indices)
-    print('Estimated number of clusters: %d' % n_clusters_)
-    # print("Homogeneity: %0.3f" % metrics.homogeneity_score(labels_true, labels))
-    # print("Completeness: %0.3f" % metrics.completeness_score(labels_true, labels))
-    # print("V-measure: %0.3f" % metrics.v_measure_score(labels_true, labels))
-    # print("Adjusted Rand Index: %0.3f"
-    #       % metrics.adjusted_rand_score(labels_true, labels))
-    # print("Adjusted Mutual Information: %0.3f"
-    #       % metrics.adjusted_mutual_info_score(labels_true, labels))
-    print("Silhouette Coefficient: %0.3f"
-          % metrics.silhouette_score(array_in, labels, metric='sqeuclidean'))
-    #Plot results
-    # plt.close('all')
-    plt.figure()
-    plt.clf()
-
-    colors = cycle('bgrcmykbgrcmykbgrcmykbgrcmyk')
-    for k, col in zip(range(n_clusters_), colors):
-        class_members = labels == k
-        cluster_center = array_in[cluster_centers_indices[k]]
-        plt.plot(array_in[class_members, 1], array_in[class_members, 2], col + '.')
-        plt.plot(cluster_center[1], cluster_center[2], 'o', markerfacecolor=col,
-                 markeredgecolor='k', markersize=14)
-        for x in array_in[class_members]:
-            plt.plot([cluster_center[0], x[0]], [cluster_center[1], x[1]], col)
-
-    plt.title('Estimated number of clusters: %d' % n_clusters_)
-
-    plt.show()
-    # TODO NOTE that this process takes 9GB ram for 1M points, and that the demo was only on 300..
-    # TODO Took 15 Minutes before estimating the # of clusters, unloading 5GB of RAM,  then encountering an invalid value by getting the mean of an empty slice
-    #   IE, this method isn't scalable to use on an entire image of 2.56M pixels..
-    #   Perhaps can use K-Means to reduce the points, and then do secondary clustering with above/else?
-    #   If the k-means was done loosely, it would have the effect of grouping pixels into neighborhoods
-

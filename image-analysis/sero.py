@@ -5,7 +5,7 @@ __author__ = 'gio'
 # import matplotlib
 
 
-from scipy.cluster.vq import vq, kmeans, whiten, kmeans2
+
 
 import sys
 import collections
@@ -23,13 +23,6 @@ import code
 import rlcompleter
 
 
-
-
-
-
-
-
-
 def setglobaldims(x, y, z):
     def setserodims(x, y, z):
         global xdim
@@ -40,6 +33,7 @@ def setglobaldims(x, y, z):
         zdim = z
     setserodims(x, y, z) # Need both calls, one to set the global vars in each file, otherwise they don't carry
     setseerodrawdims(x, y, z) # Even when using 'global'; one method needs to be in each file
+
 
 class Pixel:
     '''
@@ -133,8 +127,6 @@ def filterSparsePixelsFromList(listin):
     return filtered_pixels
 
 
-
-
 def KMeansClusterIntoLists(listin, num_clusters):
 
     def doClustering(array_in, num_clusters):
@@ -156,25 +148,29 @@ def KMeansClusterIntoLists(listin, num_clusters):
     return doClustering(tuple_array, num_clusters)
 
 
-def getIdArrays(pixels, id_count):
+def getIdArrays(pixels, id_counts):
     '''
     Returns a list of filled arrays, each of which corresponding to an id
     '''
     id_arrays = []  # Each entry is an array, filled only with the maximal values from the corresponding
-    for id in range(id_count): # Supposedly up to 2.5x faster than using numpy's .tolist()
+    for id in range(len(id_counts)): # Supposedly up to 2.5x faster than using numpy's .tolist()
         id_arrays.append(zeros([xdim, ydim]))  # (r,c)
+
+    # debug()
+
+
     if remap_ids_by_group_size:
-        remap = [None] * (id_count)
-        for id in range(id_count): # Supposedly up to 2.5x faster than using numpy's .tolist()
-            remap[id_count[id][0]] = id
+        remap = [None] * len(id_counts)
+        for id in range(len(id_counts)): # Supposedly up to 2.5x faster than using numpy's .tolist()
+            remap[id_counts[id][0]] = id
         for pixel in pixels:
             id_arrays[remap[pixel.blob_id]][pixel.x][pixel.y] = int(pixel.val)
     else:
         for pixel in pixels:
             #
             # DEBUG
-            if pixel.blob_id >= id_count:
-                print('db' + str(pixel))
+            if pixel.blob_id >= id_counts:
+                print('DEBUG: About to fail:' + str(pixel))
             id_arrays[pixel.blob_id][pixel.x][pixel.y] = int(pixel.val)
     return id_arrays
 
@@ -388,10 +384,7 @@ def main():
         #PlotClusterLists(KMeansClusterIntoLists(max_pixel_list, 20))
 
         alive_pixels = filterSparsePixelsFromList(max_pixel_list)
-        alive_pixels.sort() # Sorted here so that still in order
-
-
-
+        alive_pixels.sort() # Sorted here so that in y,x order instead of value order
 
         (derived_ids, derived_count, num_ids_equiv) = firstPass(alive_pixels)
 
@@ -406,10 +399,9 @@ def main():
         most_common_ids = counter.most_common()# HACK Grabbing all for now, +1 b/c we start at 0 # NOTE Stored as (id, count)
         top_common_id_count = len(most_common_ids)# HACK HACK HACK
         #print('tcidc:' + str(top_common_id_count))
-        id_arrays = getIdArrays(alive_pixels, top_common_id_count)
+        id_arrays = getIdArrays(alive_pixels, most_common_ids)
 
-
-        PlotListofClusterArraysColor2D(id_arrays, 30)# , numbered=True)
+        PlotListofClusterArraysColor2D(id_arrays, numbered=True)
 
         #PlotListofClusterArraysColor(id_arrays, 0)
         pdb.set_trace()
