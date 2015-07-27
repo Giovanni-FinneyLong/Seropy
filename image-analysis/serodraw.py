@@ -36,10 +36,10 @@ xdim = -1
 ydim = -1
 zdim = -1
 
-debug_pixel_ops = False
+debug_pixel_ops = True
 remap_ids_by_group_size = False
 test_instead_of_data = True
-debug_pixel_ops_y_depth = 5
+debug_pixel_ops_y_depth = 500
 
 min_val_threshold = 250
 max_val_step = 5 # The maximim amount that two neighboring pixels can differ in val and be grouped by blob_id
@@ -194,8 +194,6 @@ def PlotListofClusterArraysColor2D(list_of_arrays, markersize):
     plt.clf()
     ax = fig.add_subplot(111)
 
-    print('xdim:' + str(xdim))
-    print('ydim:' + str(ydim))
     ax.set_xlim([0, xdim])
     ax.set_ylim([ydim, 0])
 
