@@ -34,6 +34,22 @@ def setglobaldims(x, y, z):
     setserodims(x, y, z) # Need both calls, one to set the global vars in each file, otherwise they don't carry
     setseerodrawdims(x, y, z) # Even when using 'global'; one method needs to be in each file
 
+class Blob2d:
+    '''
+    This class contains a list of pixels, which comprise a 2d blob on a single image
+    '''
+    def __init__(self, idnum, list_of_pixels):
+        self.id = idnum
+        self.pixels = list_of_pixels
+        self.edge_pixels = [] # TODO set using a function
+        self.touching_blobs = [] # TODO
+        self.center = (-1, -1) # TODO
+        self.max_width = -1 # TODO
+        self.min_width = -1 # TODO
+        self.max_height = -1 # TODO
+        self.min_height = -1 # TODO
+
+
 
 class Pixel:
     '''
@@ -150,14 +166,9 @@ def KMeansClusterIntoLists(listin, num_clusters):
 
 def getIdArrays(pixels, id_counts):
     '''
-    Returns a list of filled arrays, each of which corresponding to an id
+    Returns a list of filled arrays, each of which corresponds to an id. If remapped, the first array is most dense
     '''
-    id_arrays = []  # Each entry is an array, filled only with the maximal values from the corresponding
-    for id in range(len(id_counts)): # Supposedly up to 2.5x faster than using numpy's .tolist()
-        id_arrays.append(zeros([xdim, ydim]))  # (r,c)
-
-    # debug()
-
+    id_arrays = [zeros([xdim, ydim]) for _ in range(len(id_counts))]  # Each entry is an (r,c) array, filled only with the maximal values from the corresponding
 
     if remap_ids_by_group_size:
         remap = [None] * len(id_counts)
@@ -167,12 +178,28 @@ def getIdArrays(pixels, id_counts):
             id_arrays[remap[pixel.blob_id]][pixel.x][pixel.y] = int(pixel.val)
     else:
         for pixel in pixels:
-            #
-            # DEBUG
             if pixel.blob_id >= id_counts:
                 print('DEBUG: About to fail:' + str(pixel))
             id_arrays[pixel.blob_id][pixel.x][pixel.y] = int(pixel.val)
     return id_arrays
+
+def getIdLists(pixels, id_counts):
+    '''
+    Returns a list of lists, each of which corresponds to an id. If remapped, the first list is the largest
+    '''
+    id_lists = [[] for i in range(len(id_counts))]
+    if remap_ids_by_group_size:
+        remap = [None] * len(id_counts)
+        for id in range(len(id_counts)): # Supposedly up to 2.5x faster than using numpy's .tolist()
+            remap[id_counts[id][0]] = id
+        for pixel in pixels:
+            id_lists[remap[pixel.blob_id]].append(pixel)
+    else:
+        for pixel in pixels:
+            if pixel.blob_id >= id_counts:
+                print('DEBUG: About to fail:' + str(pixel))
+            id_lists[pixel.blob_id].append(pixel)
+    return id_lists
 
 
 def firstPass(pixel_list):
@@ -401,17 +428,16 @@ def main():
         #print('tcidc:' + str(top_common_id_count))
         id_arrays = getIdArrays(alive_pixels, most_common_ids)
 
-        PlotListofClusterArraysColor2D(id_arrays, numbered=True)
+        PlotListofClusterArraysColor2D(id_arrays) #, numbered=True)
 
         #PlotListofClusterArraysColor(id_arrays, 0)
         pdb.set_trace()
 
+        # NOTE NOTE WHat if used clustering (ex k means, or something that can adjust the weights on atributes easily), on the centers (and maybe total pixels or width etc..?), to relate the blobs most effectively across slides?
+        # In such an approach, would probably want to ignore the z dimension, so that there is no reason to group blobs on the same level.. Perhaps a kernel approach using a slide might help?
 
-        # AnimateClusterArraysGif(id_arrays, imagefile, 0)
+        # Otherwise maybe manually derive relationships and tag, and then feed into ml?
 
-
-
-        # TODO NOTICED THAT BOTTOM LEFT CORNER IS THE ORIGIN IN PYPLOT, whereas I expected it to be in the top left like in images
 
 
 

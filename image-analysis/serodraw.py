@@ -300,7 +300,7 @@ def AnimateClusterArraysGif(list_of_arrays, imagefile, **kwargs):
         ax.set_zlim([0, num_clusters])
 
         for c in range(len(list_of_arrays)):
-            (x,y) = list_of_arrays[c].nonzero()
+            (x, y) = list_of_arrays[c].nonzero()
             ax.scatter(x, y, c, zdir='z', c=scalarMap.to_rgba(c))
         if draw_divides != 0:
             [xx, yy] = np.meshgrid([0, 1600],[0, 1600]) # Doing a grid with just the corners yields much better performance.
@@ -353,19 +353,6 @@ def AnimateClusterArraysGif(list_of_arrays, imagefile, **kwargs):
         # TODO Remove Anaconda3(Safely)
         print('Done writing gif')
 
-    def framesToGifOpenCV():
-        frame_names = glob.glob('temp/*.png')
-        print('Frame names:' + str(frame_names))
-        frames = [Image.open(frame_name) for frame_name in frame_names]
-        print('Now writing gif')
-        filename = imagefile[-12:-4] + '.gif'
-        width = 800
-        height = 450
-
-        video = cv2.VideoWriter(filename,
-                                -1, # Manual codec selection
-                                10, #FPS
-                                (width, height))
     def GifImageMagick():
         print('Generating image-magick anim')
         anim = animation.FuncAnimation(fig, animate, frames=total_frames, interval=20, blit=True) # 1100 = 360 + 360 + 360 + 30
@@ -397,7 +384,3 @@ def AnimateClusterArraysGif(list_of_arrays, imagefile, **kwargs):
             generateFrames()
             framesToGif()
 
-
-
-    #framesToGifOpenCV()
-    # GifImageMagick()
