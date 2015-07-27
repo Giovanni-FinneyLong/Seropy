@@ -30,7 +30,7 @@
     <SUITE FILE_PATH="coverage/serotonin$detect_blobs.coverage" NAME="detect_blobs Coverage Results" MODIFIED="1434000589702" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/python" />
     <SUITE FILE_PATH="coverage/serotonin$timer.coverage" NAME="timer Coverage Results" MODIFIED="1437357673907" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/image-analysis" />
     <SUITE FILE_PATH="coverage/serotonin$plot_blob.coverage" NAME="plot_blob Coverage Results" MODIFIED="1434001030431" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/python" />
-    <SUITE FILE_PATH="coverage/serotonin$sero.coverage" NAME="sero Coverage Results" MODIFIED="1438028957291" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/image-analysis" />
+    <SUITE FILE_PATH="coverage/serotonin$sero.coverage" NAME="sero Coverage Results" MODIFIED="1438033045178" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/image-analysis" />
   </component>
   <component name="CreatePatchCommitExecutor">
     <option name="PATCH_PATH" value="" />
@@ -47,31 +47,39 @@
   </component>
   <component name="FileEditorManager">
     <leaf>
-      <file leaf-file-name="sero.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="sero.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/image-analysis/sero.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="-11.75862">
-              <caret line="395" column="34" selection-start-line="395" selection-start-column="34" selection-end-line="395" selection-end-column="34" />
+            <state vertical-scroll-proportion="0.5596708">
+              <caret line="59" column="40" selection-start-line="59" selection-start-column="40" selection-end-line="59" selection-end-column="40" />
               <folding>
                 <element signature="e#79#89#0" expanded="true" />
                 <element signature="e#450#792#0" expanded="false" />
-                <element signature="e#812#3097#0" expanded="false" />
-                <element signature="e#3144#5048#0" expanded="false" />
-                <element signature="e#5106#6154#0" expanded="false" />
-                <element signature="e#7182#16359#0" expanded="false" />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="serodraw.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="serodraw.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/image-analysis/serodraw.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="2.003996">
-              <caret line="202" column="84" selection-start-line="202" selection-start-column="84" selection-end-line="202" selection-end-column="84" />
+            <state vertical-scroll-proportion="-16.034483">
+              <caret line="302" column="14" selection-start-line="302" selection-start-column="14" selection-end-line="302" selection-end-column="14" />
               <folding>
                 <element signature="e#210#267#0" expanded="true" />
+                <element signature="e#4147#5053#0" expanded="false" />
+                <element signature="e#9548#10917#0" expanded="false" />
               </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="config.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/image-analysis/config.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state vertical-scroll-proportion="0.0">
+              <caret line="4" column="45" selection-start-line="4" selection-start-column="45" selection-end-line="4" selection-end-column="45" />
+              <folding />
             </state>
           </provider>
         </entry>
@@ -100,8 +108,9 @@
         <option value="$PROJECT_DIR$/image-analysis/__init__.py" />
         <option value="$PROJECT_DIR$/image-analysis/Scripts/images2gif.py" />
         <option value="$PROJECT_DIR$/image-analysis/timer.py" />
-        <option value="$PROJECT_DIR$/image-analysis/sero.py" />
+        <option value="$PROJECT_DIR$/image-analysis/config.py" />
         <option value="$PROJECT_DIR$/image-analysis/serodraw.py" />
+        <option value="$PROJECT_DIR$/image-analysis/sero.py" />
       </list>
     </option>
   </component>
@@ -208,7 +217,7 @@
     <property name="settings.editor.selected.configurable" value="pyconsole" />
     <property name="settings.editor.splitter.proportion" value="0.2" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$/../LSA" />
-    <property name="SearchEverywhereHistoryKey" value="&#9;FILE&#9;file://C:/Users/gio/Documents/Programming/serotonin/data/Swellshark_Adult_012615_TEL1s1_DorsalPallium_5-HT_CollagenIV_60X_C003Z001.tif" />
+    <property name="SearchEverywhereHistoryKey" value="&#9;FILE&#9;file://C:/Users/gio/Documents/Programming/serotonin/image-analysis/serodraw.py" />
   </component>
   <component name="PyConsoleOptionsProvider">
     <option name="myPythonConsoleState">
@@ -581,21 +590,11 @@
           </properties>
         </breakpoint>
       </default-breakpoints>
-      <option name="time" value="11" />
+      <option name="time" value="12" />
     </breakpoint-manager>
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/image-analysis/serodraw.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.0">
-          <caret line="142" column="61" selection-start-line="142" selection-start-column="61" selection-end-line="142" selection-end-column="61" />
-          <folding>
-            <element signature="e#210#267#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/image-analysis/Scripts/images2gif.py">
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0">
@@ -619,10 +618,6 @@
           <folding>
             <element signature="e#79#89#0" expanded="true" />
             <element signature="e#450#792#0" expanded="false" />
-            <element signature="e#812#3097#0" expanded="false" />
-            <element signature="e#3144#5048#0" expanded="false" />
-            <element signature="e#5106#6154#0" expanded="false" />
-            <element signature="e#7182#16359#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -633,6 +628,8 @@
           <caret line="236" column="36" selection-start-line="236" selection-start-column="36" selection-end-line="236" selection-end-column="36" />
           <folding>
             <element signature="e#210#267#0" expanded="true" />
+            <element signature="e#4147#5053#0" expanded="false" />
+            <element signature="e#9548#10917#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -652,10 +649,6 @@
           <folding>
             <element signature="e#79#89#0" expanded="true" />
             <element signature="e#450#792#0" expanded="false" />
-            <element signature="e#812#3097#0" expanded="false" />
-            <element signature="e#3144#5048#0" expanded="false" />
-            <element signature="e#5106#6154#0" expanded="false" />
-            <element signature="e#7182#16359#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -674,10 +667,6 @@
           <folding>
             <element signature="e#79#89#0" expanded="true" />
             <element signature="e#450#792#0" expanded="false" />
-            <element signature="e#812#3097#0" expanded="false" />
-            <element signature="e#3144#5048#0" expanded="false" />
-            <element signature="e#5106#6154#0" expanded="false" />
-            <element signature="e#7182#16359#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -696,10 +685,6 @@
           <folding>
             <element signature="e#79#89#0" expanded="true" />
             <element signature="e#450#792#0" expanded="false" />
-            <element signature="e#812#3097#0" expanded="false" />
-            <element signature="e#3144#5048#0" expanded="false" />
-            <element signature="e#5106#6154#0" expanded="false" />
-            <element signature="e#7182#16359#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -725,10 +710,6 @@
           <folding>
             <element signature="e#79#89#0" expanded="true" />
             <element signature="e#450#792#0" expanded="false" />
-            <element signature="e#812#3097#0" expanded="false" />
-            <element signature="e#3144#5048#0" expanded="false" />
-            <element signature="e#5106#6154#0" expanded="false" />
-            <element signature="e#7182#16359#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -747,10 +728,6 @@
           <folding>
             <element signature="e#79#89#0" expanded="true" />
             <element signature="e#450#792#0" expanded="false" />
-            <element signature="e#812#3097#0" expanded="false" />
-            <element signature="e#3144#5048#0" expanded="false" />
-            <element signature="e#5106#6154#0" expanded="false" />
-            <element signature="e#7182#16359#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -769,10 +746,6 @@
           <folding>
             <element signature="e#79#89#0" expanded="true" />
             <element signature="e#450#792#0" expanded="false" />
-            <element signature="e#812#3097#0" expanded="false" />
-            <element signature="e#3144#5048#0" expanded="false" />
-            <element signature="e#5106#6154#0" expanded="false" />
-            <element signature="e#7182#16359#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -791,10 +764,6 @@
           <folding>
             <element signature="e#79#89#0" expanded="true" />
             <element signature="e#450#792#0" expanded="false" />
-            <element signature="e#812#3097#0" expanded="false" />
-            <element signature="e#3144#5048#0" expanded="false" />
-            <element signature="e#5106#6154#0" expanded="false" />
-            <element signature="e#7182#16359#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -813,10 +782,6 @@
           <folding>
             <element signature="e#79#89#0" expanded="true" />
             <element signature="e#450#792#0" expanded="false" />
-            <element signature="e#812#3097#0" expanded="false" />
-            <element signature="e#3144#5048#0" expanded="false" />
-            <element signature="e#5106#6154#0" expanded="false" />
-            <element signature="e#7182#16359#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -842,10 +807,6 @@
           <folding>
             <element signature="e#79#89#0" expanded="true" />
             <element signature="e#450#792#0" expanded="false" />
-            <element signature="e#812#3097#0" expanded="false" />
-            <element signature="e#3144#5048#0" expanded="false" />
-            <element signature="e#5106#6154#0" expanded="false" />
-            <element signature="e#7182#16359#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -864,10 +825,6 @@
           <folding>
             <element signature="e#79#89#0" expanded="true" />
             <element signature="e#450#792#0" expanded="false" />
-            <element signature="e#812#3097#0" expanded="false" />
-            <element signature="e#3144#5048#0" expanded="false" />
-            <element signature="e#5106#6154#0" expanded="false" />
-            <element signature="e#7182#16359#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -879,10 +836,6 @@
           <folding>
             <element signature="e#79#89#0" expanded="true" />
             <element signature="e#450#792#0" expanded="false" />
-            <element signature="e#812#3097#0" expanded="false" />
-            <element signature="e#3144#5048#0" expanded="false" />
-            <element signature="e#5106#6154#0" expanded="false" />
-            <element signature="e#7182#16359#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -894,10 +847,6 @@
           <folding>
             <element signature="e#79#89#0" expanded="true" />
             <element signature="e#450#792#0" expanded="false" />
-            <element signature="e#812#3097#0" expanded="false" />
-            <element signature="e#3144#5048#0" expanded="false" />
-            <element signature="e#5106#6154#0" expanded="false" />
-            <element signature="e#7182#16359#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -916,10 +865,6 @@
           <folding>
             <element signature="e#79#89#0" expanded="true" />
             <element signature="e#450#792#0" expanded="false" />
-            <element signature="e#812#3097#0" expanded="false" />
-            <element signature="e#3144#5048#0" expanded="false" />
-            <element signature="e#5106#6154#0" expanded="false" />
-            <element signature="e#7182#16359#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -938,10 +883,6 @@
           <folding>
             <element signature="e#79#89#0" expanded="true" />
             <element signature="e#450#792#0" expanded="false" />
-            <element signature="e#812#3097#0" expanded="false" />
-            <element signature="e#3144#5048#0" expanded="false" />
-            <element signature="e#5106#6154#0" expanded="false" />
-            <element signature="e#7182#16359#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -953,10 +894,6 @@
           <folding>
             <element signature="e#79#89#0" expanded="true" />
             <element signature="e#450#792#0" expanded="false" />
-            <element signature="e#812#3097#0" expanded="false" />
-            <element signature="e#3144#5048#0" expanded="false" />
-            <element signature="e#5106#6154#0" expanded="false" />
-            <element signature="e#7182#16359#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -968,10 +905,6 @@
           <folding>
             <element signature="e#79#89#0" expanded="true" />
             <element signature="e#450#792#0" expanded="false" />
-            <element signature="e#812#3097#0" expanded="false" />
-            <element signature="e#3144#5048#0" expanded="false" />
-            <element signature="e#5106#6154#0" expanded="false" />
-            <element signature="e#7182#16359#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -1075,27 +1008,33 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/image-analysis/sero.py">
+    <entry file="file://$PROJECT_DIR$/image-analysis/config.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="-11.75862">
-          <caret line="395" column="34" selection-start-line="395" selection-start-column="34" selection-end-line="395" selection-end-column="34" />
-          <folding>
-            <element signature="e#79#89#0" expanded="true" />
-            <element signature="e#450#792#0" expanded="false" />
-            <element signature="e#812#3097#0" expanded="false" />
-            <element signature="e#3144#5048#0" expanded="false" />
-            <element signature="e#5106#6154#0" expanded="false" />
-            <element signature="e#7182#16359#0" expanded="false" />
-          </folding>
+        <state vertical-scroll-proportion="0.0">
+          <caret line="4" column="45" selection-start-line="4" selection-start-column="45" selection-end-line="4" selection-end-column="45" />
+          <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/image-analysis/serodraw.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="2.003996">
-          <caret line="202" column="84" selection-start-line="202" selection-start-column="84" selection-end-line="202" selection-end-column="84" />
+        <state vertical-scroll-proportion="-16.034483">
+          <caret line="302" column="14" selection-start-line="302" selection-start-column="14" selection-end-line="302" selection-end-column="14" />
           <folding>
             <element signature="e#210#267#0" expanded="true" />
+            <element signature="e#4147#5053#0" expanded="false" />
+            <element signature="e#9548#10917#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/image-analysis/sero.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.5596708">
+          <caret line="59" column="40" selection-start-line="59" selection-start-column="40" selection-end-line="59" selection-end-column="40" />
+          <folding>
+            <element signature="e#79#89#0" expanded="true" />
+            <element signature="e#450#792#0" expanded="false" />
           </folding>
         </state>
       </provider>
