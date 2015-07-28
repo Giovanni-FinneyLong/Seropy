@@ -3,16 +3,8 @@
   <component name="ChangeListManager">
     <list default="true" id="d8b3db7c-4a3d-4141-a418-500507867cf8" name="Default" comment="">
       <change type="DELETED" beforePath="C:\Users\gio\Documents\Programming\LSA\README" afterPath="" />
-      <change type="DELETED" beforePath="C:\Users\gio\Documents\Programming\serotonin\Readme-Visuals\Animation_of_Pixel_Ops_Ids,_one_sweep_'C003Z001.gif" afterPath="" />
-      <change type="DELETED" beforePath="C:\Users\gio\Documents\Programming\serotonin\Readme-Visuals\KMeans_SwellShark1_Color_bins=20.png" afterPath="" />
-      <change type="DELETED" beforePath="C:\Users\gio\Documents\Programming\serotonin\Readme-Visuals\Pixel_Ops_Results_Swell1_500ids_remapped-by-ID-size_red-largest.png" afterPath="" />
-      <change type="DELETED" beforePath="C:\Users\gio\Documents\Programming\serotonin\Readme-Visuals\Pixel_Ops_Results_of_grouping_Swell1_500ids.png" afterPath="" />
-      <change type="DELETED" beforePath="C:\Users\gio\Documents\Programming\serotonin\Readme-Visuals\Swell1_Kmeans20.gif" afterPath="" />
-      <change type="DELETED" beforePath="C:\Users\gio\Documents\Programming\serotonin\image-analysis\tests\cache\test1.png" afterPath="" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../LSA/LSA.py" afterPath="$PROJECT_DIR$/../LSA/LSA.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../LSA/runner.py" afterPath="$PROJECT_DIR$/../LSA/runner.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/image-analysis/sero.py" afterPath="$PROJECT_DIR$/image-analysis/sero.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/image-analysis/serodraw.py" afterPath="$PROJECT_DIR$/image-analysis/serodraw.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
     </list>
     <ignored path="serotonin.iws" />
@@ -50,8 +42,8 @@
       <file leaf-file-name="sero.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/image-analysis/sero.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.5596708">
-              <caret line="59" column="40" selection-start-line="59" selection-start-column="40" selection-end-line="59" selection-end-column="40" />
+            <state vertical-scroll-proportion="0.41958043">
+              <caret line="50" column="0" selection-start-line="50" selection-start-column="0" selection-end-line="50" selection-end-column="0" />
               <folding>
                 <element signature="e#79#89#0" expanded="true" />
                 <element signature="e#450#792#0" expanded="false" />
@@ -122,8 +114,8 @@
     <order />
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="-8" />
-    <option name="y" value="-8" />
+    <option name="x" value="-221" />
+    <option name="y" value="1037" />
     <option name="width" value="2576" />
     <option name="height" value="1416" />
   </component>
@@ -543,7 +535,7 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="-8" y="-8" width="2576" height="1416" extended-state="6" />
+    <frame x="-221" y="1037" width="2576" height="1416" extended-state="0" />
     <editor active="true" />
     <layout>
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.052861687" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
@@ -1030,8 +1022,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/image-analysis/sero.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.5596708">
-          <caret line="59" column="40" selection-start-line="59" selection-start-column="40" selection-end-line="59" selection-end-column="40" />
+        <state vertical-scroll-proportion="0.41958043">
+          <caret line="50" column="0" selection-start-line="50" selection-start-column="0" selection-end-line="50" selection-end-column="0" />
           <folding>
             <element signature="e#79#89#0" expanded="true" />
             <element signature="e#450#792#0" expanded="false" />
