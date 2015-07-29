@@ -125,17 +125,24 @@ def PlotMatrixTrio(m1, m2, m3):
     ax3.spy(m3, markersize=1, aspect='auto', origin='lower')
     plt.show()
 
-def PlotClusterLists(list_of_lists):
+def PlotClusterLists(list_of_lists, **kwargs):
     '''
     Takes a list of lists, each list is a the pixels of the corresponding cluster
     '''
-    cluster_count = len(list_of_lists)
-    cluster_arrays = []  # Each entry is an array, filled only with the maximal values from the corresponding
-    for cluster in range(cluster_count):
-        cluster_arrays.append(zeros([xdim, ydim]))  # (r,c)
-        for pixel in list_of_lists[cluster]:
-            cluster_arrays[cluster][pixel[1]][pixel[2]] = int(pixel[0])
-    PlotListofClusterArraysColor3D(cluster_arrays, 1)
+    dimensions = kwargs.get('dim', '2D').lower()
+    if (dimensions != '2d' and dimensions != '3d'):
+        print('ERROR, dimensions must be 2d or 3d!!!!!')
+    else:
+        cluster_count = len(list_of_lists)
+        cluster_arrays = []  # Each entry is an array, filled only with the maximal values from the corresponding
+        for cluster in range(cluster_count):
+            cluster_arrays.append(zeros([xdim, ydim]))  # (r,c)
+            for pixel in list_of_lists[cluster]:
+                cluster_arrays[cluster][pixel.x][pixel.y] = int(pixel.val)
+        if dimensions == '2d':
+            PlotListofClusterArraysColor2D(cluster_arrays, **kwargs)
+        else:
+            PlotListofClusterArraysColor3D(cluster_arrays, 1)
 
 def FindBestClusterCount(array_of_floats, min, max, step):
     print('Attempting to find optimal number of clusters, range:(' + str(min) + ', ' + str(max))
@@ -169,13 +176,11 @@ def PlotListofClusterArraysColor3D(list_of_arrays, have_divides): #have_divides 
     ax = fig.add_subplot(111, projection='3d')
     # ax.set_color_cycle([scalarMap.to_rgba(i) for i in range(num_clusters)])
 
-    #TODO Below are tests to see if there is performance improvement when visualizing plots.
     ax.set_xlim([0, xdim])
     ax.set_ylim([ydim, 0])
     ax.set_zlim([0, num_clusters])
     ax.view_init(elev=10., azim=0) #There is also a dist which can be set
     ax.dist = 8 # Default is 10, 0 is too low..
-    ###END TODO
 
 
     for c in range(num_clusters):
@@ -184,7 +189,6 @@ def PlotListofClusterArraysColor3D(list_of_arrays, have_divides): #have_divides 
         #plt.savefig("3D.png")
 
     if have_divides > 0:
-        #HACK TODO(change from static-1600)
         [xx, yy] = np.meshgrid([0, xdim], [0, ydim]) # Doing a grid with just the corners yields much better performance.
         for plane in range(len(list_of_arrays)-1):
             ax.plot_surface(xx, yy, plane+.5, alpha=.05)
@@ -193,7 +197,7 @@ def PlotListofClusterArraysColor3D(list_of_arrays, have_divides): #have_divides 
 
 def PlotListofClusterArraysColor2D(list_of_arrays, **kwargs):
     numbered = kwargs.get('numbered', False) # Output the pixel's blob id and order in the id list
-    # Note: Greatly increases draw time
+    # Note: Numbering greatly increase draw time
     label_start_finish = kwargs.get('marked', False) # X on the first element of a blob, + on the last
     figsize = kwargs.get('figsize', (32, 32))
     markersize = kwargs.get('markersize', 30)

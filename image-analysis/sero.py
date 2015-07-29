@@ -38,17 +38,57 @@ class Blob2d:
     '''
     This class contains a list of pixels, which comprise a 2d blob on a single image
     '''
-    def __init__(self, idnum, list_of_pixels):
+    def __init__(self, idnum, list_of_pixels, master_array):
         self.id = idnum
         self.pixels = list_of_pixels
-        self.edge_pixels = [] # TODO set using a function
+        self.num_pixels = len(list_of_pixels)
+        sum_vals = 0
+        self.avgx = 0
+        self.avgy = 0
+        self.sum_vals = 0
+        # TODO make sure the list is sorted
+        minx = list_of_pixels[0].x
+        miny = list_of_pixels[0].y
+        maxx = minx
+        maxy = miny
+        min_nzn_pixel = list_of_pixels[0]
+        for pixel in list_of_pixels:
+            self.sum_vals += pixel.val
+            self.avgx += pixel.x
+            self.avgy += pixel.y
+            if pixel.x < minx:
+                minx = pixel.x
+            if pixel.y <= miny:
+                miny = pixel.y
+            if pixel.x > maxx:
+                maxx = pixel.x
+            if pixel.y > maxy:
+                maxy = pixel.y
+            if pixel.nz_neighbors < min_nzn_pixel.nz_neighbors:
+                min_nzn_pixel = pixel
+        # Note for now, will use the highest non-zero-neighbor count pixel
+        self.setEdge()
         self.touching_blobs = [] # TODO
-        self.center = (-1, -1) # TODO
-        self.max_width = -1 # TODO
+        self.center = (self.avgx, self.avgy) # TODO
+        self.max_width = maxx-minx # TODO
         self.min_width = -1 # TODO
         self.max_height = -1 # TODO
         self.min_height = -1 # TODO
+        self.radius = -1 # TODO, derive from the edge pixels, using center from all pixels in blob
 
+    def setEdge(self):
+        self.edge_pixels = [pixel for pixel in self.pixels if pixel.nz_neighbors < 8]
+        self.edge_pixels.sort()
+
+    def setTouchingBlobs(self):
+        for pixel in self.edge_pixels:
+            neighbors = pixel.getNeighbors()
+
+
+    def __str__(self):
+        return str('B{id:' + str(self.id) + ', #P:' + str(self.num_pixels)) + '}'
+
+    __repr__ = __str__
 
 
 class Pixel:
@@ -67,7 +107,7 @@ class Pixel:
         self.neighbors_checked = 0
         self.neighbors_set = False  # For keeping track later, incase things get nasty
         self.blob_id = -1 # 0 means that it is unset
-        self.new_id = -1 # TODO this can be removed, just want to keep old value for debug reasons
+        # self.new_id = -1 # TODO this can be removed, just want to keep old value for debug reasons
 
     @staticmethod
     def getNextBlobId(): # Starts at 0
@@ -93,7 +133,7 @@ class Pixel:
 
     def __str__(self):
         '''Method used to convert Pixel to string, generall for printing'''
-        return str('P{[v:' + str(self.val) + ', x:' + str(self.x) + ', y:' + str(self.y) + '],' + str(self.blob_id) + '}')
+        return str('P{[v:' + str(self.val) + ', x:' + str(self.x) + ', y:' + str(self.y) + '], id:' + str(self.blob_id) + '}')
             # '[nzn:' + str(
             # self.nz_neighbors) + ', mn:' + str(self.maximal_neighbors) + ', ns:' + str(
             # self.neighbor_sum) + ', nc:' + str(self.neighbors_checked) + ']}')
@@ -108,6 +148,18 @@ class Pixel:
             return self.x < other.x
         else:
             return False
+
+    def getNeighbors(self, master_array):
+        neighbors = []
+        xpos = self.x
+        ypos = self.y
+        for horizontal_offset in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
+            for vertical_offset in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
+                if (vertical_offset != 0 or horizontal_offset != 0):  # Don't measure the current pixel
+                    if (xpos + horizontal_offset < xdim and xpos + horizontal_offset >= 0 and ypos + vertical_offset < ydim and ypos + vertical_offset >= 0):  # Boundary check.
+                        neighbors.append(master_array[xpos + horizontal_offset][ypos + vertical_offset])
+        return neighbors
+
 
 
 def filterSparsePixelsFromList(listin):
@@ -182,6 +234,7 @@ def getIdArrays(pixels, id_counts):
                 print('DEBUG: About to fail:' + str(pixel))
             id_arrays[pixel.blob_id][pixel.x][pixel.y] = int(pixel.val)
     return id_arrays
+
 
 def getIdLists(pixels, id_counts):
     '''
@@ -393,7 +446,7 @@ def main():
 
         for curx in range(xdim):
             for cury in range(ydim):
-                pixel_value = slices[0][curx][cury] # HACK
+                pixel_value = slices[0][cury][curx] # HACK, reversed so that orientation is the same as the original when plotted with a reversed y.
                 if (pixel_value != 0):  # Can use alternate min threshold and <=
                     pixels.append(Pixel(pixel_value, curx, cury))
                     sum_pixels += pixel_value
@@ -413,6 +466,11 @@ def main():
         alive_pixels = filterSparsePixelsFromList(max_pixel_list)
         alive_pixels.sort() # Sorted here so that in y,x order instead of value order
 
+        alive_pixel_array = zeros([xdim, ydim], dtype=object)
+        for pixel in alive_pixels:
+            alive_pixel_array[pixel.x][pixel.y] = pixel
+
+
         (derived_ids, derived_count, num_ids_equiv) = firstPass(alive_pixels)
 
 
@@ -425,13 +483,75 @@ def main():
 
         most_common_ids = counter.most_common()# HACK Grabbing all for now, +1 b/c we start at 0 # NOTE Stored as (id, count)
         top_common_id_count = len(most_common_ids)# HACK HACK HACK
-        #print('tcidc:' + str(top_common_id_count))
-        id_arrays = getIdArrays(alive_pixels, most_common_ids)
 
-        PlotListofClusterArraysColor2D(id_arrays) #, numbered=True)
+        # id_arrays = getIdArrays(alive_pixels, most_common_ids)
+        # PlotListofClusterArraysColor2D(id_arrays) #, numbered=True)
+        # PlotListofClusterArraysColor(id_arrays, 0)
 
-        #PlotListofClusterArraysColor(id_arrays, 0)
+        id_lists = getIdLists(alive_pixels, most_common_ids)
+        blob2dlist = [] # Note that blobs in the blob list are ordered by number of pixels, not id
+        edge_lists = [None] * len(id_lists)
+
+        for (blobnum, blobslist) in enumerate(id_lists):
+            blob2dlist.append(Blob2d(blobslist[0].blob_id, blobslist, alive_pixel_array))
+            # print(blobslist[0].blob_id)
+            # print(blob2dlist[-1])
+            edge_lists[blob2dlist[-1].id] = blob2dlist[-1].edge_pixels
+
+        PlotClusterLists(edge_lists, dim='2d', markersize=10)
+        PlotClusterLists(id_lists, dim='2d')
+
+
+        # DEBUG
+        b2d = blob2dlist[10]
+        print('There are a total of ' + str(len(b2d.pixels)) + ' pixels in the blob')
+        print('Neighbors:' + str(b2d.edge_pixels[0].getNeighbors(alive_pixel_array)))
+        next_edge = 0
+
+        # maxloops = 50
+        # loops = 0
+        #
+        #
+        # edgep = [pixel for pixel in b2d.pixels if pixel.nz_neighbors < 8]
+        # edgep.sort()
+        #
+        # print('#Edge_Pixels: ' + str(len(edgep)))
+        #
+        # while (b2d.edge_pixels[-1] != b2d.edge_pixels[0] or len(b2d.edge_pixels) == 1) and loops < maxloops:
+        #     loops += 1
+        #     print('Loop #:' + str(loops))
+        #     added = False
+        #     may_be_done = False
+        #
+        #     curpixel = b2d.edge_pixels[-1]
+        #     possible = curpixel.getNeighbors(alive_pixel_array)
+        #     print('Curpixel:' + str(curpixel) + ', neighbors:' + str(possible))
+        #     for pix in possible:
+        #         if pix == b2d.edge_pixels[0]:
+        #             may_be_done = True
+        #             print('One of the neighbors is the starting pixel; may be finishing')
+        #         if pix != 0 and pix.nz_neighbors < 8 and pix not in b2d.edge_pixels:
+        #             b2d.edge_pixels.append(pix)
+        #             added = True
+        #             break
+        #     print(str(len(b2d.edge_pixels)) + ' total edge pix:' + str(b2d.edge_pixels))
+        #     if not added:
+        #         print('***WARNING NO PIXEL ADDED!!!! --ERROR')
+        #         PlotClusterLists([b2d.edge_pixels, edgep], numbered=True, dim='3d')
+        #         debug()
+        #         if may_be_done == True:
+        #             print('\n\nDONE HERE!!!!\n\n')
+        # TODO issue occurs where all neighbor pixels of a cursor are already in a
+        # TODO include checking against blob_id
         pdb.set_trace()
+
+
+
+
+
+        # print(edgep)
+
+
 
         # NOTE NOTE WHat if used clustering (ex k means, or something that can adjust the weights on atributes easily), on the centers (and maybe total pixels or width etc..?), to relate the blobs most effectively across slides?
         # In such an approach, would probably want to ignore the z dimension, so that there is no reason to group blobs on the same level.. Perhaps a kernel approach using a slide might help?
