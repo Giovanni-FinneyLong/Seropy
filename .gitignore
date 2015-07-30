@@ -1,2 +1,5 @@
 /source/
 /python-scripts/
+*.gif
+*.mp4
+*.pickle
