@@ -103,8 +103,8 @@ class Blob2d:
                         Blob2d.equivalency_set.add((curn.blob_id, self.id))
                     else:
                         Blob2d.equivalency_set.add((self.id, curn.blob_id))
-        if(len(self.touching_blobs)):
-            print('Blob #' + str(self.id) + ' is touching blobs with ids:' + str(self.touching_blobs))
+        # if(len(self.touching_blobs)):
+        #     print('Blob #' + str(self.id) + ' is touching blobs with ids:' + str(self.touching_blobs))
 
     def updateid(self, newid):
         '''
@@ -121,62 +121,64 @@ class Blob2d:
 
     __repr__ = __str__
 
-def mergeblobs(bloblist):
-    '''
-    Returns an updated list of blobs, which have been merged after having their ids updated (externally, beforehand)
-    '''
-    newlist = []
-    copylist = list(bloblist) # Hack, fix by iterating backwards: http://stackoverflow.com/questions/2612802/how-to-clone-or-copy-a-list-in-python
-    if debug_set_merge:
-        print('Blobs to merge:' + str(copylist))
 
-    while len(copylist) > 0:
-        blob1 = copylist[0]
-        newpixels = []
-        # killindeces = []
-        merged = False
-        # print(len(copylist))
-        # print(copylist[1:])
+    @staticmethod
+    def mergeblobs(bloblist):
+        '''
+        Returns a NEW list of blobs, which have been merged after having their ids updated (externally, beforehand)
+        '''
+        newlist = []
+        copylist = list(bloblist) # Hack, fix by iterating backwards: http://stackoverflow.com/questions/2612802/how-to-clone-or-copy-a-list-in-python
         if debug_set_merge:
-            print('**Curblob:' + str(blob1))
-        for (index2, blob2) in enumerate(copylist[1:]):
+            print('Blobs to merge:' + str(copylist))
+
+        while len(copylist) > 0:
+            blob1 = copylist[0]
+            newpixels = []
+            # killindeces = []
+            merged = False
+            # print(len(copylist))
+            # print(copylist[1:])
             if debug_set_merge:
-                print('  DEBUG: checking blob:' + str(blob1) + ' against blob:' + str(blob2))
-            if blob2.id == blob1.id:
-                if debug_set_merge:
-                    print('   Found blobs to merge: ' + str(blob1) + ' & ' + str(blob2))
-                merged = True
-                newpixels = newpixels + blob2.pixels
-                # killindeces.append(index2 + 1) # Note +1 b/c offset by 1
-        if merged == False:
-            if debug_set_merge:
-                print('--Never merged on blob:' + str(blob1))
-            newlist.append(blob1)
-            del copylist[0]
-        else:
-            if debug_set_merge:
-                print(' Merging, newlist-pre:' + str(newlist))
-            if debug_set_merge:
-                print(' Merging, copylist-pre:' + str(copylist))
-            # print('Deleting ' + str(len(killindeces)) + ' elements with id:' + str(blob1.id))
-            index = 0
-            while index < len(copylist):
-                if debug_set_merge:
-                    print(' Checking to delete:' + str(copylist[index]))
-                if copylist[index].id == blob1.id:
+                print('**Curblob:' + str(blob1))
+            for (index2, blob2) in enumerate(copylist[1:]):
+                # if debug_set_merge:
+                #     print('  DEBUG: checking blob:' + str(blob1) + ' against blob:' + str(blob2))
+                if blob2.id == blob1.id:
                     if debug_set_merge:
-                        print('  Deleting:' + str(copylist[index]))
-                    del copylist[index]
-                    index -= 1
-                index += 1
-            newlist.append(Blob2d(blob1.id, blob1.pixels + newpixels, blob1.master_array))
-            if debug_set_merge:
-                print(' Merging, newlist-post:' + str(newlist))
-            if debug_set_merge:
-                print(' Merging, copylist-post:' + str(copylist))
-    if debug_set_merge:
-        print('Merge result' + str(newlist))
-    return newlist
+                        print('   Found blobs to merge: ' + str(blob1) + ' & ' + str(blob2))
+                    merged = True
+                    newpixels = newpixels + blob2.pixels
+                    # killindeces.append(index2 + 1) # Note +1 b/c offset by 1
+            if merged == False:
+                if debug_set_merge:
+                    print('--Never merged on blob:' + str(blob1))
+                newlist.append(blob1)
+                del copylist[0]
+            else:
+                if debug_set_merge:
+                    print(' Merging, newlist-pre:' + str(newlist))
+                if debug_set_merge:
+                    print(' Merging, copylist-pre:' + str(copylist))
+                # print('Deleting ' + str(len(killindeces)) + ' elements with id:' + str(blob1.id))
+                index = 0
+                while index < len(copylist):
+                    if debug_set_merge:
+                        print(' Checking to delete:' + str(copylist[index]))
+                    if copylist[index].id == blob1.id:
+                        if debug_set_merge:
+                            print('  Deleting:' + str(copylist[index]))
+                        del copylist[index]
+                        index -= 1
+                    index += 1
+                newlist.append(Blob2d(blob1.id, blob1.pixels + newpixels, blob1.master_array))
+                if debug_set_merge:
+                    print(' Merging, newlist-post:' + str(newlist))
+                if debug_set_merge:
+                    print(' Merging, copylist-post:' + str(copylist))
+        if debug_set_merge:
+            print('Merge result' + str(newlist))
+        return newlist
 
 
 
@@ -264,7 +266,7 @@ def filterSparsePixelsFromList(listin):
         buf_maxn = 0
         buf_sumn = 0.
         neighbors_checked = 0
-        for horizontal_offset in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
+        for horizontal_offset in range(-1, 2, 1):  # NOTE CURRENTLY 1x1 # TODO rteplace with getneighbors
             for vertical_offset in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
                 if (vertical_offset != 0 or horizontal_offset != 0):  # Don't measure the current pixel
                     if (xpos + horizontal_offset < xdim and xpos + horizontal_offset >= 0 and ypos + vertical_offset < ydim and ypos + vertical_offset >= 0):  # Boundary check.
@@ -325,23 +327,38 @@ def getIdArrays(pixels, id_counts):
     return id_arrays
 
 
-def getIdLists(pixels, id_counts):
+def getIdLists(pixels, **kwargs):
     '''
     Returns a list of lists, each of which corresponds to an id. If remapped, the first list is the largest
+    KWArgs:
+        remap=True => Remap blobs from largest to smallest pixel count
+            Requires id_counts
+        id_counts=Counter(~).most_common()
     '''
-    id_lists = [[] for i in range(len(id_counts))]
-    if remap_ids_by_group_size:
-        remap = [None] * len(id_counts)
-        for id in range(len(id_counts)): # Supposedly up to 2.5x faster than using numpy's .tolist()
-            remap[id_counts[id][0]] = id
-        for pixel in pixels:
-            id_lists[remap[pixel.blob_id]].append(pixel)
-    else:
-        for pixel in pixels:
-            if pixel.blob_id >= id_counts:
-                print('DEBUG: About to fail:' + str(pixel))
-            id_lists[pixel.blob_id].append(pixel)
-    return id_lists
+    do_remap = kwargs.get('remap', False)
+    id_counts =  kwargs.get('id_counts',None)
+    kwargs_ok = True
+    if do_remap:
+        if id_counts is None:
+            print('>>>ERROR, if remapping, must supply id_counts (the n-most_common elements of a counter')
+            kwargs_ok = False
+    if kwargs_ok:
+        id_lists = [[] for i in range(len(id_counts))]
+        if do_remap:
+            remap = [None] * len(id_counts)
+            for id in range(len(id_counts)): # Supposedly up to 2.5x faster than using numpy's .tolist()
+                remap[id_counts[id][0]] = id
+            for pixel in pixels:
+                id_lists[remap[pixel.blob_id]].append(pixel)
+        else:
+            for pixel in pixels:
+                if pixel.blob_id >= len(id_counts):
+                    print('DEBUG: About to fail:' + str(pixel)) # DEBUG
+                id_lists[pixel.blob_id].append(pixel)
+        return id_lists
+
+
+
 
 
 def firstPass(pixel_list):
@@ -451,8 +468,7 @@ def firstPass(pixel_list):
     # Time to clean up the first member of each id group-as they are skipped from the remapping
 
     #TODO TODO need to do more fixes to the equivalent labels; basically condense them, to remove the issue of a trailing larger number
-    print('Pixel id num:' + str(Pixel.id_num))
-    print('Len of equiv labels:' + str(len(equivalent_labels)))
+    print('Number of initial pixel ids before deriving equivalencies:' + str(Pixel.id_num))
     id_to_reuse = []
 
     for id in range(Pixel.id_num):
@@ -473,7 +489,7 @@ def firstPass(pixel_list):
         if debug_blob_ids:
             print('New equiv labels:' + str(equivalent_labels))
     # DEBUG if debug_blob_ids:
-    print('**********Remaining id_to_reuse: ' + str(id_to_reuse))
+    #   print('**********Remaining id_to_reuse: ' + str(id_to_reuse))
 
 
     # for z in range(len(equivalent_labels)):
@@ -574,17 +590,13 @@ def main():
         top_common_id_count = len(most_common_ids)# HACK HACK HACK
 
         # id_arrays = getIdArrays(alive_pixels, most_common_ids)
-        # PlotListofClusterArraysColor2D(id_arrays) #, numbered=True)
-        # PlotListofClusterArraysColor(id_arrays, 0)
 
-        id_lists = getIdLists(alive_pixels, most_common_ids)
-        blob2dlist = [] # Note that blobs in the blob list are ordered by number of pixels, not id
+        id_lists = getIdLists(alive_pixels, remap=remap_ids_by_group_size, id_counts=most_common_ids) # Hack, don't ned to supply id_counts of remap is false; just convenient for now
+        blob2dlist = [] # Note that blobs in the blob list are ordered by number of pixels, not id, this makes merging faster
         edge_lists = [None] * len(id_lists)
 
         for (blobnum, blobslist) in enumerate(id_lists):
             blob2dlist.append(Blob2d(blobslist[0].blob_id, blobslist, alive_pixel_array))
-            # print(blobslist[0].blob_id)
-            # print(blob2dlist[-1])
             edge_lists[blob2dlist[-1].id] = blob2dlist[-1].edge_pixels
 
         # Note that we can now sort the Blob2d.equivalency_set b/c all blobs have been sorted
@@ -592,16 +604,7 @@ def main():
         print('Touching blobs: ' + str(Blob2d.equivalency_set))
 
 
-
-        # Given (x,y), want to find all (y,z) and replace with (x,z)
-        reuseids = []
-        updateids = []
-        cursors = []
-        newtuples = []
-
         equiv_sets = []
-
-
 
         for (index, tuple) in enumerate(Blob2d.equivalency_set):
             # print('Tuple:' + str(tuple))
@@ -621,29 +624,29 @@ def main():
                         found_set_indeces.append(eqindex)
 
             if found == 0:
-                # print('DEBUG not found..')
+                # print('DEBUG not found: ' + str(tuple))
                 equiv_sets.append(set([tuple[0], tuple[1]]))
             elif found > 1:
-                print(found_set_indeces)
+                # print(found_set_indeces)
                 # print('TODO new merge blobs!') # TODO
                 superset = set([])
                 for mergenum in found_set_indeces:
                     superset = superset | equiv_sets[mergenum]
-                    # print('Updated ss:' + str(superset))
-                print('New superset:' + str(set(superset)))
+                # print('New superset:' + str(set(superset)))
                 for delset in reversed(found_set_indeces):
                     # print('Removing set #' + str(delset))
                     del equiv_sets[delset]
                 equiv_sets.append(superset)
-            print(equiv_sets)
+            # print(equiv_sets)
 
         # print('Sets before turned to lists: ' + str(equiv_sets))
-        # Sets to lists for indexing...
+        # Sets to lists for indexing,
+        # Note that in python, sets are always unordered, and so a derivative list must be sorted.
         for (index,stl) in enumerate(equiv_sets):
             # print(equiv_sets[index])
-            equiv_sets[index] = list(stl)
+            equiv_sets[index] = sorted(stl) # See note
             # print(equiv_sets[index])
-        print('Sets after turned to lists: ' + str(equiv_sets))
+        print('Equivalency Sets after turned to lists: ' + str(equiv_sets))
 
 
         for blob in blob2dlist: # NOTE Merging sets
@@ -655,23 +658,22 @@ def main():
                     # print('new:' + str(blob) + ':' + str(blob.pixels[0]))
 
 
-
-        templist = mergeblobs(blob2dlist)
+        new_bloblist = Blob2d.mergeblobs(blob2dlist) # NOTE, by assigning the returned Blob2d list to a new var, the results of merging can be demonstrated
         print('BEFORE MERGING!!!!!!!')
         print(blob2dlist)
 
         print('RESULT OF MERGING!!!!!!!')
-        print(templist)
+        print(new_bloblist)
 
-        print('ORIGINAL:' + str(Blob2d.equivalency_set))
+        print('ORIGINAL equiv set:' + str(Blob2d.equivalency_set))
 
         newclusterlists = []
-        for blob in templist:
+        for blob in new_bloblist:
             newclusterlists.append(blob.pixels)
+        debug()
         PlotClusterLists(newclusterlists, markersize=5)
         PlotClusterLists(id_lists, dim='2d', markersize=5)#, numbered=True)
 
-        debug()
 
 
         PlotClusterLists(edge_lists, dim='2d', markersize=10)#, numbered=True)
