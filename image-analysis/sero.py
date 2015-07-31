@@ -38,14 +38,19 @@ class Blob2d:
     '''
     This class contains a list of pixels, which comprise a 2d blob on a single image
     '''
+
+    equivalency_set = set() # Used to keep track of touching blobs, which can then be merged.
+
     def __init__(self, idnum, list_of_pixels, master_array):
         self.id = idnum
+        # TODO may want to sort list here...
         self.pixels = list_of_pixels
         self.num_pixels = len(list_of_pixels)
         sum_vals = 0
         self.avgx = 0
         self.avgy = 0
         self.sum_vals = 0
+        self.master_array = master_array
         # TODO make sure the list is sorted
         minx = list_of_pixels[0].x
         miny = list_of_pixels[0].y
@@ -67,28 +72,112 @@ class Blob2d:
             if pixel.nz_neighbors < min_nzn_pixel.nz_neighbors:
                 min_nzn_pixel = pixel
         # Note for now, will use the highest non-zero-neighbor count pixel
+        self.avgx /= self.num_pixels
+        self.avgy /= self.num_pixels
         self.setEdge()
-        self.touching_blobs = [] # TODO
+        self.setTouchingBlobs()
         self.center = (self.avgx, self.avgy) # TODO
         self.max_width = maxx-minx # TODO
-        self.min_width = -1 # TODO
-        self.max_height = -1 # TODO
-        self.min_height = -1 # TODO
-        self.radius = -1 # TODO, derive from the edge pixels, using center from all pixels in blob
+        # self.min_width = -1 # TODO
+        self.max_height = maxy-maxx # TODO
+        # self.min_height = -1 # TODO
+        self.edge_radius = 0
+        for pixel in self.edge_pixels:
+            self.edge_radius += math.sqrt(math.pow(pixel.x - self.avgx, 2) + math.pow(pixel.y - self.avgy, 2))
+
+         # TODO, derive from the edge pixels, using center from all pixels in blob
 
     def setEdge(self):
         self.edge_pixels = [pixel for pixel in self.pixels if pixel.nz_neighbors < 8]
         self.edge_pixels.sort()
 
     def setTouchingBlobs(self):
+        self.touching_blobs = set()
         for pixel in self.edge_pixels:
-            neighbors = pixel.getNeighbors()
+            neighbors = pixel.getNeighbors(self.master_array)
+            for curn in neighbors:
+                if(curn != 0 and curn.blob_id != self.id):
+                    # print('DEBUG: Found a neighboring blob:' + str(curn.blob_id))
+                    self.touching_blobs.add(curn.blob_id) # Not added if already in the set.
+                    if (curn.blob_id < self.id):
+                        Blob2d.equivalency_set.add((curn.blob_id, self.id))
+                    else:
+                        Blob2d.equivalency_set.add((self.id, curn.blob_id))
+        if(len(self.touching_blobs)):
+            print('Blob #' + str(self.id) + ' is touching blobs with ids:' + str(self.touching_blobs))
+
+    def updateid(self, newid):
+        '''
+        Update the blob's id and the id of all pixels in the blob
+        Better this was, as we dont have to check each pixel's id, just each blobs (externally!) before chaging pixels
+        '''
+        self.id = newid
+        for pix in self.pixels:
+            pix.blob_id = newid
 
 
     def __str__(self):
         return str('B{id:' + str(self.id) + ', #P:' + str(self.num_pixels)) + '}'
 
     __repr__ = __str__
+
+def mergeblobs(bloblist):
+    '''
+    Returns an updated list of blobs, which have been merged after having their ids updated (externally, beforehand)
+    '''
+    newlist = []
+    copylist = list(bloblist) # Hack, fix by iterating backwards: http://stackoverflow.com/questions/2612802/how-to-clone-or-copy-a-list-in-python
+    if debug_set_merge:
+        print('Blobs to merge:' + str(copylist))
+
+    while len(copylist) > 0:
+        blob1 = copylist[0]
+        newpixels = []
+        # killindeces = []
+        merged = False
+        # print(len(copylist))
+        # print(copylist[1:])
+        if debug_set_merge:
+            print('**Curblob:' + str(blob1))
+        for (index2, blob2) in enumerate(copylist[1:]):
+            if debug_set_merge:
+                print('  DEBUG: checking blob:' + str(blob1) + ' against blob:' + str(blob2))
+            if blob2.id == blob1.id:
+                if debug_set_merge:
+                    print('   Found blobs to merge: ' + str(blob1) + ' & ' + str(blob2))
+                merged = True
+                newpixels = newpixels + blob2.pixels
+                # killindeces.append(index2 + 1) # Note +1 b/c offset by 1
+        if merged == False:
+            if debug_set_merge:
+                print('--Never merged on blob:' + str(blob1))
+            newlist.append(blob1)
+            del copylist[0]
+        else:
+            if debug_set_merge:
+                print(' Merging, newlist-pre:' + str(newlist))
+            if debug_set_merge:
+                print(' Merging, copylist-pre:' + str(copylist))
+            # print('Deleting ' + str(len(killindeces)) + ' elements with id:' + str(blob1.id))
+            index = 0
+            while index < len(copylist):
+                if debug_set_merge:
+                    print(' Checking to delete:' + str(copylist[index]))
+                if copylist[index].id == blob1.id:
+                    if debug_set_merge:
+                        print('  Deleting:' + str(copylist[index]))
+                    del copylist[index]
+                    index -= 1
+                index += 1
+            newlist.append(Blob2d(blob1.id, blob1.pixels + newpixels, blob1.master_array))
+            if debug_set_merge:
+                print(' Merging, newlist-post:' + str(newlist))
+            if debug_set_merge:
+                print(' Merging, copylist-post:' + str(copylist))
+    if debug_set_merge:
+        print('Merge result' + str(newlist))
+    return newlist
+
 
 
 class Pixel:
@@ -327,7 +416,7 @@ def firstPass(pixel_list):
                                     equivalent_labels[pair[1]] = base # Remapped the larger value to the end of the chain of the smaller
 
 
-                                elif pixel.blob_id != neighbor.blob_id: # Pixel hasn't yet set it's id; give it the id of its neighbor
+                                elif pixel.blob_id != neighbor.blob_id:
                                     # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG:
                                     #     print('**Assigning the derived id:' + str(neighbor.blob_id) + ' to pixel:' + str(pixel))
                                     pixel.blob_id = neighbor.blob_id
@@ -383,8 +472,8 @@ def firstPass(pixel_list):
                 id_to_reuse.pop(0)
         if debug_blob_ids:
             print('New equiv labels:' + str(equivalent_labels))
-    if debug_blob_ids:
-        print('Remaining id_to_reuse: ' + str(id_to_reuse))
+    # DEBUG if debug_blob_ids:
+    print('**********Remaining id_to_reuse: ' + str(id_to_reuse))
 
 
     # for z in range(len(equivalent_labels)):
@@ -498,8 +587,165 @@ def main():
             # print(blob2dlist[-1])
             edge_lists[blob2dlist[-1].id] = blob2dlist[-1].edge_pixels
 
-        PlotClusterLists(edge_lists, dim='2d', markersize=10)
-        PlotClusterLists(id_lists, dim='2d')
+        # Note that we can now sort the Blob2d.equivalency_set b/c all blobs have been sorted
+        Blob2d.equivalency_set = sorted(Blob2d.equivalency_set)
+        print('Touching blobs: ' + str(Blob2d.equivalency_set))
+
+
+
+        # Given (x,y), want to find all (y,z) and replace with (x,z)
+        reuseids = []
+        updateids = []
+        cursors = []
+        newtuples = []
+
+        equiv_sets = []
+
+
+
+        for (index, tuple) in enumerate(Blob2d.equivalency_set):
+            # print('Tuple:' + str(tuple))
+            found = 0
+            found_set_indeces = []
+            for (eqindex, eqset) in enumerate(equiv_sets):
+                t1 = tuple[0] in eqset
+                t2 = tuple[1] in eqset
+                if not (t1 and t2):
+                    if t1:
+                        eqset.add(tuple[1])
+                        found += 1
+                        found_set_indeces.append(eqindex)
+                    elif t2:
+                        eqset.add(tuple[0])
+                        found += 1
+                        found_set_indeces.append(eqindex)
+
+            if found == 0:
+                # print('DEBUG not found..')
+                equiv_sets.append(set([tuple[0], tuple[1]]))
+            elif found > 1:
+                print(found_set_indeces)
+                # print('TODO new merge blobs!') # TODO
+                superset = set([])
+                for mergenum in found_set_indeces:
+                    superset = superset | equiv_sets[mergenum]
+                    # print('Updated ss:' + str(superset))
+                print('New superset:' + str(set(superset)))
+                for delset in reversed(found_set_indeces):
+                    # print('Removing set #' + str(delset))
+                    del equiv_sets[delset]
+                equiv_sets.append(superset)
+            print(equiv_sets)
+
+        # print('Sets before turned to lists: ' + str(equiv_sets))
+        # Sets to lists for indexing...
+        for (index,stl) in enumerate(equiv_sets):
+            # print(equiv_sets[index])
+            equiv_sets[index] = list(stl)
+            # print(equiv_sets[index])
+        print('Sets after turned to lists: ' + str(equiv_sets))
+
+
+        for blob in blob2dlist: # NOTE Merging sets
+            for equivlist in equiv_sets:
+                if blob.id != equivlist[0] and blob.id in equivlist: # Not the base and in the list
+                    # print('old:' + str(blob) + ':' + str(blob.pixels[0]))
+                    # print('  Found id:' + str(blob.id) + ' in eq:' + str(equivlist))
+                    blob.updateid(equivlist[0])
+                    # print('new:' + str(blob) + ':' + str(blob.pixels[0]))
+
+
+
+        templist = mergeblobs(blob2dlist)
+        print('BEFORE MERGING!!!!!!!')
+        print(blob2dlist)
+
+        print('RESULT OF MERGING!!!!!!!')
+        print(templist)
+
+        print('ORIGINAL:' + str(Blob2d.equivalency_set))
+
+        newclusterlists = []
+        for blob in templist:
+            newclusterlists.append(blob.pixels)
+        PlotClusterLists(newclusterlists, markersize=5)
+        PlotClusterLists(id_lists, dim='2d', markersize=5)#, numbered=True)
+
+        debug()
+
+
+        PlotClusterLists(edge_lists, dim='2d', markersize=10)#, numbered=True)
+
+        # NOTE SEMI FUNCTIONAL, but now obsolete
+        # for (index, tuple) in enumerate(Blob2d.equivalency_set):
+        #     print('Tuple:' + str(tuple))
+        #
+        #     updateids = [tuple[1]]
+        #     found = False
+        #     for newtuple in newtuples:
+        #         if tuple[0] in newtuple or tuple[1] in newtuple: # Already something in the list that maps
+        #             found = True
+        #             if tuple[0] == newtuple[0]: # Map from the same id to another
+        #                 print('DEBUG1')
+        #                 newtuples.append(tuple)
+        #             elif tuple[1] == newtuple[0]: # Map to newid from a pre-existing id
+        #                 print('DEBUG2')
+        #                 newtuples.append((newtuple[0], tuple[1]))
+        #             elif tuple[0] == newtuple[1]: # Map from an already remapped id to another # NOTE this is the reduction
+        #                 print('DEBUG3')
+        #                 newtuples.append((newtuple[0], tuple[0]))
+        #             else: # Both map to the same y # NOTE this is the reduction
+        #                 print('DEBUG4')
+        #                 if newtuple[0] < tuple[0]:
+        #                     newtuples.append((newtuple[0], tuple[0]))
+        #                 else:
+        #                     newtuples.append((tuple[0], newtuple[0]))
+        #                     print('DEBUG THIS WASNT EXPECTED>>>>>>>>>>>')
+        #             print('Updated newtuples before run:' + str(newtuples))
+        #             break
+        #     if not found:
+        #         print('DEBUG: not found reference to ' + str(tuple)+ ' , so adding')
+        #         newtuples.append(tuple)
+        #     # print('Done checking existing newtuples, len=' + str(len(newtuples)))
+        #     print('Update ids:' + str(updateids))
+        #     print('Newtuples:' + str(newtuples))
+
+
+
+
+
+            #
+            # if len(reuseids) != 0:
+            #     buf = reuseids[0]
+            #     print('Replacing ' + str(tuple) + ' with ' + str(buf) + ' and adding ' + str(tuple) + ' to the ids to be reused')
+            #     reuseids.append(tuple)
+
+
+    # NOTE the below is copied for convenience when writing second pass (merging blobs)
+    # for id in range(Pixel.id_num):
+    #     if id not in equivalent_labels:
+    #         if debug_blob_ids:
+    #             print('ID #' + str(id) + ' wasnt in the list, adding to ids_to _replace')
+    #         id_to_reuse.append(id)
+    #     else:
+    #         if(len(id_to_reuse) != 0):
+    #             buf = id_to_reuse[0]
+    #             if debug_blob_ids:
+    #                 print('Replacing ' + str(id) + ' with ' + str(buf) + ' and adding ' + str(id) + ' to the ids to be reused')
+    #             id_to_reuse.append(id)
+    #             for id_fix in range(len(equivalent_labels)):
+    #                 if equivalent_labels[id_fix] == id:
+    #                     equivalent_labels[id_fix] = buf
+    #             id_to_reuse.pop(0)
+    #     if debug_blob_ids:
+    #         print('New equiv labels:' + str(equivalent_labels))
+    # if debug_blob_ids:
+    #     print('Remaining id_to_reuse: ' + str(id_to_reuse))
+
+
+
+
+
 
 
         # DEBUG

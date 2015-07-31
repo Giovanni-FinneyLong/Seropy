@@ -40,6 +40,7 @@ zdim = -1
 
 debug_blob_ids = False
 debug_pixel_ops = False
+debug_set_merge = False
 remap_ids_by_group_size = True
 test_instead_of_data = False
 debug_pixel_ops_y_depth = 500
