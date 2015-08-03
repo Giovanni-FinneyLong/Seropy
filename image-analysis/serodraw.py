@@ -54,6 +54,11 @@ minimal_nonzero_neighbors = 2 # The minimal amount of nzn a pixel must have to a
 # NOTE  ##########################
 
 
+def printElapsedTime(t0, tf):
+    temp = tf - t0
+    m = math.floor(temp / 60)
+    print('Elapsed Time: ' + str(m) + ' minutes & %.0f seconds' % (temp % 60))
+
 
 def setseerodrawdims(x,y,z):
     global xdim

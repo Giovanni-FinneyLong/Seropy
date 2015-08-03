@@ -1,21 +1,10 @@
 __author__ = 'gio'
-# import matplotlib.pyplot as plt
-
-
-# import matplotlib
-
-
-
 
 import sys
 import collections
 from serodraw import *
 from config import *
 
-
-from mpl_toolkits.mplot3d import Axes3D
-import pickle  # Note uses cPickle automatically ONLY IF python 3
-from sklearn.preprocessing import normalize
 from PIL import ImageFilter
 from collections import OrderedDict
 import readline
@@ -39,9 +28,9 @@ class Blob2d:
     This class contains a list of pixels, which comprise a 2d blob on a single image
     '''
 
-    equivalency_set = set() # Used to keep track of touching blobs, which can then be merged.
+    # equivalency_set = set() # Used to keep track of touching blobs, which can then be merged.
 
-    def __init__(self, idnum, list_of_pixels, master_array):
+    def __init__(self, idnum, list_of_pixels, master_array, slide):
         self.id = idnum
         # TODO may want to sort list here...
         self.pixels = list_of_pixels
@@ -51,6 +40,7 @@ class Blob2d:
         self.avgy = 0
         self.sum_vals = 0
         self.master_array = master_array
+        self.slide = slide
         # TODO make sure the list is sorted
         minx = list_of_pixels[0].x
         miny = list_of_pixels[0].y
@@ -100,9 +90,9 @@ class Blob2d:
                     # print('DEBUG: Found a neighboring blob:' + str(curn.blob_id))
                     self.touching_blobs.add(curn.blob_id) # Not added if already in the set.
                     if (curn.blob_id < self.id):
-                        Blob2d.equivalency_set.add((curn.blob_id, self.id))
+                        self.slide.equivalency_set.add((curn.blob_id, self.id))
                     else:
-                        Blob2d.equivalency_set.add((self.id, curn.blob_id))
+                        self.slide.equivalency_set.add((self.id, curn.blob_id))
         # if(len(self.touching_blobs)):
         #     print('Blob #' + str(self.id) + ' is touching blobs with ids:' + str(self.touching_blobs))
 
@@ -171,7 +161,7 @@ class Blob2d:
                         del copylist[index]
                         index -= 1
                     index += 1
-                newlist.append(Blob2d(blob1.id, blob1.pixels + newpixels, blob1.master_array))
+                newlist.append(Blob2d(blob1.id, blob1.pixels + newpixels, blob1.master_array, blob1.slide))
                 if debug_set_merge:
                     print(' Merging, newlist-post:' + str(newlist))
                 if debug_set_merge:
@@ -179,8 +169,6 @@ class Blob2d:
         if debug_set_merge:
             print('Merge result' + str(newlist))
         return newlist
-
-
 
 class Pixel:
     '''
@@ -198,13 +186,6 @@ class Pixel:
         self.neighbors_checked = 0
         self.neighbors_set = False  # For keeping track later, incase things get nasty
         self.blob_id = -1 # 0 means that it is unset
-        # self.new_id = -1 # TODO this can be removed, just want to keep old value for debug reasons
-
-    @staticmethod
-    def getNextBlobId(): # Starts at 0
-        Pixel.id_num += 1
-        #print('New id count:' + str(Pixel.id_count))
-        return Pixel.id_num - 1 #HACK this -1 is so that id's start at zero
 
     def setNeighborValues(self, non_zero_neighbors, max_neighbors, neighbor_sum, neighbors_checked):
         self.nz_neighbors = non_zero_neighbors  # The number out of the 8 surrounding pixels that are non-zero
@@ -250,6 +231,267 @@ class Pixel:
                     if (xpos + horizontal_offset < xdim and xpos + horizontal_offset >= 0 and ypos + vertical_offset < ydim and ypos + vertical_offset >= 0):  # Boundary check.
                         neighbors.append(master_array[xpos + horizontal_offset][ypos + vertical_offset])
         return neighbors
+
+class Slide:
+    ''''
+    Each slide holds the Blob2d's from a single scan image.
+    Slides are compared to create 3d blobs.
+    '''
+
+    def __init__(self, filename):
+        self.id_num = 0
+        self.t0 = time.time()
+        self.filename = filename
+        self.equivalency_set = set() # Used to keep track of touching blobs, which can then be merged. # NOTE, moving from blob2d
+        imagein = Image.open(filename)
+        print('Starting on image: ' + filename)
+        imarray = np.array(imagein)
+        (im_xdim, im_ydim, im_zdim) = imarray.shape
+        setglobaldims(im_xdim, im_ydim, im_zdim) # HACK TODO FIXME
+        print('The are ' + str(zdim) + ' channels')
+        image_channels = imagein.split()
+        slices = []
+        pixels = []
+        self.sum_pixels = 0
+        for s in range(len(image_channels)):  # Better to split image and use splits for arrays than to split an array
+            buf = np.array(image_channels[s])
+            slices.append(buf)
+            if np.amax(slices[s]) == 0:
+                print('Slice #' + str(s) + ' is an empty slice')
+        for curx in range(xdim):
+            for cury in range(ydim):
+                pixel_value = slices[0][cury][curx] # HACK, reversed so that orientation is the same as the original when plotted with a reversed y.
+                if (pixel_value != 0):  # Can use alternate min threshold and <=
+                    pixels.append(Pixel(pixel_value, curx, cury))
+                    self.sum_pixels += pixel_value
+        print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(xdim * ydim) + ' pixels')
+        pixels.sort(key=lambda pix: pix.val, reverse=True)# Note that sorting is being done like so to sort based on value not position as is normal with pixels. Sorting is better as no new list
+
+        # Lets go further and grab the maximal pixels, which are at the front
+        endmax = 0
+        while (endmax < len(pixels) and pixels[endmax].val >= min_val_threshold ):
+            endmax += 1
+        print('There are ' + str(endmax) + ' maximal pixels')
+
+        # Time to pre-process the maximal pixels; try and create groups/clusters
+        self.alive_pixels = filterSparsePixelsFromList(pixels[0:endmax])
+        self.alive_pixels.sort() # Sorted here so that in y,x order instead of value order
+
+        alive_pixel_array = zeros([xdim, ydim], dtype=object)
+        for pixel in self.alive_pixels:
+            alive_pixel_array[pixel.x][pixel.y] = pixel
+
+
+        (derived_ids, derived_count, num_ids_equiv) = self.firstPass(self.alive_pixels)
+        counter = collections.Counter(derived_ids)
+        total_ids = len(counter.items())
+        print('There were: ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(total_ids) + ' ids')
+        most_common_ids = counter.most_common()# HACK Grabbing all for now, +1 b/c we start at 0 # NOTE Stored as (id, count)
+        id_lists = getIdLists(self.alive_pixels, remap=remap_ids_by_group_size, id_counts=most_common_ids) # Hack, don't ned to supply id_counts of remap is false; just convenient for now
+        self.blob2dlist = [] # Note that blobs in the blob list are ordered by number of pixels, not id, this makes merging faster
+
+        for (blobnum, blobslist) in enumerate(id_lists):
+            self.blob2dlist.append(Blob2d(blobslist[0].blob_id, blobslist, alive_pixel_array, self))
+
+        # Note that we can now sort the Blob2d.equivalency_set b/c all blobs have been sorted
+        self.equivalency_set = sorted(self.equivalency_set)
+        print('Touching blobs: ' + str(self.equivalency_set))
+
+        equiv_sets = []
+        for (index, tuple) in enumerate(self.equivalency_set):
+            found = 0
+            found_set_indeces = []
+            for (eqindex, eqset) in enumerate(equiv_sets):
+                t1 = tuple[0] in eqset
+                t2 = tuple[1] in eqset
+                if not (t1 and t2):
+                    if t1:
+                        eqset.add(tuple[1])
+                        found += 1
+                        found_set_indeces.append(eqindex)
+                    elif t2:
+                        eqset.add(tuple[0])
+                        found += 1
+                        found_set_indeces.append(eqindex)
+            if found == 0:
+                equiv_sets.append(set([tuple[0], tuple[1]]))
+            elif found > 1:
+                superset = set([])
+                for mergenum in found_set_indeces:
+                    superset = superset | equiv_sets[mergenum]
+                for delset in reversed(found_set_indeces):
+                    del equiv_sets[delset]
+                equiv_sets.append(superset)
+
+        # Sets to lists for indexing,
+        # Note that in python, sets are always unordered, and so a derivative list must be sorted.
+        for (index,stl) in enumerate(equiv_sets):
+            equiv_sets[index] = sorted(stl) # See note
+        print('Equivalency Sets after turned to lists: ' + str(equiv_sets))
+
+        for blob in self.blob2dlist: # NOTE Merging sets
+            for equivlist in equiv_sets:
+                if blob.id != equivlist[0] and blob.id in equivlist: # Not the base and in the list
+                    # print('old:' + str(blob) + ':' + str(blob.pixels[0]))
+                    # print('  Found id:' + str(blob.id) + ' in eq:' + str(equivlist))
+                    blob.updateid(equivlist[0])
+                    # print('new:' + str(blob) + ':' + str(blob.pixels[0]))
+
+        print('Before Merging: ' + str(self.blob2dlist))
+        print('Equiv set:' + str(self.equivalency_set))
+        self.blob2dlist = Blob2d.mergeblobs(self.blob2dlist) # NOTE, by assigning the returned Blob2d list to a new var, the results of merging can be demonstrated
+        print('After Merging: ' + str(self.blob2dlist))
+        edge_lists = []
+        for (blobnum, blobslist) in enumerate(self.blob2dlist):
+            edge_lists.append(self.blob2dlist[blobnum].edge_pixels)
+
+        self.tf = time.time()
+        printElapsedTime(self.t0, self.tf)
+        # debug()
+        # PlotClusterLists(newclusterlists, markersize=5)
+        # PlotClusterLists(id_lists, dim='2d', markersize=5)#, numbered=True)
+        # PlotClusterLists(edge_lists, dim='2d', markersize=10)#, numbered=True)
+        print('')
+
+    def getNextBlobId(self): # Starts at 0
+        self.id_num += 1
+        #print('New id count:' + str(Pixel.id_count))
+        return self.id_num - 1 #HACK this -1 is so that id's start at zero
+
+
+    def firstPass(self, pixel_list):
+
+        # NOTE Vertical increases downwards, horizontal increases to the right. (Origin top left)
+        # Order of neighboring pixels visitation:
+        # 0 1 2
+        # 3 X 4
+        # 5 6 7
+        # For 8 way connectivity, should check NE, N, NW, W (2,1,0,3)
+        # For origin in the top left, = SE,S,SW,W
+
+        # Note scanning starts at top left, and increases down, until resetting to the top and moving +1 column right
+        # Therefore, the earliest examined neighbors of any pixel are : 0, 3, 5 ,1
+        # 0 = (-1, -1)
+        # 3 = (-1, 0)
+        # 5 = (-1, 1)
+        # 1 = (0, -1
+
+
+        vertical_offsets  = [-1, -1, -1, 0]#[1, 0, -1, -1]#,  0,   1, -1] #, 1, -1, 0, 1]
+        horizontal_offsets = [-1, 0, 1, -1]#[-1, -1, -1, 0]#, 1, 1,  0] #, 0, 1, 1, 1]
+
+        derived_count = 0
+        derived_pixels = []
+        derived_ids = []
+        pixel_id_groups = []
+        conflict_differences = []
+
+        equivalent_labels = []
+
+        pixel_array = np.zeros([xdim, ydim], dtype=object) # Can use zeros instead of empty; moderately slower, but better to have non-empty entries incase of issues
+        for pixel in pixel_list:
+            pixel_array[pixel.x][pixel.y] = pixel # Pointer :) Modifications to the pixels in the list affect the array
+        for pixel in pixel_list: # Need second iteration so that all of the pixels of the array have been set
+            if pixel.blob_id == -1: # Value not yet set
+                xpos = pixel.x
+                ypos = pixel.y
+                # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
+                #     print('New cursor pixel:' + str(pixel))
+                for (horizontal_offset, vertical_offset) in zip(horizontal_offsets, vertical_offsets):
+                    # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
+                    #     print(' Trying offsets:' + str(horizontal_offset) + ':' + str(vertical_offset))
+                    if (ypos + vertical_offset < ydim and ypos + vertical_offset >= 0 and xpos + horizontal_offset < xdim and xpos + horizontal_offset >= 0):  # Boundary check.
+                        neighbor = pixel_array[xpos + horizontal_offset][ypos + vertical_offset]
+                        # print('  Checking neigbor:' + str(neighbor) + 'at offsets:(' + str(horizontal_offset) + ',' + str(vertical_offset) +')')
+                        if (neighbor != 0):
+                            # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
+                            #     print('   Pixel:' + str(pixel) + ' found a nzn:' + str(neighbor))
+                            difference = abs(float(pixel.val) - float(neighbor.val)) # Note: Need to convert to floats, otherwise there's an overflow error due to the value range being int8 (0-255)
+                            if difference <= max_val_step: # Within acceptrable bound to be grouped by id
+                                # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
+                                    # print('   DEBUG: Neighbor was within range.')
+                                if neighbor.blob_id != -1:
+                                    # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
+                                    #     print('   DEBUG: Neighbor already has an id.')
+                                    #     print('   curpixel:' + str(pixel))
+                                    #     print('   neighbor:' + str(neighbor))
+                                    if pixel.blob_id != -1 and pixel.blob_id != neighbor.blob_id:
+                                        if debug_pixel_ops:
+                                            print('\n*****Pixel:' + str(pixel) + ' conflicts on neighbor with non-zero blob_id:' + str(neighbor))
+                                        conflict_differences.append(difference)
+
+                                        if pixel.blob_id < neighbor.blob_id:
+                                            pair = (pixel.blob_id, neighbor.blob_id)
+                                        else:
+                                            pair = (neighbor.blob_id, pixel.blob_id)
+                                        # pair is (lower_id, higher_id); want lower id to dominate
+                                        base = pair[0]
+                                        while equivalent_labels[base] != base: # Id maps to a lower id
+                                            base = equivalent_labels[base]
+                                        equivalent_labels[pair[1]] = base # Remapped the larger value to the end of the chain of the smaller
+
+                                    elif pixel.blob_id != neighbor.blob_id:
+                                        # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG:
+                                        #     print('**Assigning the derived id:' + str(neighbor.blob_id) + ' to pixel:' + str(pixel))
+                                        pixel.blob_id = neighbor.blob_id
+                                        derived_pixels.append(pixel)
+                                        derived_ids.append(pixel.blob_id)
+                                        derived_count += 1
+                                        pixel_id_groups[pixel.blob_id].append(pixel)
+
+            else:
+                if debug_pixel_ops:
+                    print('****Pixel:' + str(pixel) + ' already had an id when the cursor reached it')
+            if pixel.blob_id == -1:
+                pixel.blob_id = self.getNextBlobId()
+                pixel_id_groups.append([pixel])
+                derived_ids.append(pixel.blob_id) # Todo should refactor 'derived_ids' to be more clear
+                equivalent_labels.append(pixel.blob_id) # Map the new pixel to itself until a low equivalent is found
+                if debug_pixel_ops:
+                    print('**Never derived a value for pixel:' + str(pixel) + ', assigning it a new one:' + str(pixel.blob_id))
+        if debug_pixel_ops:
+            print('EQUIVALENT LABELS: ' + str(equivalent_labels))
+        # Time to clean up the first member of each id group-as they are skipped from the remapping
+
+        #TODO TODO need to do more fixes to the equivalent labels; basically condense them, to remove the issue of a trailing larger number
+        print('Number of initial pixel ids before deriving equivalencies:' + str(self.id_num))
+        id_to_reuse = []
+
+        for id in range(self.id_num):
+            if id not in equivalent_labels:
+                if debug_blob_ids:
+                    print('ID #' + str(id) + ' wasnt in the list, adding to ids_to _replace')
+                id_to_reuse.append(id)
+            else:
+                if(len(id_to_reuse) != 0):
+                    buf = id_to_reuse[0]
+                    if debug_blob_ids:
+                        print('Replacing ' + str(id) + ' with ' + str(buf) + ' and adding ' + str(id) + ' to the ids to be reused')
+                    id_to_reuse.append(id)
+                    for id_fix in range(len(equivalent_labels)):
+                        if equivalent_labels[id_fix] == id:
+                            equivalent_labels[id_fix] = buf
+                    id_to_reuse.pop(0)
+            if debug_blob_ids:
+                print('New equiv labels:' + str(equivalent_labels))
+        # DEBUG if debug_blob_ids:
+        #   print('**********Remaining id_to_reuse: ' + str(id_to_reuse))
+
+
+        for pixel in pixel_list:
+            pixel.blob_id = equivalent_labels[pixel.blob_id]
+        for id in range(len(derived_ids)):
+            derived_ids[id] = equivalent_labels[derived_ids[id]]
+
+        removed_id_count = 0
+        for id in range(len(equivalent_labels)):
+            if equivalent_labels[id] != id:
+                removed_id_count += 1
+        print('There were ' + str(removed_id_count) + ' removed ids')
+
+        # TODO: See if we can reverse the adjusting of the actual pixel ids until after the equivalent labels are cleaned up, to reflect the merged labels
+
+        return (derived_ids, derived_count, removed_id_count)
 
 
 
@@ -359,445 +601,25 @@ def getIdLists(pixels, **kwargs):
 
 
 
-
-
-def firstPass(pixel_list):
-
-    # NOTE Vertical increases downwards, horizontal increases to the right. (Origin top left)
-    # Order of neighboring pixels visitation:
-    # 0 1 2
-    # 3 X 4
-    # 5 6 7
-    # For 8 way connectivity, should check NE, N, NW, W (2,1,0,3)
-    # For origin in the top left, = SE,S,SW,W
-
-    # Note scanning starts at top left, and increases down, until resetting to the top and moving +1 column right
-    # Therefore, the earliest examined neighbors of any pixel are : 0, 3, 5 ,1
-    # 0 = (-1, -1)
-    # 3 = (-1, 0)
-    # 5 = (-1, 1)
-    # 1 = (0, -1
-
-
-    vertical_offsets  = [-1, -1, -1, 0]#[1, 0, -1, -1]#,  0,   1, -1] #, 1, -1, 0, 1]
-    horizontal_offsets = [-1, 0, 1, -1]#[-1, -1, -1, 0]#, 1, 1,  0] #, 0, 1, 1, 1]
-
-    derived_count = 0
-    derived_pixels = []
-    derived_ids = []
-    pixel_id_groups = []
-    conflict_differences = []
-
-    equivalent_labels = []
-
-    pixel_array = np.zeros([xdim, ydim], dtype=object) # Can use zeros instead of empty; moderately slower, but better to have non-empty entries incase of issues
-    for pixel in pixel_list:
-        pixel_array[pixel.x][pixel.y] = pixel # Pointer :) Modifications to the pixels in the list affect the array
-    for pixel in pixel_list: # Need second iteration so that all of the pixels of the array have been set
-        if pixel.blob_id == -1: # Value not yet set
-            xpos = pixel.x
-            ypos = pixel.y
-            # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
-            #     print('New cursor pixel:' + str(pixel))
-            for (horizontal_offset, vertical_offset) in zip(horizontal_offsets, vertical_offsets):
-                # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
-                #     print(' Trying offsets:' + str(horizontal_offset) + ':' + str(vertical_offset))
-                if (ypos + vertical_offset < ydim and ypos + vertical_offset >= 0 and xpos + horizontal_offset < xdim and xpos + horizontal_offset >= 0):  # Boundary check.
-                    neighbor = pixel_array[xpos + horizontal_offset][ypos + vertical_offset]
-                    # print('  Checking neigbor:' + str(neighbor) + 'at offsets:(' + str(horizontal_offset) + ',' + str(vertical_offset) +')')
-                    if (neighbor != 0):
-                        # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
-                        #     print('   Pixel:' + str(pixel) + ' found a nzn:' + str(neighbor))
-                        difference = abs(float(pixel.val) - float(neighbor.val)) # Note: Need to convert to floats, otherwise there's an overflow error due to the value range being int8 (0-255)
-                        if difference <= max_val_step: # Within acceptrable bound to be grouped by id
-                            # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
-                                # print('   DEBUG: Neighbor was within range.')
-                            if neighbor.blob_id != -1:
-                                # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
-                                #     print('   DEBUG: Neighbor already has an id.')
-                                #     print('   curpixel:' + str(pixel))
-                                #     print('   neighbor:' + str(neighbor))
-                                if pixel.blob_id != -1 and pixel.blob_id != neighbor.blob_id:
-                                    if debug_pixel_ops:
-                                        print('\n*****Pixel:' + str(pixel) + ' conflicts on neighbor with non-zero blob_id:' + str(neighbor))
-                                    conflict_differences.append(difference)
-
-                                    if pixel.blob_id < neighbor.blob_id:
-                                        pair = (pixel.blob_id, neighbor.blob_id)
-                                    else:
-                                        pair = (neighbor.blob_id, pixel.blob_id)
-                                    # pair is (lower_id, higher_id); want lower id to dominate
-                                    base = pair[0]
-                                    while equivalent_labels[base] != base: # Id maps to a lower id
-                                        base = equivalent_labels[base]
-                                    equivalent_labels[pair[1]] = base # Remapped the larger value to the end of the chain of the smaller
-
-
-                                elif pixel.blob_id != neighbor.blob_id:
-                                    # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG:
-                                    #     print('**Assigning the derived id:' + str(neighbor.blob_id) + ' to pixel:' + str(pixel))
-                                    pixel.blob_id = neighbor.blob_id
-                                    derived_pixels.append(pixel)
-                                    derived_ids.append(pixel.blob_id)
-                                    derived_count += 1
-                                    pixel_id_groups[pixel.blob_id].append(pixel)
-                            # else:
-                            #     if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
-                            #         print('   DEBUG: neighbor didnt have an id')
-                            #     if pixel.blob_id != -1:
-                            #         # neighboring blob is a zero, and the current pixel has an id, so we can assign this id to the neighbor
-                            #         if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG:
-                            #             print('**Derived a neighbor\'s id: assigning id:' + str(pixel.blob_id) + ' to neigbor:' + str(neighbor) + ' from pixel:' + str(pixel))
-                            #         neighbor.blob_id = pixel.blob_id
-                            #         derived_pixels.append(neighbor)
-                            #         derived_ids.append(neighbor.blob_id)
-                            #         derived_count += 1
-                            #         pixel_id_groups[neighbor.blob_id].append(neighbor)
-        else:
-            if debug_pixel_ops:
-                print('****Pixel:' + str(pixel) + ' already had an id when the cursor reached it')
-        if pixel.blob_id == -1:
-            pixel.blob_id = Pixel.getNextBlobId()
-            pixel_id_groups.append([pixel])
-            derived_ids.append(pixel.blob_id) # Todo should refactor 'derived_ids' to be more clear
-            equivalent_labels.append(pixel.blob_id) # Map the new pixel to itself until a low equivalent is found
-            if debug_pixel_ops:
-                print('**Never derived a value for pixel:' + str(pixel) + ', assigning it a new one:' + str(pixel.blob_id))
-    if debug_pixel_ops:
-        print('EQUIVALENT LABELS: ' + str(equivalent_labels))
-    # Time to clean up the first member of each id group-as they are skipped from the remapping
-
-    #TODO TODO need to do more fixes to the equivalent labels; basically condense them, to remove the issue of a trailing larger number
-    print('Number of initial pixel ids before deriving equivalencies:' + str(Pixel.id_num))
-    id_to_reuse = []
-
-    for id in range(Pixel.id_num):
-        if id not in equivalent_labels:
-            if debug_blob_ids:
-                print('ID #' + str(id) + ' wasnt in the list, adding to ids_to _replace')
-            id_to_reuse.append(id)
-        else:
-            if(len(id_to_reuse) != 0):
-                buf = id_to_reuse[0]
-                if debug_blob_ids:
-                    print('Replacing ' + str(id) + ' with ' + str(buf) + ' and adding ' + str(id) + ' to the ids to be reused')
-                id_to_reuse.append(id)
-                for id_fix in range(len(equivalent_labels)):
-                    if equivalent_labels[id_fix] == id:
-                        equivalent_labels[id_fix] = buf
-                id_to_reuse.pop(0)
-        if debug_blob_ids:
-            print('New equiv labels:' + str(equivalent_labels))
-    # DEBUG if debug_blob_ids:
-    #   print('**********Remaining id_to_reuse: ' + str(id_to_reuse))
-
-
-    # for z in range(len(equivalent_labels)):
-    #     print(str(z) + ':' + str(equivalent_labels[z]) + ', ', end='')
-
-
-    for pixel in pixel_list:
-        pixel.blob_id = equivalent_labels[pixel.blob_id]
-    # NOTE CHANGED to try changing the derived_ids which is new
-    for id in range(len(derived_ids)):
-        derived_ids[id] = equivalent_labels[derived_ids[id]]
-
-    removed_id_count = 0
-    # for id in derived_ids:
-    #     id = equivalent_labels[id]
-    for id in range(len(equivalent_labels)):
-        if equivalent_labels[id] != id:
-            removed_id_count += 1
-    print('There were ' + str(removed_id_count) + ' removed ids')
-
-    # print('DEBUG:DERIVED_IDS:' + str(derived_ids))
-
-    # TODO TODO due to the way that the groups are removed (in different segments)
-    # See if we can reverse the adjusting of the actual pixel ids until after the equivalent labels are cleaned up, to reflect the merged labels
-
-    return (derived_ids, derived_count, removed_id_count)
-
-
 def main():
 
     if test_instead_of_data:
+        dir = TEST_DIR
         all_images = glob.glob(TEST_DIR + '*.png')
+        all_images = all_images[:1]  # HACK
+
     else:
+        dir = DATA_DIR
         all_images = glob.glob(DATA_DIR + 'Swell*.tif')
-    all_images = [all_images[0]]  # HACK
+        all_images = all_images[:2]  # HACK
+
+    print(all_images)
+    all_slides = []
 
     for imagefile in all_images:
-        imagein = Image.open(imagefile)
-        print('Starting on image: ' + imagefile)
-        imarray = np.array(imagein)
-
-        (im_xdim, im_ydim, im_zdim) = imarray.shape
-        setglobaldims(im_xdim, im_ydim, im_zdim)
-
-        # np.set_printoptions(threshold=np.inf)
-        print('The are ' + str(zdim) + ' channels')
-        image_channels = imagein.split()
-        slices = []
-        pixels = []
-        sum_pixels = 0
-
-        for s in range(len(image_channels)):  # Better to split image and use splits for arrays than to split an array
-            buf = np.array(image_channels[s])
-            slices.append(buf)
-            if np.amax(slices[s]) == 0:
-                print('Slice #' + str(s) + ' is an empty slice')
-        # im = Image.fromarray(np.uint8(cm.jet(slices[0])*255))
-        # out = im.filter(ImageFilter.MaxFilter)
-
-        for curx in range(xdim):
-            for cury in range(ydim):
-                pixel_value = slices[0][cury][curx] # HACK, reversed so that orientation is the same as the original when plotted with a reversed y.
-                if (pixel_value != 0):  # Can use alternate min threshold and <=
-                    pixels.append(Pixel(pixel_value, curx, cury))
-                    sum_pixels += pixel_value
-        print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(xdim * ydim) + ' pixels')
-        pixels.sort(key=lambda pix: pix.val, reverse=True)# Note that sorting is being done like so to sort based on value not position as is normal with pixels. Sorting is better as no new list
-
-        # Lets go further and grab the maximal pixels, which are at the front
-        endmax = 0
-        while (endmax < len(pixels) and pixels[endmax].val >= min_val_threshold ):
-            endmax += 1
-        print('There are ' + str(endmax) + ' maximal pixels')
-
-        # Time to pre-process the maximal pixels; try and create groups/clusters
-        max_pixel_list = pixels[0:endmax]
-        #PlotClusterLists(KMeansClusterIntoLists(max_pixel_list, 20))
-
-        alive_pixels = filterSparsePixelsFromList(max_pixel_list)
-        alive_pixels.sort() # Sorted here so that in y,x order instead of value order
-
-        alive_pixel_array = zeros([xdim, ydim], dtype=object)
-        for pixel in alive_pixels:
-            alive_pixel_array[pixel.x][pixel.y] = pixel
-
-
-        (derived_ids, derived_count, num_ids_equiv) = firstPass(alive_pixels)
-
-
-        counter = collections.Counter(derived_ids)
-        total_ids = len(counter.items())
-
-        # print('Counter:' + str(counter))
-        # print('Total Derived Count:' + str(derived_count))
-        print('There were: ' + str(len(alive_pixels)) + ' alive pixels assigned to ' + str(total_ids) + ' ids')
-
-        most_common_ids = counter.most_common()# HACK Grabbing all for now, +1 b/c we start at 0 # NOTE Stored as (id, count)
-        top_common_id_count = len(most_common_ids)# HACK HACK HACK
-
-        # id_arrays = getIdArrays(alive_pixels, most_common_ids)
-
-        id_lists = getIdLists(alive_pixels, remap=remap_ids_by_group_size, id_counts=most_common_ids) # Hack, don't ned to supply id_counts of remap is false; just convenient for now
-        blob2dlist = [] # Note that blobs in the blob list are ordered by number of pixels, not id, this makes merging faster
-        edge_lists = [None] * len(id_lists)
-
-        for (blobnum, blobslist) in enumerate(id_lists):
-            blob2dlist.append(Blob2d(blobslist[0].blob_id, blobslist, alive_pixel_array))
-            edge_lists[blob2dlist[-1].id] = blob2dlist[-1].edge_pixels
-
-        # Note that we can now sort the Blob2d.equivalency_set b/c all blobs have been sorted
-        Blob2d.equivalency_set = sorted(Blob2d.equivalency_set)
-        print('Touching blobs: ' + str(Blob2d.equivalency_set))
-
-
-        equiv_sets = []
-
-        for (index, tuple) in enumerate(Blob2d.equivalency_set):
-            # print('Tuple:' + str(tuple))
-            found = 0
-            found_set_indeces = []
-            for (eqindex, eqset) in enumerate(equiv_sets):
-                t1 = tuple[0] in eqset
-                t2 = tuple[1] in eqset
-                if not (t1 and t2):
-                    if t1:
-                        eqset.add(tuple[1])
-                        found += 1
-                        found_set_indeces.append(eqindex)
-                    elif t2:
-                        eqset.add(tuple[0])
-                        found += 1
-                        found_set_indeces.append(eqindex)
-
-            if found == 0:
-                # print('DEBUG not found: ' + str(tuple))
-                equiv_sets.append(set([tuple[0], tuple[1]]))
-            elif found > 1:
-                # print(found_set_indeces)
-                # print('TODO new merge blobs!') # TODO
-                superset = set([])
-                for mergenum in found_set_indeces:
-                    superset = superset | equiv_sets[mergenum]
-                # print('New superset:' + str(set(superset)))
-                for delset in reversed(found_set_indeces):
-                    # print('Removing set #' + str(delset))
-                    del equiv_sets[delset]
-                equiv_sets.append(superset)
-            # print(equiv_sets)
-
-        # print('Sets before turned to lists: ' + str(equiv_sets))
-        # Sets to lists for indexing,
-        # Note that in python, sets are always unordered, and so a derivative list must be sorted.
-        for (index,stl) in enumerate(equiv_sets):
-            # print(equiv_sets[index])
-            equiv_sets[index] = sorted(stl) # See note
-            # print(equiv_sets[index])
-        print('Equivalency Sets after turned to lists: ' + str(equiv_sets))
-
-
-        for blob in blob2dlist: # NOTE Merging sets
-            for equivlist in equiv_sets:
-                if blob.id != equivlist[0] and blob.id in equivlist: # Not the base and in the list
-                    # print('old:' + str(blob) + ':' + str(blob.pixels[0]))
-                    # print('  Found id:' + str(blob.id) + ' in eq:' + str(equivlist))
-                    blob.updateid(equivlist[0])
-                    # print('new:' + str(blob) + ':' + str(blob.pixels[0]))
-
-
-        new_bloblist = Blob2d.mergeblobs(blob2dlist) # NOTE, by assigning the returned Blob2d list to a new var, the results of merging can be demonstrated
-        print('BEFORE MERGING!!!!!!!')
-        print(blob2dlist)
-
-        print('RESULT OF MERGING!!!!!!!')
-        print(new_bloblist)
-
-        print('ORIGINAL equiv set:' + str(Blob2d.equivalency_set))
-
-        newclusterlists = []
-        for blob in new_bloblist:
-            newclusterlists.append(blob.pixels)
-        debug()
-        PlotClusterLists(newclusterlists, markersize=5)
-        PlotClusterLists(id_lists, dim='2d', markersize=5)#, numbered=True)
-
-
-
-        PlotClusterLists(edge_lists, dim='2d', markersize=10)#, numbered=True)
-
-        # NOTE SEMI FUNCTIONAL, but now obsolete
-        # for (index, tuple) in enumerate(Blob2d.equivalency_set):
-        #     print('Tuple:' + str(tuple))
-        #
-        #     updateids = [tuple[1]]
-        #     found = False
-        #     for newtuple in newtuples:
-        #         if tuple[0] in newtuple or tuple[1] in newtuple: # Already something in the list that maps
-        #             found = True
-        #             if tuple[0] == newtuple[0]: # Map from the same id to another
-        #                 print('DEBUG1')
-        #                 newtuples.append(tuple)
-        #             elif tuple[1] == newtuple[0]: # Map to newid from a pre-existing id
-        #                 print('DEBUG2')
-        #                 newtuples.append((newtuple[0], tuple[1]))
-        #             elif tuple[0] == newtuple[1]: # Map from an already remapped id to another # NOTE this is the reduction
-        #                 print('DEBUG3')
-        #                 newtuples.append((newtuple[0], tuple[0]))
-        #             else: # Both map to the same y # NOTE this is the reduction
-        #                 print('DEBUG4')
-        #                 if newtuple[0] < tuple[0]:
-        #                     newtuples.append((newtuple[0], tuple[0]))
-        #                 else:
-        #                     newtuples.append((tuple[0], newtuple[0]))
-        #                     print('DEBUG THIS WASNT EXPECTED>>>>>>>>>>>')
-        #             print('Updated newtuples before run:' + str(newtuples))
-        #             break
-        #     if not found:
-        #         print('DEBUG: not found reference to ' + str(tuple)+ ' , so adding')
-        #         newtuples.append(tuple)
-        #     # print('Done checking existing newtuples, len=' + str(len(newtuples)))
-        #     print('Update ids:' + str(updateids))
-        #     print('Newtuples:' + str(newtuples))
-
-
-
-
-
-            #
-            # if len(reuseids) != 0:
-            #     buf = reuseids[0]
-            #     print('Replacing ' + str(tuple) + ' with ' + str(buf) + ' and adding ' + str(tuple) + ' to the ids to be reused')
-            #     reuseids.append(tuple)
-
-
-    # NOTE the below is copied for convenience when writing second pass (merging blobs)
-    # for id in range(Pixel.id_num):
-    #     if id not in equivalent_labels:
-    #         if debug_blob_ids:
-    #             print('ID #' + str(id) + ' wasnt in the list, adding to ids_to _replace')
-    #         id_to_reuse.append(id)
-    #     else:
-    #         if(len(id_to_reuse) != 0):
-    #             buf = id_to_reuse[0]
-    #             if debug_blob_ids:
-    #                 print('Replacing ' + str(id) + ' with ' + str(buf) + ' and adding ' + str(id) + ' to the ids to be reused')
-    #             id_to_reuse.append(id)
-    #             for id_fix in range(len(equivalent_labels)):
-    #                 if equivalent_labels[id_fix] == id:
-    #                     equivalent_labels[id_fix] = buf
-    #             id_to_reuse.pop(0)
-    #     if debug_blob_ids:
-    #         print('New equiv labels:' + str(equivalent_labels))
-    # if debug_blob_ids:
-    #     print('Remaining id_to_reuse: ' + str(id_to_reuse))
-
-
-
-
-
-
-
-        # DEBUG
-        b2d = blob2dlist[10]
-        print('There are a total of ' + str(len(b2d.pixels)) + ' pixels in the blob')
-        print('Neighbors:' + str(b2d.edge_pixels[0].getNeighbors(alive_pixel_array)))
-        next_edge = 0
-
-        # maxloops = 50
-        # loops = 0
-        #
-        #
-        # edgep = [pixel for pixel in b2d.pixels if pixel.nz_neighbors < 8]
-        # edgep.sort()
-        #
-        # print('#Edge_Pixels: ' + str(len(edgep)))
-        #
-        # while (b2d.edge_pixels[-1] != b2d.edge_pixels[0] or len(b2d.edge_pixels) == 1) and loops < maxloops:
-        #     loops += 1
-        #     print('Loop #:' + str(loops))
-        #     added = False
-        #     may_be_done = False
-        #
-        #     curpixel = b2d.edge_pixels[-1]
-        #     possible = curpixel.getNeighbors(alive_pixel_array)
-        #     print('Curpixel:' + str(curpixel) + ', neighbors:' + str(possible))
-        #     for pix in possible:
-        #         if pix == b2d.edge_pixels[0]:
-        #             may_be_done = True
-        #             print('One of the neighbors is the starting pixel; may be finishing')
-        #         if pix != 0 and pix.nz_neighbors < 8 and pix not in b2d.edge_pixels:
-        #             b2d.edge_pixels.append(pix)
-        #             added = True
-        #             break
-        #     print(str(len(b2d.edge_pixels)) + ' total edge pix:' + str(b2d.edge_pixels))
-        #     if not added:
-        #         print('***WARNING NO PIXEL ADDED!!!! --ERROR')
-        #         PlotClusterLists([b2d.edge_pixels, edgep], numbered=True, dim='3d')
-        #         debug()
-        #         if may_be_done == True:
-        #             print('\n\nDONE HERE!!!!\n\n')
-        # TODO issue occurs where all neighbor pixels of a cursor are already in a
-        # TODO include checking against blob_id
-        pdb.set_trace()
-
-
-
-
-
-        # print(edgep)
+        print(imagefile)
+        all_slides.append(Slide(imagefile))
+        cur_slide = all_slides[-1]
 
 
 
@@ -815,11 +637,6 @@ def main():
 
 '''
 My informal Rules:
-    A max pixel (mp) has value 255
-    Around a pixel means the 8 pixels that are touching it in the 2d plane
-        123
-        4.5
-        678
     Any mp next to each other belong together
     Any mp that has no mp around it is removed as noise
     TODO: https://books.google.com/books?id=ROHaCQAAQBAJ&pg=PA287&lpg=PA287&dq=python+group+neighborhoods&source=bl&ots=f7Vuu9CQdg&sig=l6ASHdi27nvqbkyO_VvztpO9bRI&hl=en&sa=X&ei=4COgVbGFD8H1-QGTl7aABQ&ved=0CCUQ6AEwAQ#v=onepage&q=python%20group%20neighborhoods&f=false
