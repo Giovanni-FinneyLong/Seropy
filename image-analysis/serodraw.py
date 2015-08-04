@@ -27,6 +27,7 @@ import code
 import rlcompleter
 import pdb
 import os
+from mpl_toolkits.mplot3d import Axes3D
 
 from config import *
 
@@ -42,7 +43,7 @@ debug_blob_ids = False
 debug_pixel_ops = False
 debug_set_merge = False
 remap_ids_by_group_size = True
-test_instead_of_data = False
+test_instead_of_data = True
 debug_pixel_ops_y_depth = 500
 
 min_val_threshold = 250
@@ -130,6 +131,56 @@ def PlotMatrixTrio(m1, m2, m3):
     ax2.spy(m2, markersize=1, aspect='auto', origin='lower')
     ax3.spy(m3, markersize=1, aspect='auto', origin='lower')
     plt.show()
+
+
+
+
+def plotSlides(slide_list):
+    colors2 = plt.get_cmap('gist_rainbow')
+    num_slides = len(slide_list)
+    # cNorm = colortools.Normalize(vmin=0, vmax=num_slides-1)
+    # scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
+    fig = plt.figure(figsize=(25,15)) # figsize=(x_inches, y_inches), default 80-dpi
+    plt.clf()
+    ax = fig.add_subplot(111, projection='3d')
+    # ax.set_color_cycle([scalarMap.to_rgba(i) for i in range(num_clusters)])
+
+    ax.set_xlim([0, xdim])
+    ax.set_ylim([ydim, 0])
+    ax.set_zlim([0, num_slides])
+    ax.view_init(elev=10., azim=0) #There is also a dist which can be set
+    ax.dist = 8 # Default is 10, 0 is too low..
+
+    for (slide_num, slide) in enumerate(slide_list):
+        print('Plotting slide:' + str(slide_num) + '/' + str(len(slide_list)) + '  @' + str(time.ctime()))
+        cluster_lists = []
+        num_blobs = len(slide.blob2dlist)
+        cNorm = colortools.Normalize(vmin=0, vmax=num_blobs-1) # NOTE this makes a new color cycle for each slide
+        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
+        x = []
+        y = []
+        # print(len(slide.blob2dlist))
+        # print(slide.blob2dlist)
+
+
+        for (blob_num, blob) in enumerate(slide.blob2dlist):
+            print(' Plotting blob: ' + str(blob_num) + '/' + str(len(slide.blob2dlist)))
+            for pixel in blob.edge_pixels: # hack ONLY PLOTTING EDGES
+                x.append(pixel.x)
+                y.append(pixel.y)
+            ax.scatter(x, y, slide_num, c=scalarMap.to_rgba(blob_num))
+    print('Making tight layout @' + str(time.ctime()))
+    fig.tight_layout()
+    # print('Now saving rendering @' + str(time.ctime()))
+    # plt.savefig("3D.png")
+    print('Now displaying rendering @' + str(time.ctime()))
+    plt.show()
+
+
+
+
+
+
 
 def PlotClusterLists(list_of_lists, **kwargs):
     '''

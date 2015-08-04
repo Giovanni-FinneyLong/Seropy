@@ -10,7 +10,7 @@ from collections import OrderedDict
 import readline
 import code
 import rlcompleter
-
+# from pympler import asizeof
 
 def setglobaldims(x, y, z):
     def setserodims(x, y, z):
@@ -238,6 +238,7 @@ class Slide:
     Slides are compared to create 3d blobs.
     '''
 
+
     def __init__(self, filename):
         self.id_num = 0
         self.t0 = time.time()
@@ -260,7 +261,7 @@ class Slide:
                 print('Slice #' + str(s) + ' is an empty slice')
         for curx in range(xdim):
             for cury in range(ydim):
-                pixel_value = slices[0][cury][curx] # HACK, reversed so that orientation is the same as the original when plotted with a reversed y.
+                pixel_value = slices[0][curx][cury] # CHANGED back,  FIXME # HACK, reversed so that orientation is the same as the original when plotted with a reversed y.
                 if (pixel_value != 0):  # Can use alternate min threshold and <=
                     pixels.append(Pixel(pixel_value, curx, cury))
                     self.sum_pixels += pixel_value
@@ -355,7 +356,6 @@ class Slide:
 
     def getNextBlobId(self): # Starts at 0
         self.id_num += 1
-        #print('New id count:' + str(Pixel.id_count))
         return self.id_num - 1 #HACK this -1 is so that id's start at zero
 
 
@@ -495,6 +495,10 @@ class Slide:
 
 
 
+
+
+
+
 def filterSparsePixelsFromList(listin):
     max_float_array = zeros([xdim, ydim])
     for pixel in listin:
@@ -606,7 +610,7 @@ def main():
     if test_instead_of_data:
         dir = TEST_DIR
         all_images = glob.glob(TEST_DIR + '*.png')
-        all_images = all_images[:1]  # HACK
+        # all_images = all_images[:3]  # HACK
 
     else:
         dir = DATA_DIR
@@ -620,15 +624,8 @@ def main():
         print(imagefile)
         all_slides.append(Slide(imagefile))
         cur_slide = all_slides[-1]
-
-
-
-        # NOTE NOTE WHat if used clustering (ex k means, or something that can adjust the weights on atributes easily), on the centers (and maybe total pixels or width etc..?), to relate the blobs most effectively across slides?
-        # In such an approach, would probably want to ignore the z dimension, so that there is no reason to group blobs on the same level.. Perhaps a kernel approach using a slide might help?
-
-        # Otherwise maybe manually derive relationships and tag, and then feed into ml?
-
-
+    plotSlides(all_slides)
+    debug()
 
 
         # findBestClusterCount(0, 100, 5)
@@ -637,8 +634,8 @@ def main():
 
 '''
 My informal Rules:
-    Any mp next to each other belong together
-    Any mp that has no mp around it is removed as noise
+    Any pixel next to each other belong together
+    Any pixel that has no mp around it is removed as noise
     TODO: https://books.google.com/books?id=ROHaCQAAQBAJ&pg=PA287&lpg=PA287&dq=python+group+neighborhoods&source=bl&ots=f7Vuu9CQdg&sig=l6ASHdi27nvqbkyO_VvztpO9bRI&hl=en&sa=X&ei=4COgVbGFD8H1-QGTl7aABQ&ved=0CCUQ6AEwAQ#v=onepage&q=python%20group%20neighborhoods&f=false
         Info on neighborhoods
 '''
@@ -649,10 +646,4 @@ if __name__ == '__main__':
     main()  # Run the main function
 
 # TODO time to switch to sparse matrices, it seems that there are indeed computational optimizations
-# TODO Look into DBSCAN from Sklearn as an alternate way to cluster
-# TODO & other sklearn clustering techniques: http://scikit-learn.org/stable/modules/clustering.html
-# TODO recover and use more of the data from kmeans, like the centroids, which can be used to relate blobs?
-# TODO may want to use numpy 3d array over a list of 2d arrays; remains to be checked for speed/memory
-# NOTE: intersting to note that sparse groups of pixels, including noise in a general area are often grouped together, probably due to their comparable lack of grouping improvements.
-# May be able to exploit this when removing sparse pixels.
-# NOTE: What would happen if did iterative k-means until all pixels of all groups were touching, or there was a group consisting of a single pixel?
+# TODO other sklearn clustering techniques: http://scikit-learn.org/stable/modules/clustering.html
