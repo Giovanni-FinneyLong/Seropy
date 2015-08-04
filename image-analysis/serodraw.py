@@ -6,9 +6,24 @@ from sklearn.cluster import MeanShift, estimate_bandwidth
 from itertools import cycle
 from sklearn.cluster import AffinityPropagation
 from sklearn import metrics
+import matplotlib
+import tkinter
+# HACK HACK
+# matplotlib.use('GTK3Agg')
+# HACK HACK http://www.swharden.com/blog/2013-04-15-fixing-slow-matplotlib-in-pythonxy/
+# http://matplotlib.org/faq/usage_faq.html#what-is-a-backend
+import glob
+# import wand
+# import cv2 # OpenCV version 2
+
 import matplotlib.colors as colortools
 from matplotlib import animation
-import matplotlib.pylab as plt
+
+
+# import matplotlib.pylab as plt
+import vispy.mpl_plot as plt
+
+
 import matplotlib.cm as cm
 import numpy as np
 import time
@@ -18,9 +33,7 @@ from numpy import zeros
 from visvis.vvmovie.images2gif import writeGif
 # from Scripts.images2gif import writeGif
 from scipy.cluster.vq import vq, kmeans, whiten, kmeans2
-import glob
-# import wand
-# import cv2 # OpenCV version 2
+
 import subprocess
 import readline
 import code
@@ -30,6 +43,10 @@ import os
 from mpl_toolkits.mplot3d import Axes3D
 
 from config import *
+from vispy import plot as vp
+
+import vispy.scene
+from vispy.scene import visuals
 
 
 # NOTE  ##########################
@@ -43,7 +60,7 @@ debug_blob_ids = False
 debug_pixel_ops = False
 debug_set_merge = False
 remap_ids_by_group_size = True
-test_instead_of_data = True
+test_instead_of_data = False
 debug_pixel_ops_y_depth = 500
 
 min_val_threshold = 250
@@ -54,6 +71,39 @@ minimal_nonzero_neighbors = 2 # The minimal amount of nzn a pixel must have to a
     # Recommended = 2
 # NOTE  ##########################
 
+
+
+def plotSlidesV(slide_stack):
+    '''
+    For now, using V as a suffix to indicate that the plotting is being done via vispy
+    '''
+
+    total_pixels = 0
+    for slide in slide_stack:
+        total_pixels += len(slide.alive_pixels)
+    array = np.zeros([total_pixels, 3])
+    index = 0
+
+    for (slide_num, slide) in enumerate(slide_stack):
+        print('Adding slide:' + str(slide_num) + '/' + str(len(slide_stack)))
+        for pix in slide.alive_pixels:
+            array[index] = [pix.x / xdim, pix.y / ydim, slide_num / len(slide_stack)]
+            index += 1
+        # pos = np.random.normal(size=(100000, 3), scale=0.2)
+        # print(array)
+        # print(pos)
+    canvas = vispy.scene.SceneCanvas(keys='interactive', show=True)
+
+    view = canvas.central_widget.add_view()
+
+    scatter = visuals.Markers()
+    scatter.set_data(array, edge_color=None, face_color=(1, 1, 1, .5), size=5)
+    view.add(scatter)
+    view.camera = 'turntable'  # or try 'arcball'
+    # add a colored 3D axis for orientation
+    axis = visuals.XYZAxis(parent=view.scene)
+    # print('Bounds-a:' + str()))
+    vispy.app.run()
 
 def printElapsedTime(t0, tf):
     temp = tf - t0

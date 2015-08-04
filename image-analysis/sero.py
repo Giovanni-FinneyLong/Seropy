@@ -615,7 +615,7 @@ def main():
     else:
         dir = DATA_DIR
         all_images = glob.glob(DATA_DIR + 'Swell*.tif')
-        all_images = all_images[:2]  # HACK
+        all_images = all_images[:5]  # HACK
 
     print(all_images)
     all_slides = []
@@ -624,8 +624,10 @@ def main():
         print(imagefile)
         all_slides.append(Slide(imagefile))
         cur_slide = all_slides[-1]
-    plotSlides(all_slides)
+    vispytest(all_slides)
     debug()
+
+    plotSlides(all_slides)
 
 
         # findBestClusterCount(0, 100, 5)

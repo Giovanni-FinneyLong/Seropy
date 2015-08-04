@@ -5,7 +5,8 @@ install = [
     'numpy',
     'matplotlib',
     'scipy',
-    'scikit-learn'
+    'scikit-learn',
+    'vispy'
 ]
 
 
