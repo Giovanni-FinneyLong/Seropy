@@ -342,9 +342,11 @@ class Slide:
         print('Equiv set:' + str(self.equivalency_set))
         self.blob2dlist = Blob2d.mergeblobs(self.blob2dlist) # NOTE, by assigning the returned Blob2d list to a new var, the results of merging can be demonstrated
         print('After Merging: ' + str(self.blob2dlist))
+        self.edge_pixels = []
         edge_lists = []
         for (blobnum, blobslist) in enumerate(self.blob2dlist):
             edge_lists.append(self.blob2dlist[blobnum].edge_pixels)
+            self.edge_pixels.extend(self.blob2dlist[blobnum].edge_pixels)
 
         self.tf = time.time()
         printElapsedTime(self.t0, self.tf)
@@ -615,7 +617,7 @@ def main():
     else:
         dir = DATA_DIR
         all_images = glob.glob(DATA_DIR + 'Swell*.tif')
-        all_images = all_images[:5]  # HACK
+        all_images = all_images[:4]  # HACK
 
     print(all_images)
     all_slides = []
@@ -624,7 +626,7 @@ def main():
         print(imagefile)
         all_slides.append(Slide(imagefile))
         cur_slide = all_slides[-1]
-    vispytest(all_slides)
+    plotSlidesVC(all_slides, edges=False, color='slides')#, color=None)
     debug()
 
     plotSlides(all_slides)

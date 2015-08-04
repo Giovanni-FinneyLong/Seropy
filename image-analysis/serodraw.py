@@ -71,39 +71,107 @@ minimal_nonzero_neighbors = 2 # The minimal amount of nzn a pixel must have to a
     # Recommended = 2
 # NOTE  ##########################
 
-
-
-def plotSlidesV(slide_stack):
+def plotSlidesVC(slide_stack, **kwargs):
     '''
-    For now, using V as a suffix to indicate that the plotting is being done via vispy
+    For now, using V as a suffix to indicate that the plotting is being done via vispy, C for colored
     '''
+    edges = kwargs.get('edges', False) # True if only want to plot the edge pixels of each blob
+    coloring = kwargs.get('color', None)
+    assert coloring in [None, 'blobs', 'slides']
 
-    total_pixels = 0
-    for slide in slide_stack:
-        total_pixels += len(slide.alive_pixels)
-    array = np.zeros([total_pixels, 3])
+
+
+    # cNorm = colortools.Normalize(vmin=0, vmax=num_slides-1)
+    # scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
+    # ax.set_color_cycle([scalarMap.to_rgba(i) for i in range(num_clusters)])
+    colors = vispy.color.get_color_names()
+
+
+
     index = 0
-
-    for (slide_num, slide) in enumerate(slide_stack):
-        print('Adding slide:' + str(slide_num) + '/' + str(len(slide_stack)))
-        for pix in slide.alive_pixels:
-            array[index] = [pix.x / xdim, pix.y / ydim, slide_num / len(slide_stack)]
-            index += 1
-        # pos = np.random.normal(size=(100000, 3), scale=0.2)
-        # print(array)
-        # print(pos)
+    scatter_list = []
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True)
-
     view = canvas.central_widget.add_view()
 
-    scatter = visuals.Markers()
-    scatter.set_data(array, edge_color=None, face_color=(1, 1, 1, .5), size=5)
-    view.add(scatter)
+
+
+    if coloring == 'blobs':
+        array_list = []
+
+        for (slide_num, slide) in enumerate(slide_stack):
+            print('Adding slide:' + str(slide_num) + '/' + str(len(slide_stack)))
+            for blob in slide.blob2dlist:
+                if edges:
+                    array_list.append(np.zeros([len(blob.edge_pixels), 3]))
+
+                    for (p_num, pix) in enumerate(blob.edge_pixels):
+                        array_list[-1][p_num] = [pix.x / xdim, pix.y / ydim, slide_num / len(slide_stack)]
+                else:
+                    array_list.append(np.zeros([len(blob.pixels), 3]))
+
+                    for (p_num, pix) in enumerate(blob.pixels):
+                        array_list[-1][p_num] = [pix.x / xdim, pix.y / ydim, slide_num / len(slide_stack)]
+    elif coloring == 'slides':
+        array_list = []
+        for (slide_num, slide) in enumerate(slide_stack):
+            print('Adding slide:' + str(slide_num) + '/' + str(len(slide_stack)))
+            if edges:
+                array_list.append(np.zeros([len(slide.edge_pixels), 3]))
+                for (p_num, pix) in enumerate(slide.edge_pixels):
+                    array_list[-1][p_num] = [pix.x / xdim, pix.y / ydim, slide_num / len(slide_stack)]
+            else:
+                array_list.append(np.zeros([len(slide.alive_pixels), 3]))
+                for (p_num, pix) in enumerate(slide.alive_pixels):
+                    array_list[-1][p_num] = [pix.x / xdim, pix.y / ydim, slide_num / len(slide_stack)]
+    else: # No coloring
+        total_pixels = 0
+        if edges:
+            for slide in slide_stack:
+                total_pixels += len(slide.edge_pixels)
+        else:
+            for slide in slide_stack:
+                total_pixels += len(slide.alive_pixels)
+        array_list = np.zeros([total_pixels, 3]) # NOTE Intentional misnaming; just an array, but now can use the same calls as the colored
+        index = 0
+        for (slide_num, slide) in enumerate(slide_stack):
+            print('Adding slide:' + str(slide_num) + '/' + str(len(slide_stack)))
+            if edges:
+                for pix in slide.edge_pixels:
+                    array_list[index] = [pix.x / xdim, pix.y / ydim, slide_num / len(slide_stack)]
+                    index += 1
+            else:
+                for pix in slide.alive_pixels:
+                    array_list[index] = [pix.x / xdim, pix.y / ydim, slide_num / len(slide_stack)]
+                    index += 1
+
+        scatter = visuals.Markers()
+        scatter.set_data(array_list, edge_color=None, face_color=(1, 1, 1, .5), size=5)
+        view.add(scatter)
+        view.camera = 'turntable'  # or try 'arcball'
+        # add a colored 3D axis for orientation
+        axis = visuals.XYZAxis(parent=view.scene)
+        # print('Bounds-a:' + str()))
+        vispy.app.run()
+
+    if coloring is not None:
+        for (a_num, arr) in enumerate(array_list):
+            print('Anum:' + str(a_num) + ' color:' + str(colors[a_num % len(colors)]))
+            scatter_list.append(visuals.Markers())
+            scatter_list[-1].set_data(arr, edge_color=None, face_color=colors[a_num % len(colors)], size=5)
+            view.add(scatter_list[-1])
+
     view.camera = 'turntable'  # or try 'arcball'
     # add a colored 3D axis for orientation
     axis = visuals.XYZAxis(parent=view.scene)
     # print('Bounds-a:' + str()))
     vispy.app.run()
+
+
+
+
+
+
+
 
 def printElapsedTime(t0, tf):
     temp = tf - t0
