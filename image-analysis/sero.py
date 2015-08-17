@@ -29,6 +29,8 @@ class Blob2d:
     '''
 
     # equivalency_set = set() # Used to keep track of touching blobs, which can then be merged.
+    total_blobs = 0 # Note that this is set AFTER merging is done, and so is not modified by blobs
+
 
     def __init__(self, idnum, list_of_pixels, master_array, slide):
         self.id = idnum
@@ -42,34 +44,34 @@ class Blob2d:
         self.master_array = master_array
         self.slide = slide
         # TODO make sure the list is sorted
-        minx = list_of_pixels[0].x
-        miny = list_of_pixels[0].y
-        maxx = minx
-        maxy = miny
+        self.minx = list_of_pixels[0].x
+        self.miny = list_of_pixels[0].y
+        self.maxx = self.minx
+        self.maxy = self.miny
         min_nzn_pixel = list_of_pixels[0]
         for pixel in list_of_pixels:
             self.sum_vals += pixel.val
             self.avgx += pixel.x
             self.avgy += pixel.y
-            if pixel.x < minx:
-                minx = pixel.x
-            if pixel.y <= miny:
-                miny = pixel.y
-            if pixel.x > maxx:
-                maxx = pixel.x
-            if pixel.y > maxy:
-                maxy = pixel.y
+            if pixel.x < self.minx:
+                self.minx = pixel.x
+            if pixel.y <= self.miny:
+                self.miny = pixel.y
+            if pixel.x > self.maxx:
+                self.maxx = pixel.x
+            if pixel.y > self.maxy:
+                self.maxy = pixel.y
             if pixel.nz_neighbors < min_nzn_pixel.nz_neighbors:
-                min_nzn_pixel = pixel
+                self.min_nzn_pixel = pixel
         # Note for now, will use the highest non-zero-neighbor count pixel
         self.avgx /= self.num_pixels
         self.avgy /= self.num_pixels
         self.setEdge()
         self.setTouchingBlobs()
         self.center = (self.avgx, self.avgy) # TODO
-        self.max_width = maxx-minx # TODO
+        self.max_width = self.maxx-self.minx # TODO
         # self.min_width = -1 # TODO
-        self.max_height = maxy-maxx # TODO
+        self.max_height = self.maxy-self.maxx # TODO
         # self.min_height = -1 # TODO
         self.edge_radius = 0
         for pixel in self.edge_pixels:
@@ -105,11 +107,13 @@ class Blob2d:
         for pix in self.pixels:
             pix.blob_id = newid
 
-
     def __str__(self):
         return str('B{id:' + str(self.id) + ', #P:' + str(self.num_pixels)) + '}'
 
     __repr__ = __str__
+
+    def totalBlobs(self):
+        return Blob2d.total_blobs
 
 
     @staticmethod
@@ -238,8 +242,11 @@ class Slide:
     Slides are compared to create 3d blobs.
     '''
 
+    total_slides = 0
 
     def __init__(self, filename):
+        Slide.total_slides += 1
+
         self.id_num = 0
         self.t0 = time.time()
         self.filename = filename
@@ -347,7 +354,7 @@ class Slide:
         for (blobnum, blobslist) in enumerate(self.blob2dlist):
             edge_lists.append(self.blob2dlist[blobnum].edge_pixels)
             self.edge_pixels.extend(self.blob2dlist[blobnum].edge_pixels)
-
+        Blob2d.total_blobs += len(self.blob2dlist)
         self.tf = time.time()
         printElapsedTime(self.t0, self.tf)
         # debug()
@@ -359,6 +366,13 @@ class Slide:
     def getNextBlobId(self): # Starts at 0
         self.id_num += 1
         return self.id_num - 1 #HACK this -1 is so that id's start at zero
+
+    def totalBlobs(self):
+        ''' Allows access to class vars without class declaration'''
+        return Blob2d.total_blobs
+    def totalSlides(self):
+        ''' Allows access to class vars without class declaration'''
+        return  Slide.total_slides
 
 
     def firstPass(self, pixel_list):
@@ -496,11 +510,6 @@ class Slide:
         return (derived_ids, derived_count, removed_id_count)
 
 
-
-
-
-
-
 def filterSparsePixelsFromList(listin):
     max_float_array = zeros([xdim, ydim])
     for pixel in listin:
@@ -617,19 +626,19 @@ def main():
     else:
         dir = DATA_DIR
         all_images = glob.glob(DATA_DIR + 'Swell*.tif')
-        all_images = all_images[:4]  # HACK
+        # all_images = all_images[:4]  # HACK
 
     print(all_images)
     all_slides = []
 
     for imagefile in all_images:
         print(imagefile)
-        all_slides.append(Slide(imagefile))
+        all_slides.append(Slide(imagefile)) # Computations are done here, as the slide is created.
         cur_slide = all_slides[-1]
-    plotSlidesVC(all_slides, edges=False, color='slides')#, color=None)
+    plotSlidesVC(all_slides, edges=True, color='slides', midpoints='True')#, color=None)
     debug()
 
-    plotSlides(all_slides)
+    # plotSlides(all_slides)
 
 
         # findBestClusterCount(0, 100, 5)

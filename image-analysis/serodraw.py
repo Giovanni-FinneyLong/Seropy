@@ -45,6 +45,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from config import *
 from vispy import plot as vp
 
+import vispy.io
 import vispy.scene
 from vispy.scene import visuals
 
@@ -60,7 +61,7 @@ debug_blob_ids = False
 debug_pixel_ops = False
 debug_set_merge = False
 remap_ids_by_group_size = True
-test_instead_of_data = False
+test_instead_of_data = True
 debug_pixel_ops_y_depth = 500
 
 min_val_threshold = 250
@@ -77,6 +78,7 @@ def plotSlidesVC(slide_stack, **kwargs):
     '''
     edges = kwargs.get('edges', False) # True if only want to plot the edge pixels of each blob
     coloring = kwargs.get('color', None)
+    midpoints = kwargs.get('midpoints', True)
     assert coloring in [None, 'blobs', 'slides']
 
 
@@ -85,15 +87,10 @@ def plotSlidesVC(slide_stack, **kwargs):
     # scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
     # ax.set_color_cycle([scalarMap.to_rgba(i) for i in range(num_clusters)])
     colors = vispy.color.get_color_names()
-
-
-
     index = 0
     scatter_list = []
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True)
     view = canvas.central_widget.add_view()
-
-
 
     if coloring == 'blobs':
         array_list = []
@@ -147,29 +144,49 @@ def plotSlidesVC(slide_stack, **kwargs):
         scatter = visuals.Markers()
         scatter.set_data(array_list, edge_color=None, face_color=(1, 1, 1, .5), size=5)
         view.add(scatter)
-        view.camera = 'turntable'  # or try 'arcball'
-        # add a colored 3D axis for orientation
-        axis = visuals.XYZAxis(parent=view.scene)
-        # print('Bounds-a:' + str()))
-        vispy.app.run()
+        # view.camera = 'arcball'  # or try 'arcball'
+        # # add a colored 3D axis for orientation
+        # axis = visuals.XYZAxis(parent=view.scene)
+        # # print('Bounds-a:' + str()))
+        # vispy.app.run()
 
     if coloring is not None:
         for (a_num, arr) in enumerate(array_list):
-            print('Anum:' + str(a_num) + ' color:' + str(colors[a_num % len(colors)]))
+            print('Array_num:' + str(a_num) + ' is colored:' + str(colors[a_num % len(colors)]))
             scatter_list.append(visuals.Markers())
             scatter_list[-1].set_data(arr, edge_color=None, face_color=colors[a_num % len(colors)], size=5)
             view.add(scatter_list[-1])
+
+
+    total_blobs = 0
+    for slide in slide_stack:
+        total_blobs += len(slide.blob2dlist)
+    print('There are a total of ' + str(slide_stack[0].totalBlobs()) + ' blobs in the ' + str(slide_stack[0].totalBlobs()) + ' slides')
+
+    if midpoints:
+        avg_list = np.zeros([total_blobs, 3])
+        index = 0
+        for slide_num, slide in enumerate(slide_stack):
+            for blob in slide.blob2dlist:
+                avg_list[index] = [blob.avgx / xdim, blob.avgy / ydim, slide_num / len(slide_stack)]
+                index += 1
+        avg_scatter = visuals.Markers()
+        avg_scatter.set_data(avg_list, edge_color=None, face_color=(1, 1, 1, .5), size=15, symbol='*')
+        view.add(avg_scatter)
+        for num, midp in enumerate(avg_list):
+            view.add(visuals.Text(str(num), pos=midp, color='white'))
 
     view.camera = 'turntable'  # or try 'arcball'
     # add a colored 3D axis for orientation
     axis = visuals.XYZAxis(parent=view.scene)
     # print('Bounds-a:' + str()))
+    print('Rendering')
+    img = canvas.render()
+    print('Writing')
+    vispy.io.write_png('abc.png', img)
+    # debug()
+    print('Displaying')
     vispy.app.run()
-
-
-
-
-
 
 
 
@@ -250,9 +267,6 @@ def PlotMatrixTrio(m1, m2, m3):
     ax3.spy(m3, markersize=1, aspect='auto', origin='lower')
     plt.show()
 
-
-
-
 def plotSlides(slide_list):
     colors2 = plt.get_cmap('gist_rainbow')
     num_slides = len(slide_list)
@@ -293,12 +307,6 @@ def plotSlides(slide_list):
     # plt.savefig("3D.png")
     print('Now displaying rendering @' + str(time.ctime()))
     plt.show()
-
-
-
-
-
-
 
 def PlotClusterLists(list_of_lists, **kwargs):
     '''
