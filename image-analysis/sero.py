@@ -43,6 +43,7 @@ class Blob2d:
         self.sum_vals = 0
         self.master_array = master_array
         self.slide = slide
+        self.possible_partners = []
         # TODO make sure the list is sorted
         self.minx = list_of_pixels[0].x
         self.miny = list_of_pixels[0].y
@@ -106,6 +107,23 @@ class Blob2d:
         self.id = newid
         for pix in self.pixels:
             pix.blob_id = newid
+
+    def setPossiblePartners(self, slide):
+        '''
+        Finds all blobs in the given slide that overlap with the given blob, and so could be part of the same blob (partners)
+        '''
+        # A blob is a possible partner to another blob if they are in adjacent slides, and they overlap in area
+        # Overlap cases (minx, maxx, miny, maxy at play)
+        #  minx2 <= (minx1 | max1) <= maxx2
+        #  miny2 <= (miny1 | maxy1) <= maxy2
+
+        for blob in slide.blob2dlist:
+            if (blob.minx <= self.minx <= blob.maxx) or (blob.minx <= self.maxx <= blob.maxx):
+                # Overlaps in the x axis; a requirement even if overlapping in the y axis
+                if (blob.miny <= self.miny <= blob.maxy) or (blob.miny <= self.maxy <= blob.maxy):
+                    self.possible_partners.append(blob)
+
+
 
     def __str__(self):
         return str('B{id:' + str(self.id) + ', #P:' + str(self.num_pixels)) + '}'
@@ -372,7 +390,7 @@ class Slide:
         return Blob2d.total_blobs
     def totalSlides(self):
         ''' Allows access to class vars without class declaration'''
-        return  Slide.total_slides
+        return Slide.total_slides
 
 
     def firstPass(self, pixel_list):
@@ -615,18 +633,24 @@ def getIdLists(pixels, **kwargs):
         return id_lists
 
 
-
 def main():
+    setMasterStartTime()
 
     if test_instead_of_data:
         dir = TEST_DIR
-        all_images = glob.glob(TEST_DIR + '*.png')
-        # all_images = all_images[:3]  # HACK
+        extension = '*.png'
 
     else:
         dir = DATA_DIR
-        all_images = glob.glob(DATA_DIR + 'Swell*.tif')
-        # all_images = all_images[:4]  # HACK
+        extension = 'Swell*.tif'
+
+
+    all_images = glob.glob(dir + extension)
+
+    # # HACK
+    # if not test_instead_of_data:
+    #     all_images = all_images[:6]
+
 
     print(all_images)
     all_slides = []
@@ -635,7 +659,28 @@ def main():
         print(imagefile)
         all_slides.append(Slide(imagefile)) # Computations are done here, as the slide is created.
         cur_slide = all_slides[-1]
-    plotSlidesVC(all_slides, edges=True, color='slides', midpoints='True')#, color=None)
+    # Note now that all slides are generated, and blobs are merged, time to start mapping blobs upward, to their possible partners
+
+
+
+    # TODO plotting midpoints is currently MUCH slower and more cpu instensive.
+    for slide_num, slide in enumerate(all_slides[:-1]): # All but the last slide
+        for blob in slide.blob2dlist:
+            blob.setPossiblePartners(all_slides[slide_num + 1])
+            # print(blob.possible_partners)
+
+
+    anim_orders =[
+        ('x+', 360, 90),
+        ('y+', 360, 90),
+        ('z+', 360, 90),
+
+    ]
+    plotSlidesVC(all_slides, edges=True, color='slides', midpoints=False, possible=True, animate=True, orders=anim_orders)#, color=None)
+
+
+
+
     debug()
 
     # plotSlides(all_slides)

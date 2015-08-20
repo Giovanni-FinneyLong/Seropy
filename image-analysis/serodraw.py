@@ -48,6 +48,7 @@ from vispy import plot as vp
 import vispy.io
 import vispy.scene
 from vispy.scene import visuals
+from vispy import gloo
 
 
 # NOTE  ##########################
@@ -56,6 +57,8 @@ current_path = os.getcwd()
 xdim = -1
 ydim = -1
 zdim = -1
+
+# master_start_time = 0 # Set at the start of main # FIXME!
 
 debug_blob_ids = False
 debug_pixel_ops = False
@@ -72,40 +75,73 @@ minimal_nonzero_neighbors = 2 # The minimal amount of nzn a pixel must have to a
     # Recommended = 2
 # NOTE  ##########################
 
+
+#HACK
+array_list = []
+frame_num = 0
+scatter = visuals.Markers()
+scatter_list = []
+lines = visuals.Line()
+rotation = 'x'
+scale = 1.
+animation_time_string = ''
+frames = 0
+orders = [] # List of tuples of the format ('command', degrees/scaling total, number of iterations)
+order_frame = 0
+
+def setMasterStartTime():
+    master_start_time = time.time() # FIXME!
 def plotSlidesVC(slide_stack, **kwargs):
     '''
     For now, using V as a suffix to indicate that the plotting is being done via vispy, C for colored
     '''
+    global frames
+    global orders
+    global array_list
+    global scatter
+    global scatter_list
+    global scale
+    global rotation
+    global animation_time_string
     edges = kwargs.get('edges', False) # True if only want to plot the edge pixels of each blob
     coloring = kwargs.get('color', None)
     midpoints = kwargs.get('midpoints', True)
+    partnerlines = kwargs.get('possible', False)
+    animate = kwargs.get('animate', False)
+    # frames = kwargs.get('frames', 0) # Number of frames to render if animating
+    orders = kwargs.get('orders') # ('command', total scaling/rotation, numberofframes)
+    frames = 0
+    for order in orders:
+        frames += order[2]
+    print('There are ' + str(frames) + ' total frames')
+
     assert coloring in [None, 'blobs', 'slides']
+    assert edges in [True, False]
+    assert midpoints in [True, False]
+    assert animation is False or (animate is True and frames > 0 and len(orders) > 0)
 
 
 
-    # cNorm = colortools.Normalize(vmin=0, vmax=num_slides-1)
-    # scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
-    # ax.set_color_cycle([scalarMap.to_rgba(i) for i in range(num_clusters)])
+    animation_time_string = timeNoSpaces()
+    animation_folder = current_path + '/temp/' + animation_time_string
+    os.makedirs(animation_folder)
+
     colors = vispy.color.get_color_names()
     index = 0
-    scatter_list = []
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True)
     view = canvas.central_widget.add_view()
 
     if coloring == 'blobs':
         array_list = []
-
         for (slide_num, slide) in enumerate(slide_stack):
             print('Adding slide:' + str(slide_num) + '/' + str(len(slide_stack)))
             for blob in slide.blob2dlist:
                 if edges:
                     array_list.append(np.zeros([len(blob.edge_pixels), 3]))
-
                     for (p_num, pix) in enumerate(blob.edge_pixels):
                         array_list[-1][p_num] = [pix.x / xdim, pix.y / ydim, slide_num / len(slide_stack)]
                 else:
                     array_list.append(np.zeros([len(blob.pixels), 3]))
-
                     for (p_num, pix) in enumerate(blob.pixels):
                         array_list[-1][p_num] = [pix.x / xdim, pix.y / ydim, slide_num / len(slide_stack)]
     elif coloring == 'slides':
@@ -141,7 +177,7 @@ def plotSlidesVC(slide_stack, **kwargs):
                     array_list[index] = [pix.x / xdim, pix.y / ydim, slide_num / len(slide_stack)]
                     index += 1
 
-        scatter = visuals.Markers()
+        scatter = visuals.Markers() # TODO remove
         scatter.set_data(array_list, edge_color=None, face_color=(1, 1, 1, .5), size=5)
         view.add(scatter)
         # view.camera = 'arcball'  # or try 'arcball'
@@ -161,7 +197,7 @@ def plotSlidesVC(slide_stack, **kwargs):
     total_blobs = 0
     for slide in slide_stack:
         total_blobs += len(slide.blob2dlist)
-    print('There are a total of ' + str(slide_stack[0].totalBlobs()) + ' blobs in the ' + str(slide_stack[0].totalBlobs()) + ' slides')
+    print('There are a total of ' + str(slide_stack[0].totalBlobs()) + ' blobs in the ' + str(slide_stack[0].totalSlides()) + ' slides')
 
     if midpoints:
         avg_list = np.zeros([total_blobs, 3])
@@ -176,6 +212,26 @@ def plotSlidesVC(slide_stack, **kwargs):
         for num, midp in enumerate(avg_list):
             view.add(visuals.Text(str(num), pos=midp, color='white'))
 
+    if partnerlines:
+        line_count = 0 # Counting the number of line segments to be drawn
+        for slide in slide_stack:
+            for blob in slide.blob2dlist:
+                line_count += len(blob.possible_partners)
+        line_count *= 2 # Because need start and end points
+        linedata = np.zeros([line_count, 1, 3])
+        index = 0
+        for slide_num, slide in enumerate(slide_stack[:-1]):
+            for blob in slide.blob2dlist:
+                print('DB: Blob:' + str(blob) + ' partners:' + str(blob.possible_partners))
+                for partner in blob.possible_partners:
+                    linedata[index] = [blob.avgx / xdim, blob.avgy / ydim, slide_num / len(slide_stack)]
+                    linedata[index + 1] = [partner.avgx / xdim, partner.avgy / ydim, (slide_num + 1) / len(slide_stack)]
+                    index += 2
+        lines.set_data(pos=linedata, connect='segments')
+        view.add(lines)
+        print(linedata)
+
+
     view.camera = 'turntable'  # or try 'arcball'
     # add a colored 3D axis for orientation
     axis = visuals.XYZAxis(parent=view.scene)
@@ -186,7 +242,107 @@ def plotSlidesVC(slide_stack, **kwargs):
     vispy.io.write_png('abc.png', img)
     # debug()
     print('Displaying')
+    tf = time.time()
+    # printElapsedTime(master_start_time, tf)
+
+
+    def update(event):
+        global array_list
+        global frame_num
+        global scatter
+        global lines
+        global rotation
+        global scale
+        global frames
+        global orders
+        global order_frame
+
+        # Note that orders is modified as it it is read
+
+        draw_arrays = []
+        frame_num += 1
+
+        # angle = (math.pi * .005 * frame_num)
+        rotation = None
+
+        # scale = 1. + (.01 * frame_num)
+
+        if order_frame > orders[0][2]: # Orders = (command, total_transform, number of frames for transform)
+            if len(orders) > 1:
+                orders = orders[1:]
+                order_frame = 0
+
+        if order_frame <= orders[0][2]: # Orders = (command, total_transform, number of frames for transform)
+            base_order = orders[0][0][0]
+            polarity = orders[0][0][1]
+            print(base_order)
+            print(polarity)
+
+            if base_order in ['x', 'y','z']:
+                angle = math.radians((order_frame / orders[0][2]) * orders[0][1])
+                print('Angle=' + str(math.degrees(angle)))
+
+            if polarity == '-':
+                polarity = -1
+            else:
+                polarity = 1
+
+
+
+            if base_order == 'x':
+                rotate_arr = [
+                    [1,0,0],
+                    [ 0, math.cos(angle), -1. * math.sin(angle)],
+                    [ 0, math.sin(angle), math.cos(angle)]
+                ]
+            elif base_order == 'y':
+                rotate_arr = [
+                    [ math.cos(angle), 0, math.sin(angle)],
+                    [0,1,0],
+                    [ -1. * math.sin(angle), 0, math.cos(angle)]
+                ]
+            elif base_order == 'z':
+                rotate_arr = [
+                    [ math.cos(angle), -1. * math.sin(angle), 0],
+                    [ math.sin(angle), math.cos(angle), 0],
+                    [0,0,1]
+                ]
+            else:
+                rotate_arr = [
+                    [1,0,0],
+                    [0,1,0],
+                    [0,0,1]
+                ]
+
+
+
+
+            rotate_arr = np.multiply(rotate_arr, (scale * polarity))
+            lines.set_data(pos=np.dot((linedata - .5), rotate_arr) + .5, connect='segments')
+            for arr in array_list:
+                draw_arrays.append(np.zeros(arr.shape))
+                # buf = np.dot(draw_arrays[-1], rotate_arr)
+                draw_arrays[-1] = np.dot((arr - .5), rotate_arr) + .5
+
+            if coloring is not None:
+                for (a_num, arr) in enumerate(draw_arrays):
+                    # scatter_list[a_num].set_data(arr, edge_color=None, face_color=colors[(a_num + frame_num) % len(colors)], size=5)
+                    scatter_list[a_num].set_data(arr, edge_color=None, face_color=colors[(a_num) % len(colors)], size=5)
+
+            image = canvas.render()
+            vispy.io.write_png(animation_folder + '/Vispy' + str(frame_num) + '.png', image)
+            # view.update()
+            order_frame += 1
+
+
+
+    if animate:
+        timer = vispy.app.Timer(interval=0, connect=update, start=True)
     vispy.app.run()
+
+
+
+
 
 
 
