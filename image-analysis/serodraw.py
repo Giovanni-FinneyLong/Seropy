@@ -89,8 +89,13 @@ frames = 0
 orders = [] # List of tuples of the format ('command', degrees/scaling total, number of iterations)
 order_frame = 0
 
+canvas = None
+view = None
+
 def setMasterStartTime():
     master_start_time = time.time() # FIXME!
+
+
 def plotSlidesVC(slide_stack, **kwargs):
     '''
     For now, using V as a suffix to indicate that the plotting is being done via vispy, C for colored
@@ -103,24 +108,45 @@ def plotSlidesVC(slide_stack, **kwargs):
     global scale
     global rotation
     global animation_time_string
+    global canvas
+    global view
+
     edges = kwargs.get('edges', False) # True if only want to plot the edge pixels of each blob
     coloring = kwargs.get('color', None)
     midpoints = kwargs.get('midpoints', True)
     partnerlines = kwargs.get('possible', False)
     animate = kwargs.get('animate', False)
-    # frames = kwargs.get('frames', 0) # Number of frames to render if animating
     orders = kwargs.get('orders') # ('command', total scaling/rotation, numberofframes)
+    canvas_size = kwargs.get('canvas_size', (800,800))
+    gif_size = kwargs.get('gif_size', canvas_size)
+
+
+    def framesToGif(frames_folder, animation_time_string): # TODO convert to calling executable with: http://pastebin.com/JJ6ZuXdz
+        frame_names = frames_folder + '/*.png' # glob.glob('temp/*.png')
+        filename_out = ('generated_figures/' + animation_time_string + '.gif')
+        print('Now writing gif to:' + str(filename_out))
+
+        command = [IMAGEMAGICK_CONVERT_EXEC, "-delay", "0", "-size", str(gif_size[0])+'x'+str(gif_size[1])] + [frame_names] + [filename_out]
+        t1 = time.time()
+        # m = math.floor((t1-t0) / 60)
+        # s = (t1-t0) % 60
+        print('Now calling imagemagick_executable to generate gif, start time: ' + str(timeNoSpaces()))
+        subprocess.call(command)
+        t2 = time.time()
+        m = math.floor((t2-t1) / 60)
+        s = (t2-t1) % 60
+        print('Done saving animated gif; took: ' + str(m) + ' mins & ' + str(s) + ' seconds.')
+
+
     frames = 0
     for order in orders:
-        frames += order[2]
+        frames += (order[2])# + 1) # HACK +1 for the transition so that we can stop the timer
     print('There are ' + str(frames) + ' total frames')
 
     assert coloring in [None, 'blobs', 'slides']
     assert edges in [True, False]
     assert midpoints in [True, False]
-    assert animation is False or (animate is True and frames > 0 and len(orders) > 0)
-
-
+    assert animate is False or (animate is True and frames > 0 and len(orders) > 0)
 
     animation_time_string = timeNoSpaces()
     animation_folder = current_path + '/temp/' + animation_time_string
@@ -128,7 +154,11 @@ def plotSlidesVC(slide_stack, **kwargs):
 
     colors = vispy.color.get_color_names()
     index = 0
-    canvas = vispy.scene.SceneCanvas(keys='interactive', show=True)
+    if animate:
+        canvas = vispy.scene.SceneCanvas(show=True, size=canvas_size, resizable=False)
+    else:
+        canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size)
+
     view = canvas.central_widget.add_view()
 
     if coloring == 'blobs':
@@ -180,11 +210,6 @@ def plotSlidesVC(slide_stack, **kwargs):
         scatter = visuals.Markers() # TODO remove
         scatter.set_data(array_list, edge_color=None, face_color=(1, 1, 1, .5), size=5)
         view.add(scatter)
-        # view.camera = 'arcball'  # or try 'arcball'
-        # # add a colored 3D axis for orientation
-        # axis = visuals.XYZAxis(parent=view.scene)
-        # # print('Bounds-a:' + str()))
-        # vispy.app.run()
 
     if coloring is not None:
         for (a_num, arr) in enumerate(array_list):
@@ -206,9 +231,9 @@ def plotSlidesVC(slide_stack, **kwargs):
             for blob in slide.blob2dlist:
                 avg_list[index] = [blob.avgx / xdim, blob.avgy / ydim, slide_num / len(slide_stack)]
                 index += 1
-        avg_scatter = visuals.Markers()
-        avg_scatter.set_data(avg_list, edge_color=None, face_color=(1, 1, 1, .5), size=15, symbol='*')
-        view.add(avg_scatter)
+        # avg_scatter = visuals.Markers()
+        # avg_scatter.set_data(avg_list, edge_color=None, face_color=(1, 1, 1, .5), size=15, symbol='*')
+        # view.add(avg_scatter)
         for num, midp in enumerate(avg_list):
             view.add(visuals.Text(str(num), pos=midp, color='white'))
 
@@ -222,31 +247,26 @@ def plotSlidesVC(slide_stack, **kwargs):
         index = 0
         for slide_num, slide in enumerate(slide_stack[:-1]):
             for blob in slide.blob2dlist:
-                print('DB: Blob:' + str(blob) + ' partners:' + str(blob.possible_partners))
+                print('DB: Slide:' + str(slide_num) + ' Blob:' + str(blob) + ' partners:' + str(blob.possible_partners))
                 for partner in blob.possible_partners:
                     linedata[index] = [blob.avgx / xdim, blob.avgy / ydim, slide_num / len(slide_stack)]
                     linedata[index + 1] = [partner.avgx / xdim, partner.avgy / ydim, (slide_num + 1) / len(slide_stack)]
                     index += 2
         lines.set_data(pos=linedata, connect='segments')
         view.add(lines)
-        print(linedata)
 
 
     view.camera = 'turntable'  # or try 'arcball'
+    view.camera.elevation = 0
+    view.camera.azimuth = 1
+    print('VIEW = ' + str(view))
+    print('VIEW.Cam = ' + str(view.camera))
+
     # add a colored 3D axis for orientation
     axis = visuals.XYZAxis(parent=view.scene)
-    # print('Bounds-a:' + str()))
-    print('Rendering')
-    img = canvas.render()
-    print('Writing')
-    vispy.io.write_png('abc.png', img)
-    # debug()
-    print('Displaying')
-    tf = time.time()
-    # printElapsedTime(master_start_time, tf)
+    view.camera.elevation = 0
 
-
-    def update(event):
+    def update_points(event):
         global array_list
         global frame_num
         global scatter
@@ -257,91 +277,154 @@ def plotSlidesVC(slide_stack, **kwargs):
         global orders
         global order_frame
 
-        # Note that orders is modified as it it is read
+        if not canvas._closed:
 
-        draw_arrays = []
-        frame_num += 1
+            # Note that orders is modified as it it is read
+            draw_arrays = []
+            frame_num += 1
+            rotation = None
+            if order_frame > orders[0][2]: # Orders = (command, total_transform, number of frames for transform)
+                if len(orders) > 1:
+                    orders = orders[1:]
+                    order_frame = 0
 
-        # angle = (math.pi * .005 * frame_num)
-        rotation = None
+            if order_frame <= orders[0][2]: # Orders = (command, total_transform, number of frames for transform)
+                base_order = orders[0][0][0]
+                polarity = orders[0][0][1]
 
-        # scale = 1. + (.01 * frame_num)
+                if base_order in ['x', 'y','z']:
+                    angle = math.radians((order_frame / orders[0][2]) * orders[0][1])
+                    # print('Angle=' + str(math.degrees(angle)))
 
-        if order_frame > orders[0][2]: # Orders = (command, total_transform, number of frames for transform)
-            if len(orders) > 1:
-                orders = orders[1:]
-                order_frame = 0
+                if polarity == '-':
+                    polarity = -1
+                else:
+                    polarity = 1
 
-        if order_frame <= orders[0][2]: # Orders = (command, total_transform, number of frames for transform)
-            base_order = orders[0][0][0]
-            polarity = orders[0][0][1]
-            print(base_order)
-            print(polarity)
+                if base_order == 'x':
+                    rotate_arr = [
+                        [1,0,0],
+                        [ 0, math.cos(angle), -1. * math.sin(angle)],
+                        [ 0, math.sin(angle), math.cos(angle)]
+                    ]
+                elif base_order == 'y':
+                    rotate_arr = [
+                        [ math.cos(angle), 0, math.sin(angle)],
+                        [0,1,0],
+                        [ -1. * math.sin(angle), 0, math.cos(angle)]
+                    ]
+                elif base_order == 'z':
+                    rotate_arr = [
+                        [ math.cos(angle), -1. * math.sin(angle), 0],
+                        [ math.sin(angle), math.cos(angle), 0],
+                        [0,0,1]
+                    ]
+                else:
+                    rotate_arr = [
+                        [1,0,0],
+                        [0,1,0],
+                        [0,0,1]
+                    ]
 
-            if base_order in ['x', 'y','z']:
-                angle = math.radians((order_frame / orders[0][2]) * orders[0][1])
-                print('Angle=' + str(math.degrees(angle)))
 
-            if polarity == '-':
-                polarity = -1
+                rotate_arr = np.multiply(rotate_arr, (scale * polarity))
+
+                lines.set_data(pos=np.dot((linedata - .5), rotate_arr) + .5, connect='segments')
+                for arr in array_list:
+                    draw_arrays.append(np.zeros(arr.shape))
+                    # buf = np.dot(draw_arrays[-1], rotate_arr)
+                    draw_arrays[-1] = np.dot((arr - .5), rotate_arr) + .5
+
+                if coloring is not None:
+                    for (a_num, arr) in enumerate(draw_arrays):
+                        # scatter_list[a_num].set_data(arr, edge_color=None, face_color=colors[(a_num + frame_num) % len(colors)], size=5)
+                        scatter_list[a_num].set_data(arr, edge_color=None, face_color=colors[(a_num) % len(colors)], size=5)
+
+                image = canvas.render()
+                buf = '00000'
+                buf_off = frame_num
+                while buf_off > 9:
+                    buf_off = math.floor(buf_off / 10)
+                    buf = buf[1:]
+
+                vispy.io.write_png(animation_folder + '/Vispy' + buf + str(frame_num) + '.png', image)
+                # view.update()
+                order_frame += 1
             else:
-                polarity = 1
+                    print('Done rendering animation')
+                    canvas.close()
+                    framesToGif(animation_folder, animation_time_string)
 
+    def update_camera(event):
+        global frames
+        global orders
+        global order_frame
+        global frame_num
 
+        if not canvas._closed:
 
-            if base_order == 'x':
-                rotate_arr = [
-                    [1,0,0],
-                    [ 0, math.cos(angle), -1. * math.sin(angle)],
-                    [ 0, math.sin(angle), math.cos(angle)]
-                ]
-            elif base_order == 'y':
-                rotate_arr = [
-                    [ math.cos(angle), 0, math.sin(angle)],
-                    [0,1,0],
-                    [ -1. * math.sin(angle), 0, math.cos(angle)]
-                ]
-            elif base_order == 'z':
-                rotate_arr = [
-                    [ math.cos(angle), -1. * math.sin(angle), 0],
-                    [ math.sin(angle), math.cos(angle), 0],
-                    [0,0,1]
-                ]
+            if order_frame >= orders[0][2]: # Orders = (command, total_transform, number of frames for transform)
+                if len(orders) > 1:
+                    orders = orders[1:]
+                    order_frame = 0
+                else:
+                    print('Done rendering animation')
+                    canvas.close()
+                    debug()
+                    framesToGif(animation_folder, animation_time_string)
+
+            if order_frame < orders[0][2]: # Orders = (command, total_transform, number of frames for transform) # TODO can remove this is-else (keep contents of if block)
+                base_order = orders[0][0][0]
+                polarity = orders[0][0][1]
+                if base_order in ['x', 'y','z']:
+                    angle = orders[0][1] / orders[0][2]
+
+                if polarity == '-':
+                    angle *= -1
+
+                if base_order == 'x' or base_order == 'z':
+                    view.camera.azimuth += angle
+                if base_order == 'y' or base_order == 'z':
+                    if abs(view.camera.elevation + angle) > 90:
+                        if view.camera.elevation + angle > 90:
+                            view.camera.elevation = (view.camera.elevation + angle) - 180
+                            # view.camera.azimuth += 90
+                        else:
+                            view.camera.elevation = (view.camera.elevation + angle) + 180
+                            # view.camera.azimuth += 180
+
+                    else:
+                        view.camera.elevation = (view.camera.elevation + angle)
+                image = canvas.render()
+                buf = '00000'
+                buf_off = frame_num
+                while buf_off > 9:
+                    buf_off = math.floor(buf_off / 10)
+                    buf = buf[1:]
+                vispy.io.write_png(animation_folder + '/Vispy' + buf + str(frame_num) + '.png', image)
+                order_frame += 1
+                frame_num += 1
             else:
-                rotate_arr = [
-                    [1,0,0],
-                    [0,1,0],
-                    [0,0,1]
-                ]
+                print('Never should have reached here')
+                print('Likely error closing canvas. Perhaps try with timer\'s parent?')
+        # canvas.update()
+
+        print('Camera(' + str(frame_num) + ') : Elevation:' + str(view.camera.elevation) + ' Azimuth:' + str(view.camera.azimuth) + ' distance:' + str(view.camera.distance) + ' center' + str(view.camera.center))
+        # if view.camera.distance is None:
+        #     view.camera.distance = 10
+        # view.camera.distance -= 1
+        # view.camera.orbit(1,1)
 
 
-
-
-            rotate_arr = np.multiply(rotate_arr, (scale * polarity))
-            lines.set_data(pos=np.dot((linedata - .5), rotate_arr) + .5, connect='segments')
-            for arr in array_list:
-                draw_arrays.append(np.zeros(arr.shape))
-                # buf = np.dot(draw_arrays[-1], rotate_arr)
-                draw_arrays[-1] = np.dot((arr - .5), rotate_arr) + .5
-
-            if coloring is not None:
-                for (a_num, arr) in enumerate(draw_arrays):
-                    # scatter_list[a_num].set_data(arr, edge_color=None, face_color=colors[(a_num + frame_num) % len(colors)], size=5)
-                    scatter_list[a_num].set_data(arr, edge_color=None, face_color=colors[(a_num) % len(colors)], size=5)
-
-            image = canvas.render()
-            vispy.io.write_png(animation_folder + '/Vispy' + str(frame_num) + '.png', image)
-            # view.update()
-            order_frame += 1
-
+        # Note elevation is RESTRICTED to the range (-90, 90) = Rotate camera over
+        # Note  azimuth ROUND (0, 180/-179, -1) (loops at end of range) = Rotate camera around
 
 
     if animate:
-        timer = vispy.app.Timer(interval=0, connect=update, start=True)
+        # timer = vispy.app.Timer(interval=0, connect=update_points, start=True, iterations=frames+1)
+        view.camera.interactive = False
+        timer = vispy.app.Timer(interval=0, connect=update_camera, start=True, iterations=frames+1) # Hack +1 fpr writing?
     vispy.app.run()
-
-
-
 
 
 
@@ -686,7 +769,7 @@ def AnimateClusterArraysGif(list_of_arrays, imagefile, **kwargs):
         t2 = time.time()
         m = math.floor((t2-t1) / 60)
         s = (t2-t1) % 60
-        print('Done saving animated gif; took: ' + str(m) + ' mins & ' + str(s) + ' seconds.')
+        print('Done saving animated gif; took ' + str(m) + ' mins & ' + str(s) + ' seconds.')
 
         # writeGif(filename, frames, duration=100, dither=0)
         # TODO Change rotation over vertical 270 degrees

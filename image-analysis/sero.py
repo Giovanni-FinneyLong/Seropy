@@ -123,6 +123,35 @@ class Blob2d:
                 if (blob.miny <= self.miny <= blob.maxy) or (blob.miny <= self.maxy <= blob.maxy):
                     self.possible_partners.append(blob)
 
+    def setShapeContexts(self, num_bins):
+        '''
+        num_bins is the number of pins PER polar layer
+        '''
+        # Note making bin depth = 2
+        # Note making the reference point for each pixel itself
+        # Note that angles are measured from the +x axis
+        edgep = len(self.edge_pixels)
+        self.context_bins = np.zeros((edgep , num_bins)) # Each edge pixel has rows of num_bins each
+        # First bin is 0 - (360 / num_bins) degress
+        for (pix_num, pixel) in enumerate(self.edge_pixels):
+            for (pix_num2, pixel2) in enumerate(self.edge_pixels):
+                if pix_num != pix_num2: # Only check against other pixels.
+                    distance = math.sqrt(math.pow(pixel.x - pixel2.x, 2) + math.pow(pixel.y - pixel2.y, 2))
+                    angle = math.degrees(math.atan2(pixel2.x - pixel.x, pixel2.y - pixel.y)) # Note using atan2 handles the dy = 0 case
+                    if pixel2.y < pixel.y:
+                        angle += 90
+                    if pixel2.x < pixel.x:
+                        angle += 180
+
+
+                    # Now need bin # and magnitude for histogram
+                     # Angles [0, 360/num_bins) belong to bin0, [360/num_bins, 2 *(360/num_bins))
+                    bin_num = math.floor((angle / 360.) * num_bins)
+                    value = math.log(distance, 10)
+                    self.context_bins[pix_num][bin_num] += value
+                    print('DB: Pixel:' + str(pixel) + ' Pixel2:' + str(pixel2) + ' distance:' + str(distance) + ' angle:' + str(angle) + ' bin_num:' + str(bin_num))
+
+
 
 
     def __str__(self):
@@ -656,7 +685,6 @@ def main():
     all_slides = []
 
     for imagefile in all_images:
-        print(imagefile)
         all_slides.append(Slide(imagefile)) # Computations are done here, as the slide is created.
         cur_slide = all_slides[-1]
     # Note now that all slides are generated, and blobs are merged, time to start mapping blobs upward, to their possible partners
@@ -670,13 +698,35 @@ def main():
             # print(blob.possible_partners)
 
 
-    anim_orders =[
-        ('x+', 360, 90),
-        ('y+', 360, 90),
-        ('z+', 360, 90),
+    anim_orders = [
+        ('y+', 120, 120),
+        ('x+', 360, 90)
+        # ('z+', 360, 90)
 
     ]
-    plotSlidesVC(all_slides, edges=True, color='slides', midpoints=False, possible=True, animate=True, orders=anim_orders)#, color=None)
+
+    # plotSlidesVC(all_slides, edges=True, color='slides', midpoints=True, possible=True, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(500,500))#, color=None)
+
+
+    # TODO: Match up Blob2Ds against their partners on either adjacent slide
+    # Use the shape contexts approach from here: http://www.cs.berkeley.edu/~malik/papers/mori-belongie-malik-pami05.pdf
+    # The paper uses 'Representative Shape Contexts' to do inital matching; I will do away with this in favor of checking bounds for possible overlaps
+    # Components:
+    #   Derive a context for every edge pixel
+    #   Minimalize shape combo costs
+
+    for slide in all_slides:
+        for blob in slide.blob2dlist:
+            print('Blob:' + str(blob))
+            blob.setShapeContexts(36)
+
+    debug()
+
+
+
+
+
+
 
 
 
