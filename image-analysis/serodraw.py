@@ -20,8 +20,8 @@ import matplotlib.colors as colortools
 from matplotlib import animation
 
 
-# import matplotlib.pylab as plt
-import vispy.mpl_plot as plt
+import matplotlib.pylab as plt
+# import vispy.mpl_plot as plt
 
 
 import matplotlib.cm as cm

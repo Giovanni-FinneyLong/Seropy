@@ -129,7 +129,8 @@ class Blob2d:
         '''
         # Note making bin depth = 2
         # Note making the reference point for each pixel itself
-        # Note that angles are measured from the +x axis
+        # Note that angles are NORMALLY measured COUNTER-clockwise from the +x axis,
+        # Note  however the += 180, used to remove the negative values, makes it so that angles are counterclockwise from the NEGATIVE x-axis
         edgep = len(self.edge_pixels)
         self.context_bins = np.zeros((edgep , num_bins)) # Each edge pixel has rows of num_bins each
         # First bin is 0 - (360 / num_bins) degress
@@ -137,19 +138,18 @@ class Blob2d:
             for (pix_num2, pixel2) in enumerate(self.edge_pixels):
                 if pix_num != pix_num2: # Only check against other pixels.
                     distance = math.sqrt(math.pow(pixel.x - pixel2.x, 2) + math.pow(pixel.y - pixel2.y, 2))
-                    angle = math.degrees(math.atan2(pixel2.x - pixel.x, pixel2.y - pixel.y)) # Note using atan2 handles the dy = 0 case
-                    if pixel2.y < pixel.y:
-                        angle += 90
-                    if pixel2.x < pixel.x:
-                        angle += 180
+                    angle = math.degrees(math.atan2(pixel2.y - pixel.y, pixel2.x - pixel.x)) # Note using atan2 handles the dy = 0 case
+                    angle += 180
 
-
+                    if not 0 <= angle <= 360:
+                        print('\n\n\n--ERROR: Angle=' + str(angle))
                     # Now need bin # and magnitude for histogram
                      # Angles [0, 360/num_bins) belong to bin0, [360/num_bins, 2 *(360/num_bins))
-                    bin_num = math.floor((angle / 360.) * num_bins)
+                    bin_num = math.floor((angle / 360.) * (num_bins - 1)) # HACK PSOE from -1
                     value = math.log(distance, 10)
+                    # print('DB: Pixel:' + str(pixel) + ' Pixel2:' + str(pixel2) + ' distance:' + str(distance) + ' angle:' + str(angle) + ' bin_num:' + str(bin_num))
+
                     self.context_bins[pix_num][bin_num] += value
-                    print('DB: Pixel:' + str(pixel) + ' Pixel2:' + str(pixel2) + ' distance:' + str(distance) + ' angle:' + str(angle) + ' bin_num:' + str(bin_num))
 
 
 
@@ -720,18 +720,18 @@ def main():
             print('Blob:' + str(blob))
             blob.setShapeContexts(36)
 
+
+    # mplfig = plt.figure()
+    #
+    # for i in range(len(all_slides[0].blob2dlist[0].context_bins)):
+    #     print('I=' + str(i))
+    #     print(all_slides[0].blob2dlist[0].context_bins[i])
+    #     plt.bar(range(36), all_slides[0].blob2dlist[0].context_bins[i])
+    #     plt.show()
     debug()
 
 
 
-
-
-
-
-
-
-
-    debug()
 
     # plotSlides(all_slides)
 
