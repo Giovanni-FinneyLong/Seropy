@@ -65,6 +65,7 @@ debug_pixel_ops = False
 debug_set_merge = False
 remap_ids_by_group_size = True
 test_instead_of_data = True
+dePickle = False
 debug_pixel_ops_y_depth = 500
 
 min_val_threshold = 250
@@ -81,7 +82,8 @@ array_list = []
 frame_num = 0
 scatter = visuals.Markers()
 scatter_list = []
-lines = visuals.Line()
+possible_lines = visuals.Line()
+context_lines = visuals.Line()
 rotation = 'x'
 scale = 1.
 animation_time_string = ''
@@ -115,6 +117,7 @@ def plotSlidesVC(slide_stack, **kwargs):
     coloring = kwargs.get('color', None)
     midpoints = kwargs.get('midpoints', True)
     partnerlines = kwargs.get('possible', False)
+    contextlines = kwargs.get('context', False)
     animate = kwargs.get('animate', False)
     orders = kwargs.get('orders') # ('command', total scaling/rotation, numberofframes)
     canvas_size = kwargs.get('canvas_size', (800,800))
@@ -138,15 +141,11 @@ def plotSlidesVC(slide_stack, **kwargs):
         print('Done saving animated gif; took: ' + str(m) + ' mins & ' + str(s) + ' seconds.')
 
 
-    frames = 0
-    for order in orders:
-        frames += (order[2])# + 1) # HACK +1 for the transition so that we can stop the timer
-    print('There are ' + str(frames) + ' total frames')
+
 
     assert coloring in [None, 'blobs', 'slides']
     assert edges in [True, False]
     assert midpoints in [True, False]
-    assert animate is False or (animate is True and frames > 0 and len(orders) > 0)
 
     animation_time_string = timeNoSpaces()
     animation_folder = current_path + '/temp/' + animation_time_string
@@ -155,6 +154,11 @@ def plotSlidesVC(slide_stack, **kwargs):
     colors = vispy.color.get_color_names()
     index = 0
     if animate:
+        frames = 0
+        for order in orders:
+            frames += (order[2])# + 1) # HACK +1 for the transition so that we can stop the timer
+        print('There are ' + str(frames) + ' total frames')
+        assert (animate is True and frames > 0 and len(orders) > 0)
         canvas = vispy.scene.SceneCanvas(show=True, size=canvas_size, resizable=False)
     else:
         canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size)
@@ -186,6 +190,8 @@ def plotSlidesVC(slide_stack, **kwargs):
                 array_list.append(np.zeros([len(slide.alive_pixels), 3]))
                 for (p_num, pix) in enumerate(slide.alive_pixels):
                     array_list[-1][p_num] = [pix.x / xdim, pix.y / ydim, slide_num / len(slide_stack)]
+        # # DEBUG
+        # print('Done adding colored slides:' + str(array_list))
     else: # No coloring
         total_pixels = 0
         if edges:
@@ -222,7 +228,7 @@ def plotSlidesVC(slide_stack, **kwargs):
     total_blobs = 0
     for slide in slide_stack:
         total_blobs += len(slide.blob2dlist)
-    print('There are a total of ' + str(slide_stack[0].totalBlobs()) + ' blobs in the ' + str(slide_stack[0].totalSlides()) + ' slides')
+    print('There are a total of ' + str(total_blobs) + ' blobs in the ' + str(len(slide_stack)) + ' slides')
 
     if midpoints:
         avg_list = np.zeros([total_blobs, 3])
@@ -245,32 +251,74 @@ def plotSlidesVC(slide_stack, **kwargs):
         line_count *= 2 # Because need start and end points
         linedata = np.zeros([line_count, 1, 3])
         index = 0
-        for slide_num, slide in enumerate(slide_stack[:-1]):
+        for slide_num, slide in enumerate(slide_stack[:-1]): # All but the lat slide
             for blob in slide.blob2dlist:
-                print('DB: Slide:' + str(slide_num) + ' Blob:' + str(blob) + ' partners:' + str(blob.possible_partners))
+                # print('DB: Slide:' + str(slide_num) + ' Blob:' + str(blob) + ' partners:' + str(blob.possible_partners))
                 for partner in blob.possible_partners:
                     linedata[index] = [blob.avgx / xdim, blob.avgy / ydim, slide_num / len(slide_stack)]
                     linedata[index + 1] = [partner.avgx / xdim, partner.avgy / ydim, (slide_num + 1) / len(slide_stack)]
                     index += 2
-        lines.set_data(pos=linedata, connect='segments')
-        view.add(lines)
+        possible_lines.set_data(pos=linedata, connect='segments')
+        view.add(possible_lines)
+
+    if contextlines: # TODO
+
+        contextline_count = 0
+        for slide in slide_stack:
+            for blob in slide.blob2dlist:
+                for partner in blob.partner_indeces:
+
+
+                    if dePickle:
+                        partner = partner[0] # NOTE HACK remove this once re-pickled
+                    contextline_count += len(partner)
+        contextline_count *= 2 # Because need start and end point
+        contextline_data = np.zeros([contextline_count,1,3])
+        index = 0
+        print('Context Line Count: ' + str(contextline_count))
+        for slide_num, slide in enumerate(slide_stack[:-1]):
+            # print('Slide #' + str(slide_num))
+            for blob_num, blob in enumerate(slide.blob2dlist):
+                # print('partner_indeces: ' + str(blob.partner_indeces))
+                for partner_num, partner in enumerate(blob.partner_indeces):
+
+                    if dePickle:
+                        partner = partner[0] # NOTE HACK remove this once re-pickled
+                    # print('partner: ' + str(partner))
+                    for edgep1, edgep2 in partner:
+                        # print(str(edgep1) + ' / ' + str(len(blob.edge_pixels)) + ' : ' +  str(edgep2) + ' / ' + str(len(blob.possible_partners[partner_num].edge_pixels)))
+                        if edgep1 < len(blob.edge_pixels) and edgep2 < len(blob.possible_partners[partner_num].edge_pixels):
+                            contextline_data[index] = blob.edge_pixels[edgep1].x / xdim, blob.edge_pixels[edgep1].y / ydim, slide_num / len(slide_stack)
+                            temp_pix = blob.possible_partners[partner_num].edge_pixels[edgep2]
+                            contextline_data[index+1] = temp_pix.x / xdim, temp_pix.y / ydim, (slide_num + 1) / len(slide_stack)
+                            # print('Line:' + str(contextline_data[index]) + ' : ' + str(contextline_data[index+1]) + ', index=' + str(index) + ' / ' + str(contextline_count))
+                            index += 2
+                        else:
+                            # print('Overflow, hopefully due to matrix expansion')
+                            maxEdge = max(edgep1, edgep2)
+                            maxEdgePixels = max(len(blob.edge_pixels), len(blob.possible_partners[partner_num].edge_pixels))
+                            if maxEdge > maxEdgePixels:
+                                print('\n\n-----ERROR! Pixel number was greater than both edge_pixel lists')
+                                debug()
+        print('Done generating contextline_data:' + str(contextline_data))
+        context_lines.set_data(pos=contextline_data, connect='segments')
+        view.add(context_lines)
 
 
     view.camera = 'turntable'  # or try 'arcball'
-    view.camera.elevation = 0
+    view.camera.elevation = -75
     view.camera.azimuth = 1
     print('VIEW = ' + str(view))
     print('VIEW.Cam = ' + str(view.camera))
 
     # add a colored 3D axis for orientation
     axis = visuals.XYZAxis(parent=view.scene)
-    view.camera.elevation = 0
 
     def update_points(event):
         global array_list
         global frame_num
         global scatter
-        global lines
+        global possible_lines
         global rotation
         global scale
         global frames
@@ -329,7 +377,7 @@ def plotSlidesVC(slide_stack, **kwargs):
 
                 rotate_arr = np.multiply(rotate_arr, (scale * polarity))
 
-                lines.set_data(pos=np.dot((linedata - .5), rotate_arr) + .5, connect='segments')
+                possible_lines.set_data(pos=np.dot((linedata - .5), rotate_arr) + .5, connect='segments')
                 for arr in array_list:
                     draw_arrays.append(np.zeros(arr.shape))
                     # buf = np.dot(draw_arrays[-1], rotate_arr)
@@ -368,9 +416,8 @@ def plotSlidesVC(slide_stack, **kwargs):
                     orders = orders[1:]
                     order_frame = 0
                 else:
-                    print('Done rendering animation')
+                    print('Done rendering animation, about to call frames to gif from within camera update')
                     canvas.close()
-                    debug()
                     framesToGif(animation_folder, animation_time_string)
 
             if order_frame < orders[0][2]: # Orders = (command, total_transform, number of frames for transform) # TODO can remove this is-else (keep contents of if block)
@@ -424,6 +471,12 @@ def plotSlidesVC(slide_stack, **kwargs):
         # timer = vispy.app.Timer(interval=0, connect=update_points, start=True, iterations=frames+1)
         view.camera.interactive = False
         timer = vispy.app.Timer(interval=0, connect=update_camera, start=True, iterations=frames+1) # Hack +1 fpr writing?
+    # DEBUG
+    print('Now starting visuals, but first, slide/ blob info:')
+    for snum, slide in enumerate(slide_stack):
+        print('Slide: ' + str(snum) + ' / ' + str(len(slide_stack)))
+        for blobl in slide.blob2dlist:
+            print(' Blob:' + str(blob) + ' which has' + str(len(blob.possible_partners)) + ' possible partners')
     vispy.app.run()
 
 

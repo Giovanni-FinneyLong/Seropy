@@ -11,6 +11,9 @@ import readline
 import code
 import rlcompleter
 # from pympler import asizeof
+from munkres import Munkres
+import pickle # Note uses cPickle automatically ONLY IF python 3
+
 
 def setglobaldims(x, y, z):
     def setserodims(x, y, z):
@@ -43,7 +46,10 @@ class Blob2d:
         self.sum_vals = 0
         self.master_array = master_array
         self.slide = slide
-        self.possible_partners = []
+        self.possible_partners = [] # A list of blobs which MAY be part of the same blob3d as this blob2d
+        self.partner_costs = [] # The minimal cost for the corresponding blob2d in possible_partners
+        self.partner_indeces = [] # A list of indeces (row, column) for each
+
         # TODO make sure the list is sorted
         self.minx = list_of_pixels[0].x
         self.miny = list_of_pixels[0].y
@@ -116,12 +122,24 @@ class Blob2d:
         # Overlap cases (minx, maxx, miny, maxy at play)
         #  minx2 <= (minx1 | max1) <= maxx2
         #  miny2 <= (miny1 | maxy1) <= maxy2
-
+        print('DEBUG Checking blob for possible partners:' + str(self) + ' xrange: (' + str(self.minx) + ',' + str(self.maxx) + '), yrange: (' + str(self.miny) + ',' + str(self.maxy) + ')')
         for blob in slide.blob2dlist:
-            if (blob.minx <= self.minx <= blob.maxx) or (blob.minx <= self.maxx <= blob.maxx):
+            print('DEBUG  Comparing against blob:' + str(blob) + ' xrange: (' + str(blob.minx) + ',' + str(blob.maxx) + '), yrange: (' + str(blob.miny) + ',' + str(blob.maxy) + ')')
+            isPartner = False
+            if (blob.minx <= self.minx <= blob.maxx) or (blob.minx <= self.maxx <= blob.maxx): # Covers the case where the blob on the above slide is larger
                 # Overlaps in the x axis; a requirement even if overlapping in the y axis
                 if (blob.miny <= self.miny <= blob.maxy) or (blob.miny <= self.maxy <= blob.maxy):
-                    self.possible_partners.append(blob)
+                    isPartner = True
+            if not isPartner:
+                if (self.minx <= blob.minx <= self.maxx) or (self.minx <= blob.maxx <= self.maxx):
+                    if (self.miny <= blob.miny <= self.maxy) or (self.miny <= blob.maxy <= self.maxy):
+                        isPartner = True
+
+            if isPartner:
+                self.possible_partners.append(blob)
+                print('DEBUG  Inspected blob was added to current blob\'s possible partners')
+
+        self.partner_costs = [0] * len(self.possible_partners)
 
     def setShapeContexts(self, num_bins):
         '''
@@ -377,7 +395,7 @@ class Slide:
         # Note that in python, sets are always unordered, and so a derivative list must be sorted.
         for (index,stl) in enumerate(equiv_sets):
             equiv_sets[index] = sorted(stl) # See note
-        print('Equivalency Sets after turned to lists: ' + str(equiv_sets))
+        # print('Equivalency Sets after turned to lists: ' + str(equiv_sets))
 
         for blob in self.blob2dlist: # NOTE Merging sets
             for equivlist in equiv_sets:
@@ -387,10 +405,10 @@ class Slide:
                     blob.updateid(equivlist[0])
                     # print('new:' + str(blob) + ':' + str(blob.pixels[0]))
 
-        print('Before Merging: ' + str(self.blob2dlist))
-        print('Equiv set:' + str(self.equivalency_set))
+        # print('Before Merging: ' + str(self.blob2dlist))
+        # print('Equiv set:' + str(self.equivalency_set))
         self.blob2dlist = Blob2d.mergeblobs(self.blob2dlist) # NOTE, by assigning the returned Blob2d list to a new var, the results of merging can be demonstrated
-        print('After Merging: ' + str(self.blob2dlist))
+        # print('After Merging: ' + str(self.blob2dlist))
         self.edge_pixels = []
         edge_lists = []
         for (blobnum, blobslist) in enumerate(self.blob2dlist):
@@ -399,10 +417,6 @@ class Slide:
         Blob2d.total_blobs += len(self.blob2dlist)
         self.tf = time.time()
         printElapsedTime(self.t0, self.tf)
-        # debug()
-        # PlotClusterLists(newclusterlists, markersize=5)
-        # PlotClusterLists(id_lists, dim='2d', markersize=5)#, numbered=True)
-        # PlotClusterLists(edge_lists, dim='2d', markersize=10)#, numbered=True)
         print('')
 
     def getNextBlobId(self): # Starts at 0
@@ -657,6 +671,72 @@ def getIdLists(pixels, **kwargs):
         return id_lists
 
 
+def munkresCompare(blob1, blob2):
+    '''
+    Uses the Hungarian Algorithm implementation from the munkres package to find an optimal combination of points
+    between blob1 and blob2 as well as deriving the point->point relationships and storing them in indeces
+    '''
+    # TODO try this with and without manual padding; change min/max for ndim and change the end padding portion of makeCostArray
+
+    def costBetweenPoints(bins1, bins2):
+        assert len(bins1) == len(bins2)
+        cost = 0
+        for i in range(len(bins1)):
+            debug_cost = cost
+            if (bins1[i] + bins2[i]) != 0:
+                cost += math.pow(bins1[i] - bins2[i], 2) / (bins1[i] + bins2[i])
+            # if math.isnan(cost) and not math.isnan(debug_cost):
+            #     print('Became nan, old val=' + str(debug_cost) + ' Pow part:' + str(math.pow(bins1[i] - bins2[i], 2)) + ' denomerator:' + str(bins1[i] + bins2[i]))
+            #     print(' bins1:' + str(bins1[i]) + ' bins2:' + str(bins2[i]))
+            #     buf = bins1[i] - bins2[i]
+            #     print(' Buf=' + str(buf) + ' pow:' + str(math.pow(bins1[i] - bins2[i], 2)))
+        return cost / 2
+
+    def makeCostArray(blob1, blob2):
+        # Setting up cost array with the costs between respective points
+        ndim = max(len(blob1.edge_pixels), len(blob2.edge_pixels)) # HACK HACK min for now, in the hopes that munkres can handle non-square matrices.
+        # cost_array = np.zeros([len(blob1.edge_pixels), len(blob2.edge_pixels)])
+        cost_array = np.zeros([len(blob1.edge_pixels), len(blob2.edge_pixels)])
+
+        for i in range(len(blob1.edge_pixels)):
+            for j in range(len(blob2.edge_pixels)):
+                cost_array[i][j] = costBetweenPoints(blob1.context_bins[i], blob2.context_bins[j])
+        i = len(blob1.context_bins)
+        j = len(blob2.context_bins)
+        # print('i=' + str(i) + ' j=' + str(j))
+        # TODO TODO FIXME removed this temporarily, to see if munkres can handle without padding
+        # if i != j:
+        #     # Need to find max value currently in the array, and use it to add rows or cols so that the matrix is square
+        #     maxcost = np.amax(cost_array)
+        #     if i < j:
+        #         for r in range(i,j):
+        #             for s in range(j):
+        #                 cost_array[r][s] = maxcost # By convention
+        #     else:
+        #         for r in range(j,i):
+        #             for s in range(i):
+        #                 cost_array[r][s] = maxcost # By convention
+        return cost_array
+
+    # TODO run this on some simple examples provided online to confirm it is accurate.
+    print('DB starting munkres compare')
+    cost_array = makeCostArray(blob1, blob2)
+    # print('Result from makeCostArray:' + str(cost_array))
+    print('DB done making cost array')
+    munk = Munkres()
+    # print('Working on cost_array:' + str(np.copy(cost_array).tolist()))
+
+    indeces = munk.compute(np.copy(cost_array).tolist())
+    print('Done computing indeces')
+    total_cost = 0
+    # print(cost_array)
+    for row, col in indeces:
+        # print('Row=' + str(row) + ' Col=' + str(col))
+        value = cost_array[row][col]
+        total_cost += value
+        # print ('(%d, %d) -> %d' % (row, col, value))
+    # print('Total Cost = ' + str(total_cost))
+    return total_cost, indeces
 
 
 def hungarianCompare(blob1, blob2):
@@ -704,6 +784,35 @@ def hungarianCompare(blob1, blob2):
                 else:
                     print(cost_array[r][c], end=' ')
             print(']')
+    def oldLinesMethod():
+        # if row_zeros[most_zeros_row] > col_zeros[most_zeros_col]:
+        #     # Set a 'line' through a row
+        #     lines_used += 1
+        #     zeros_covered += row_zeros[most_zeros_row]
+        #     row_lines.append(most_zeros_row)
+        #     row_zeros[most_zeros_row] = 0
+        #     for col in range(ndim): # Updating the number of zeros in each column, as we have just removed some by creating the line
+        #         if cost_array[most_zeros_row][col] == 0 and col not in col_lines:
+        #             col_zeros[col] -= 1
+        #             # DEBUG
+        #             if col_zeros[col] < 0:
+        #                 print('Error!!!! lt zero')
+        #                 debug()
+        # else:
+        #     lines_used += 1
+        #     zeros_covered += col_zeros[most_zeros_col]
+        #     col_lines.append(most_zeros_col)
+        #     col_zeros[most_zeros_col] = 0
+        #     for row in range(ndim):
+        #         if cost_array[row][most_zeros_col] == 0 and row not in row_lines:
+        #             row_zeros[row] -= 1
+        #             # DEBUG
+
+        #             if row_zeros[row] < 0:
+        #                 print('Error!!! lt zero')
+        #                 debug()
+        1
+
 
 
     ndim = max(len(blob1.edge_pixels), len(blob2.edge_pixels))
@@ -735,29 +844,31 @@ def hungarianCompare(blob1, blob2):
 
     #HACK DEBUG
     cost_array = np.array([[10,19,8,15,19], # Note that after 10 major iterations, the generated matrix is almost exactly the same as the final matrix (which can be lined), the only difference is that the twos in the
-                                            #Middle column should be ones
+                                            #Middle column should be ones # FIXME THIS FAILS! After the addition of the not, which removed the alternating placement of lines, this uses 5 vertical instead of 4 mixed lines, resulting in finishing early
                   [10,18,7,17,19],
                   [13,16,9,14,19],
                   [12,19,8,18,19],
                   [14,17,10,19,19]])
-    # cost_array = np.array([ # This gets the correct result as the prime/starred version
+
+
+    # cost_array = np.array([ # This is from the prime/star method (for doing by hand) # Note SUCCESS!
     #     [1,2,3],
     #     [2,4,6],
     #     [3,6,9]
-    # ]
-    # )
-    # cost_array = np.array([ # From http://www.math.harvard.edu/archive/20_spring_05/handouts/assignment_overheads.pdf
-    #                         # NOTE reduces correctly in 1 major iteration and 2 minor
-    #     [250,400,350],
-    #     [400,600,350],
-    #     [200,400,250]
     # ])
-    cost_array = np.array([ # From http://www.math.harvard.edu/archive/20_spring_05/handouts/assignment_overheads.pdf
-        [90,75,75,80],
-        [35,85,55,65],
-        [125,95,90,105],
-        [45,110,95,115]
+    cost_array = np.array([ # From http://www.math.harvard.edu/archive/20_spring_05/handouts/assignment_overheads.pdf # NOTE SUCCESS!
+                            # NOTE reduces correctly in 1 major iteration and 2 minor
+                            # DEBUG works with Munkres
+        [250,400,350],
+        [400,600,350],
+        [200,400,250]
     ])
+    # cost_array = np.array([ # From http://www.math.harvard.edu/archive/20_spring_05/handouts/assignment_overheads.pdf # NOTE SUCCESS!
+    #     [90,75,75,80],   # DEBUG works with Munkres
+    #     [35,85,55,65],
+    #     [125,95,90,105],
+    #     [45,110,95,115]
+    # ])
     #HACK HACK
     wiki_not_harvard = False # NOTE If true, use the method from http://www.wikihow.com/Use-the-Hungarian-Algorithm else use method from: http://www.math.harvard.edu/archive/20_spring_05/handouts/assignment_overheads.pdf
 
@@ -768,6 +879,13 @@ def hungarianCompare(blob1, blob2):
     #     [9,0,3,4,5],
     #     [3,0,3,4,5]
     # ])
+
+
+
+    '''
+
+
+
     ndim = len(cost_array)
     original_cost_array = np.copy(cost_array)
     #HACK
@@ -868,7 +986,7 @@ def hungarianCompare(blob1, blob2):
             print(' MAX COVERED R/C=' + str(max_covered_r) + ', ' + str(max_covered_c))
 
             if max_covered_r == max_covered_c:
-                if not last_line_horizontal: # Prefer column as used column last time
+                if last_line_horizontal: # Prefer column
                     next_line_index = next_line_index_c
                     next_line_horizontal = False
                     max_covered = max_covered_c
@@ -908,34 +1026,7 @@ def hungarianCompare(blob1, blob2):
             last_line_horizontal = next_line_horizontal
             last_line_index = next_line_index
 
-            def oldLinesMethod():
-                # if row_zeros[most_zeros_row] > col_zeros[most_zeros_col]:
-                #     # Set a 'line' through a row
-                #     lines_used += 1
-                #     zeros_covered += row_zeros[most_zeros_row]
-                #     row_lines.append(most_zeros_row)
-                #     row_zeros[most_zeros_row] = 0
-                #     for col in range(ndim): # Updating the number of zeros in each column, as we have just removed some by creating the line
-                #         if cost_array[most_zeros_row][col] == 0 and col not in col_lines:
-                #             col_zeros[col] -= 1
-                #             # DEBUG
-                #             if col_zeros[col] < 0:
-                #                 print('Error!!!! lt zero')
-                #                 debug()
-                # else:
-                #     lines_used += 1
-                #     zeros_covered += col_zeros[most_zeros_col]
-                #     col_lines.append(most_zeros_col)
-                #     col_zeros[most_zeros_col] = 0
-                #     for row in range(ndim):
-                #         if cost_array[row][most_zeros_col] == 0 and row not in row_lines:
-                #             row_zeros[row] -= 1
-                #             # DEBUG
 
-                #             if row_zeros[row] < 0:
-                #                 print('Error!!! lt zero')
-                #                 debug()
-                1
             if total_zeros < zeros_covered:
                 print('Error, too many zeros covered')
                 debug()
@@ -1008,7 +1099,7 @@ def hungarianCompare(blob1, blob2):
     print('---SUCCESSFULLY COMPLETED hungarian method')
 
 
-
+    '''
 
 
 
@@ -1023,62 +1114,130 @@ def hungarianCompare(blob1, blob2):
     return 1
 
 
-
-
-
-
 def main():
-    setMasterStartTime()
 
-    if test_instead_of_data:
-        dir = TEST_DIR
-        extension = '*.png'
+
+
+
+    if not dePickle:
+        setMasterStartTime()
+        if test_instead_of_data:
+            dir = TEST_DIR
+            extension = '*.png'
+        else:
+            dir = DATA_DIR
+            extension = 'Swell*.tif'
+        all_images = glob.glob(dir + extension)
+
+        # # HACK
+        # if not test_instead_of_data:
+        #     all_images = all_images[:6]
+
+        print(all_images)
+        all_slides = []
+        for imagefile in all_images:
+            all_slides.append(Slide(imagefile)) # Computations are done here, as the slide is created.
+            cur_slide = all_slides[-1]
+        # Note now that all slides are generated, and blobs are merged, time to start mapping blobs upward, to their possible partners
+
+        # TODO plotting midpoints is currently MUCH slower and more cpu instensive.
+        for slide_num, slide in enumerate(all_slides[:-1]): # All but the last slide
+            print('DEBUG SETTING POSSIBLE PARTNERS FOR BLOBS IN SLIDE: ' + str(slide_num) + ' against blobs from slide ' + str(slide_num + 1))
+            for blob in slide.blob2dlist:
+                blob.setPossiblePartners(all_slides[slide_num + 1])
+                # print(blob.possible_partners)
+
+        anim_orders = [
+            ('y+', 160, 120),
+            ('x+', 360, 90) ]
+
+        # plotSlidesVC(all_slides, edges=True, color='slides', midpoints=True, possible=True, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(500,500))#, color=None)
+
+        # TODO: Match up Blob2Ds against their partners on either adjacent slide
+        # Use the shape contexts approach from here: http://www.cs.berkeley.edu/~malik/papers/mori-belongie-malik-pami05.pdf
+        # The paper uses 'Representative Shape Contexts' to do inital matching; I will do away with this in favor of checking bounds for possible overlaps
+        # Components:
+        #   Derive a context for every edge pixel
+        #   Minimalize shape combo costs
+
+
+        print('DB about to set shape contexts')
+
+        for slide in all_slides:
+            for blob in slide.blob2dlist:
+                print('Blob:' + str(blob))
+                blob.setShapeContexts(36)
+        t_start_munkres = time.time()
+        print('Done setting contexts, len(all_slides)=' + str(len(all_slides)))
+        for slide in all_slides:
+            print(' Starting slide, len(blob2dlist)=' + str(len(slide.blob2dlist)))
+            for blob1 in slide.blob2dlist:
+                print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
+                print('  Blob1 current parter_costs:' + str(blob1.partner_costs))
+
+                for b2_num, blob2 in enumerate(blob1.possible_partners):
+                    print('Comparing to blob2:' + str(blob2))
+                    t0 = time.time()
+                    total_cost, indeces = munkresCompare(blob1, blob2)
+                    tf = time.time()
+                    printElapsedTime(t0, tf)
+                    print('Total_cost=' + str(total_cost))
+                    blob1.partner_costs[b2_num] = total_cost
+                    print('Indeces=' + str(indeces))
+                    blob1.partner_indeces.append(indeces)
     else:
-        dir = DATA_DIR
-        extension = 'Swell*.tif'
-    all_images = glob.glob(dir + extension)
+        print('Loading from pickle')
+        all_slides = pickle.load(open('allslides.pickle', "rb"))
 
-    # # HACK
-    # if not test_instead_of_data:
-    #     all_images = all_images[:6]
-
-    print(all_images)
-    all_slides = []
-    for imagefile in all_images:
-        all_slides.append(Slide(imagefile)) # Computations are done here, as the slide is created.
-        cur_slide = all_slides[-1]
-    # Note now that all slides are generated, and blobs are merged, time to start mapping blobs upward, to their possible partners
-
-    # TODO plotting midpoints is currently MUCH slower and more cpu instensive.
-    for slide_num, slide in enumerate(all_slides[:-1]): # All but the last slide
-        for blob in slide.blob2dlist:
-            blob.setPossiblePartners(all_slides[slide_num + 1])
-            # print(blob.possible_partners)
+        # NOTE was loading indeces to save as [indeces], so pickled indeceas data is temporarily [[]]
+        contextline_count = 0
+        for slide in all_slides:
+            for blob in slide.blob2dlist:
+                for partner in blob.partner_indeces:
+                    partner = partner[0] # NOTE HACK remove this once re-pickled
+                    print('Adding to max index: (' + str(len(partner)) + ') ' + str(partner))
+                    contextline_count += len(partner)
+        contextline_count *= 2 # Because need start and end point
+        contextline_data = np.zeros([contextline_count,1,3])
+        index = 0
+        print('Context Line Count: ' + str(contextline_count))
+        for slide_num, slide in enumerate(all_slides[:-1]):
+            # print('Slide #' + str(slide_num))
+            for blob_num, blob in enumerate(slide.blob2dlist):
+                # print('partner_indeces: ' + str(blob.partner_indeces))
+                for partner_num, partner in enumerate(blob.partner_indeces):
+                    partner = partner[0] # NOTE HACK remove this once re-pickled
+                    # print('partner: ' + str(partner))
+                    for edgep1, edgep2 in partner:
+                        # print(str(edgep1) + ' / ' + str(len(blob.edge_pixels)) + ' : ' +  str(edgep2) + ' / ' + str(len(blob.possible_partners[partner_num].edge_pixels)))
+                        if edgep1 < len(blob.edge_pixels) and edgep2 < len(blob.possible_partners[partner_num].edge_pixels):
+                            contextline_data[index] = blob.edge_pixels[edgep1].x, blob.edge_pixels[edgep1].y, slide_num / len(all_slides)
+                            temp_pix = blob.possible_partners[partner_num].edge_pixels[edgep2]
+                            contextline_data[index+1] = temp_pix.x, temp_pix.y, (slide_num + 1) / len(all_slides)
+                            # print('Line:' + str(contextline_data[index]) + ' : ' + str(contextline_data[index+1]) + ', index=' + str(index) + ' / ' + str(contextline_count))
+                            index += 2
+                        else:
+                            # print('Overflow, hopefully due to matrix expansion')
+                            maxEdge = max(edgep1, edgep2)
+                            maxEdgePixels = max(len(blob.edge_pixels), len(blob.possible_partners[partner_num].edge_pixels))
+                            if maxEdge > maxEdgePixels:
+                                print('\n\n-----ERROR! Pixel number was greater than both edge_pixel lists')
+                                debug()
+    # NOTE for each partner b1 has, it appends another list of elements in partner indeces
+    # plotSlidesVC(all_slides, edges=True, color='slides')#, color=None)
 
     anim_orders = [
-        ('y+', 120, 120),
-        ('x+', 360, 90) ]
+    ('y+', 90, 60),
+    ('x+', 360, 90) ]
 
-    # plotSlidesVC(all_slides, edges=True, color='slides', midpoints=True, possible=True, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(500,500))#, color=None)
+    plotSlidesVC(all_slides, edges=True, color='slides', midpoints=True, context=True, animate=True, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
 
-    # TODO: Match up Blob2Ds against their partners on either adjacent slide
-    # Use the shape contexts approach from here: http://www.cs.berkeley.edu/~malik/papers/mori-belongie-malik-pami05.pdf
-    # The paper uses 'Representative Shape Contexts' to do inital matching; I will do away with this in favor of checking bounds for possible overlaps
-    # Components:
-    #   Derive a context for every edge pixel
-    #   Minimalize shape combo costs
 
-    for slide in all_slides:
-        for blob in slide.blob2dlist:
-            print('Blob:' + str(blob))
-            blob.setShapeContexts(36)
-    for slide in all_slides:
-        for blob in slide.blob2dlist:
-            costs = []
-            for blob2 in blob.possible_partners:
-                buf = hungarianCompare(blob, blob2)
-                debug()
+    # plotSlidesVC(all_slides, edges=True, color='slides', midpoints=True, possible=True, context=True, canvas_size=(1000, 1000))#, color=None)
+    # TODO had a memory error adding to view when midpoints = True
+    debug()
 
+    #DEBUG Total_cost=4744.92612892
 
     # mplfig = plt.figure()
     # for i in range(len(all_slides[0].blob2dlist[0].context_bins)):
@@ -1096,17 +1255,7 @@ def main():
 
 
 
-    debug()
 
-
-
-
-    # plotSlides(all_slides)
-
-
-        # findBestClusterCount(0, 100, 5)
-        # MeanShiftCluster(max_float_array)
-        # AffinityPropagationCluster(max_float_array):
 
 '''
 My informal Rules:
