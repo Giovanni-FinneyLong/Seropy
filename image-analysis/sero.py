@@ -124,18 +124,18 @@ class Blob2d:
         #  miny2 <= (miny1 | maxy1) <= maxy2
         print('DEBUG Checking blob for possible partners:' + str(self) + ' xrange: (' + str(self.minx) + ',' + str(self.maxx) + '), yrange: (' + str(self.miny) + ',' + str(self.maxy) + ')')
         for blob in slide.blob2dlist:
-            print('DEBUG  Comparing against blob:' + str(blob) + ' xrange: (' + str(blob.minx) + ',' + str(blob.maxx) + '), yrange: (' + str(blob.miny) + ',' + str(blob.maxy) + ')')
-            isPartner = False
+            # print('DEBUG  Comparing against blob:' + str(blob) + ' xrange: (' + str(blob.minx) + ',' + str(blob.maxx) + '), yrange: (' + str(blob.miny) + ',' + str(blob.maxy) + ')')
+            inBounds = False
             if (blob.minx <= self.minx <= blob.maxx) or (blob.minx <= self.maxx <= blob.maxx): # Covers the case where the blob on the above slide is larger
                 # Overlaps in the x axis; a requirement even if overlapping in the y axis
                 if (blob.miny <= self.miny <= blob.maxy) or (blob.miny <= self.maxy <= blob.maxy):
-                    isPartner = True
-            if not isPartner:
+                    inBounds = True
+            if not inBounds:
                 if (self.minx <= blob.minx <= self.maxx) or (self.minx <= blob.maxx <= self.maxx):
                     if (self.miny <= blob.miny <= self.maxy) or (self.miny <= blob.maxy <= self.maxy):
-                        isPartner = True
-
-            if isPartner:
+                        inBounds = True
+            # If either of the above was true, then one blob is within the bounding box of the other
+            if inBounds:
                 self.possible_partners.append(blob)
                 print('DEBUG  Inspected blob was added to current blob\'s possible partners')
 
@@ -174,7 +174,6 @@ class Blob2d:
 
     def totalBlobs(self):
         return Blob2d.total_blobs
-
 
     @staticmethod
     def mergeblobs(bloblist):
@@ -620,26 +619,6 @@ def KMeansClusterIntoLists(listin, num_clusters):
     return doClustering(tuple_array, num_clusters)
 
 
-def getIdArrays(pixels, id_counts):
-    '''
-    Returns a list of filled arrays, each of which corresponds to an id. If remapped, the first array is most dense
-    '''
-    id_arrays = [zeros([xdim, ydim]) for _ in range(len(id_counts))]  # Each entry is an (r,c) array, filled only with the maximal values from the corresponding
-
-    if remap_ids_by_group_size:
-        remap = [None] * len(id_counts)
-        for id in range(len(id_counts)): # Supposedly up to 2.5x faster than using numpy's .tolist()
-            remap[id_counts[id][0]] = id
-        for pixel in pixels:
-            id_arrays[remap[pixel.blob_id]][pixel.x][pixel.y] = int(pixel.val)
-    else:
-        for pixel in pixels:
-            if pixel.blob_id >= id_counts:
-                print('DEBUG: About to fail:' + str(pixel))
-            id_arrays[pixel.blob_id][pixel.x][pixel.y] = int(pixel.val)
-    return id_arrays
-
-
 def getIdLists(pixels, **kwargs):
     '''
     Returns a list of lists, each of which corresponds to an id. If remapped, the first list is the largest
@@ -739,385 +718,7 @@ def munkresCompare(blob1, blob2):
     return total_cost, indeces
 
 
-def hungarianCompare(blob1, blob2):
-    '''
-    Uses the Hungarian Alg to find the optimal pairings of points between two Blob2D's
-    '''
-    # Each blob has its shape contexts (context_bins) set by here. Now for each point in b1 there is a row, and each in b2 a column.
-    # One blob may have more points than the other, and so rows OR columns containing the max value of the matrix are added so that the matrix is nxn
-    # TODO create a nested function to calculate cost between 2 points based on their histograms (contained in context_bins[point#)
-
-    global debugval
-
-    def costBetweenPoints(bins1, bins2):
-        assert len(bins1) == len(bins2)
-        cost = 0
-        for i in range(len(bins1)):
-            debug_cost = cost
-            if (bins1[i] + bins2[i]) != 0:
-                cost += math.pow(bins1[i] - bins2[i], 2) / (bins1[i] + bins2[i])
-            # if math.isnan(cost) and not math.isnan(debug_cost):
-            #     print('Became nan, old val=' + str(debug_cost) + ' Pow part:' + str(math.pow(bins1[i] - bins2[i], 2)) + ' denomerator:' + str(bins1[i] + bins2[i]))
-            #     print(' bins1:' + str(bins1[i]) + ' bins2:' + str(bins2[i]))
-            #     buf = bins1[i] - bins2[i]
-            #     print(' Buf=' + str(buf) + ' pow:' + str(math.pow(bins1[i] - bins2[i], 2)))
-        return cost / 2
-
-    def printCostArrayLined(cost_array, row_lines, col_lines):
-        print('**Lined Cost Array=')
-        ndim = len(cost_array)
-        for r in range(ndim):
-            print('[', end='')
-            for c in range(ndim):
-                buf = []
-                if r in row_lines:
-                    buf.append('r')
-                if c in col_lines:
-                    buf.append('c')
-                if len(buf) == 2:
-                    print('+ ', end='')
-                elif len(buf) == 1:
-                    if 'r' in buf:
-                        print('- ', end='')
-                    else:
-                        print('| ', end='')
-                else:
-                    print(cost_array[r][c], end=' ')
-            print(']')
-    def oldLinesMethod():
-        # if row_zeros[most_zeros_row] > col_zeros[most_zeros_col]:
-        #     # Set a 'line' through a row
-        #     lines_used += 1
-        #     zeros_covered += row_zeros[most_zeros_row]
-        #     row_lines.append(most_zeros_row)
-        #     row_zeros[most_zeros_row] = 0
-        #     for col in range(ndim): # Updating the number of zeros in each column, as we have just removed some by creating the line
-        #         if cost_array[most_zeros_row][col] == 0 and col not in col_lines:
-        #             col_zeros[col] -= 1
-        #             # DEBUG
-        #             if col_zeros[col] < 0:
-        #                 print('Error!!!! lt zero')
-        #                 debug()
-        # else:
-        #     lines_used += 1
-        #     zeros_covered += col_zeros[most_zeros_col]
-        #     col_lines.append(most_zeros_col)
-        #     col_zeros[most_zeros_col] = 0
-        #     for row in range(ndim):
-        #         if cost_array[row][most_zeros_col] == 0 and row not in row_lines:
-        #             row_zeros[row] -= 1
-        #             # DEBUG
-
-        #             if row_zeros[row] < 0:
-        #                 print('Error!!! lt zero')
-        #                 debug()
-        1
-
-
-
-    ndim = max(len(blob1.edge_pixels), len(blob2.edge_pixels))
-    cost_array = np.zeros([ndim, ndim])
-
-    ''' # TEMP for DEBUG
-
-    for i in range(len(blob1.edge_pixels)):
-        for j in range(len(blob2.edge_pixels)):
-            cost_array[i][j] = costBetweenPoints(blob1.context_bins[i], blob2.context_bins[j])
-    i = len(blob1.context_bins)
-    j = len(blob2.context_bins)
-    print('i=' + str(i) + ' j=' + str(j))
-    if i != j:
-        # Need to find max value currently in the array, and use it to add rows or cols so that the matrix is square
-        maxcost = np.amax(cost_array)
-        if i < j:
-            for r in range(i,j):
-                for s in range(j):
-                    cost_array[r][s] = maxcost # By convention
-        else:
-            for r in range(j,i):
-                for s in range(i):
-                    cost_array[r][s] = maxcost # By convention
-    # Here the cost array is completely filled.
-    # TODO run this on some simple examples provided online to confirm it is accurate.
-
-    '''
-
-    #HACK DEBUG
-    cost_array = np.array([[10,19,8,15,19], # Note that after 10 major iterations, the generated matrix is almost exactly the same as the final matrix (which can be lined), the only difference is that the twos in the
-                                            #Middle column should be ones # FIXME THIS FAILS! After the addition of the not, which removed the alternating placement of lines, this uses 5 vertical instead of 4 mixed lines, resulting in finishing early
-                  [10,18,7,17,19],
-                  [13,16,9,14,19],
-                  [12,19,8,18,19],
-                  [14,17,10,19,19]])
-
-
-    # cost_array = np.array([ # This is from the prime/star method (for doing by hand) # Note SUCCESS!
-    #     [1,2,3],
-    #     [2,4,6],
-    #     [3,6,9]
-    # ])
-    cost_array = np.array([ # From http://www.math.harvard.edu/archive/20_spring_05/handouts/assignment_overheads.pdf # NOTE SUCCESS!
-                            # NOTE reduces correctly in 1 major iteration and 2 minor
-                            # DEBUG works with Munkres
-        [250,400,350],
-        [400,600,350],
-        [200,400,250]
-    ])
-    # cost_array = np.array([ # From http://www.math.harvard.edu/archive/20_spring_05/handouts/assignment_overheads.pdf # NOTE SUCCESS!
-    #     [90,75,75,80],   # DEBUG works with Munkres
-    #     [35,85,55,65],
-    #     [125,95,90,105],
-    #     [45,110,95,115]
-    # ])
-    #HACK HACK
-    wiki_not_harvard = False # NOTE If true, use the method from http://www.wikihow.com/Use-the-Hungarian-Algorithm else use method from: http://www.math.harvard.edu/archive/20_spring_05/handouts/assignment_overheads.pdf
-
-    # cost_array = np.array([
-    #     [0,1,0,0,5],
-    #     [1,0,3,4,5],
-    #     [7,0,0,4,5],
-    #     [9,0,3,4,5],
-    #     [3,0,3,4,5]
-    # ])
-
-
-
-    '''
-
-
-
-    ndim = len(cost_array)
-    original_cost_array = np.copy(cost_array)
-    #HACK
-    print('NDIM=' + str(ndim))
-    print('Starting cost_array=\n' + str(cost_array)) # DEBUG
-
-
-
-    # First subtract the min of each row from that row
-    row_mins = np.amin(cost_array, axis=1) # An array where the nth element is the largest number in the nth row of cost_array
-    print('Row mins found to be:' + str(row_mins))
-    for row in range(len(cost_array)):
-        cost_array[row] -= row_mins[row]
-    print('After min per row subtracted cost_array=\n' + str(cost_array)) # DEBUG
-
-    # Now if there are any cols without a zero, subtract the min of that column from the entire column (therefore creating a zero)
-    # This is the equivalent of subtracting the min of a column by itself in all cases, as all values are non-negative
-    col_mins = np.amin(cost_array, axis=0) # An array where the nth element is the largest number in the nth column of cost_array
-    cost_array -= col_mins
-    print('After min per col subtracted cost_array=\n' + str(cost_array)) # DEBUG
-
-
-    # Now cover all zero elements with a minimal number of vertical/horizontal lines
-    # Maintain a list of the number of zeros in each row/col
-
-
-
-
-    iteration = 0
-
-    lines_used = 0
-    while lines_used != ndim:
-
-        col_zeros = np.zeros([ndim])
-        row_zeros = np.zeros([ndim])
-        for row in range(ndim):
-            for col in range(ndim):
-                if not cost_array[row][col]:
-                    col_zeros[col] += 1
-                    row_zeros[row] += 1
-        print('============================================\nIteration #' + str(iteration))
-
-        # print('DB col_zeros:' + str(col_zeros))
-        # print('DB row_zeros:' + str(row_zeros))
-        total_zeros = sum(col_zeros) #len(col_zeros) + len(row_zeros)
-        print('DB total_zeros=' + str(total_zeros))
-
-        if iteration > 25: # DEBUG
-            debug()
-        lines_used = 0
-        zeros_covered = 0
-        row_lines = [] # Holds the indeces of lines drawn through rows
-        col_lines = [] # Holds the indeces of lines drawn through columns
-        last_line_horizontal = None # To be T/F
-        next_line_horizontal = None
-        last_line_index = -1
-        next_line_index = -1
-
-        print('About to start setting lines, total zeros=' + str(total_zeros) + ' zeros_covered=' + str(zeros_covered))
-        # Now start setting the lines
-        line_drawing_iteration = -1 # DEBUG
-        while total_zeros != zeros_covered:
-            line_drawing_iteration += 1
-            # print(' Setting lines iteration #' + str(line_drawing_iteration) + ' zeros_covered/total_zeros=' + str(zeros_covered) + '/' + str(total_zeros))
-            # print(' Cost_array=\n' + str(cost_array))
-            # printCostArrayLined(cost_array, row_lines, col_lines)
-
-            # print(' Col_zeros:' + str(col_zeros))
-            # print(' Row_zeros:' + str(row_zeros))
-            # print(' RowLines:' + str(row_lines))
-            # print(' ColLines:' + str(col_lines))
-            most_zeros_row = np.argmax(row_zeros) # An index not a value
-            most_zeros_col = np.argmax(col_zeros) # An index not a value
-            # print(' Most zeros (r,c) = (' + str(most_zeros_row) + ',' + str(most_zeros_col) + ')')
-            if line_drawing_iteration == 6:
-                print('hit 6 iterations, debugging')
-                debug()
-
-            max_covered = -1
-            next_line_index = -1
-            max_covered_r = -1
-            max_covered_c = -1
-            next_line_index_c = -1
-            next_line_index_r = -1
-            for r in range(ndim):# http://stackoverflow.com/questions/14795111/hungarian-algorithm-how-to-cover-0-elements-with-minimum-lines
-                if(row_zeros[r] > max_covered_r or (row_zeros[r] == max_covered_r and last_line_horizontal == True)):
-                    next_line_index_r = r
-                    next_line_horizontal = True
-                    max_covered_r = row_zeros[r]
-            for c in range(ndim):
-                if(col_zeros[c] > max_covered_c or (col_zeros[c] == max_covered_c and last_line_horizontal == False)):
-                    next_line_index_c = c
-                    next_line_horizontal = False
-                    max_covered_c = col_zeros[c]
-            # TODO fix the above by making it so that there is a preference for vertical if just did horizontal and vice versa.
-            # Should involve separate max counters for each direction (already have in most_zeros_row/col)
-            # So just need max_covered both verticall and horizontally, then compare and then set.
-            print(' MAX COVERED R/C=' + str(max_covered_r) + ', ' + str(max_covered_c))
-
-            if max_covered_r == max_covered_c:
-                if last_line_horizontal: # Prefer column
-                    next_line_index = next_line_index_c
-                    next_line_horizontal = False
-                    max_covered = max_covered_c
-                else:
-                    next_line_index = next_line_index_r
-                    next_line_horizontal = True
-                    max_covered = max_covered_r
-            else:
-                if max_covered_r > max_covered_c:
-                    next_line_index = next_line_index_r
-                    next_line_horizontal = True
-                else:
-                    next_line_index = next_line_index_c
-                    next_line_horizontal = False
-                max_covered = max(max_covered_c, max_covered_r)
-                #TODO set max_covered, and next_line_index and next_line_horizontal
-
-            # TODO now is done setting line early when it should be, although looks to be making progress, as drew the horizontal line at pos 2 after the vertical at pos 2
-            # NOTE Current issue is that continue adding lines even when all elements are covered correctly
-            # DEBUG NOTE STEP 5 of the online slides says to subtract from each uncovered row and add to each covered column,
-            #       whereas the wikihow says subtract the min element from every element in the matrix
-            print(' Max_covered_r=' + str(max_covered_r) + ', Max_covered_c=' + str(max_covered_c))
-            print(' After iterating r/c found the best line index to be:' + str(next_line_index) + ' and next_line_horizontal=' + str(next_line_horizontal) + ', max_covered=' + str(max_covered))
-            if next_line_horizontal:
-                row_zeros[next_line_index] = 0
-                for c in range(ndim):
-                    if cost_array[next_line_index][c] == 0:
-                        col_zeros[c] -= 1
-                row_lines.append(next_line_index)
-            else:
-                col_zeros[next_line_index] = 0
-                for r in range(ndim):
-                    if cost_array[r][next_line_index] == 0:
-                        row_zeros[r] -= 1
-                col_lines.append(next_line_index)
-            zeros_covered += max_covered
-            last_line_horizontal = next_line_horizontal
-            last_line_index = next_line_index
-
-
-            if total_zeros < zeros_covered:
-                print('Error, too many zeros covered')
-                debug()
-
-        lines_used = len(col_lines) + len(row_lines)
-        print('DONE SETTING LINES to cover zeros, next find min uncovered element, lines_used=' + str(lines_used))
-        printCostArrayLined(cost_array, row_lines, col_lines)
-        # print('RowLines:' + str(row_lines))
-        # print('ColLines:' + str(col_lines))
-        print('Cost_array:\n' + str(cost_array))
-
-        # Now find the minimal UNCOVERED element, and add it to every COVERED element
-        if lines_used != ndim: # Can skip this if we've already got all the lines we need (ndim)
-            min_uncovered = np.amax(cost_array)
-            for row in range(ndim):
-                for col in range(ndim):
-                    if row not in row_lines and col not in col_lines:
-                        min_uncovered = min(min_uncovered, cost_array[row][col])
-            print('The min_uncovered value is:' + str(min_uncovered))
-
-
-            #HACK DEBUG
-            if wiki_not_harvard:
-                # Now add the min_uncovered to the COVERED elements
-                # Note that if an element is covered twice, we add the minimal element twice
-                for row in range(ndim): # TODO this could be a bit more efficient by subtracting from the whole row/col at once
-                    for col in range(ndim):
-                        if row in row_lines:
-                            cost_array[row][col] += min_uncovered
-                        if col in col_lines:
-                            cost_array[row][col] += min_uncovered
-                print('After increasing ONLY covered by min uncovered, cost_array=\n' + str(cost_array))
-
-                # Now subtract the minimal element from every element in the matrix
-                arr_min = np.amin(cost_array) # This can never be zero, as all zeros had the minimal uncovered value added to them
-                print('Minimal value of all elements=' + str(arr_min))
-                # DEBUG
-                if not arr_min:
-                    print('Error, contained a zero value after all zeros were added to')
-                    debug()
-                cost_array -= arr_min
-                print('Cost_array after subtracting min_element:\n' + str(cost_array))
-                # now re-cover the zero elements
-            else:
-                # NOTE this is the harvard method, found here: http://www.math.harvard.edu/archive/20_spring_05/handouts/assignment_overheads.pdf
-                # "Determine the smallest entry not covered by any line. Subtract this entry from each uncovered row, and then add it to each covered column.
-                # print('USING HARVARD METHOD!')
-                for row in range(ndim):
-                    if row not in row_lines:
-                        for col in range(ndim):
-                            cost_array[row][col] -= min_uncovered
-                print('Cost array after subtracting smallest entry from each UNCOVERED row:\n' + str(cost_array))
-                for col in range(ndim):
-                    if col in col_lines:
-                        for row in range(ndim):
-                            cost_array[row][col] += min_uncovered
-                print('Cost array after adding smallest entry to each COVERED col:\n' + str(cost_array))
-            iteration += 1
-
-
-
-        else:
-            print('DB SKIPPED SECOND PART AS NUM LINES ALREADY PERFECT')
-
-
-    print('DB Done, now find a cover such that each row or column only has one zero selected ')
-    print('Original cost array\n' + str(original_cost_array))
-    print('Current cost array\n' + str(cost_array))
-    printCostArrayLined(cost_array, row_lines, col_lines)
-    print('---SUCCESSFULLY COMPLETED hungarian method')
-
-
-    '''
-
-
-
-    # if debugval == 1:
-    #     debugval = 0
-    #     for row in range(len(cost_array)):
-    #         for col in range(len(cost_array[row])):
-    #             print(str(cost_array[row][col]) + ', ', end='')
-    #         print('')
-
-    # print('Cost array = ' + str(cost_array))
-    return 1
-
-
 def main():
-
-
-
 
     if not dePickle:
         setMasterStartTime()
@@ -1130,8 +731,8 @@ def main():
         all_images = glob.glob(dir + extension)
 
         # # HACK
-        # if not test_instead_of_data:
-        #     all_images = all_images[:6]
+        if not test_instead_of_data:
+            all_images = all_images[:2]
 
         print(all_images)
         all_slides = []
@@ -1230,7 +831,15 @@ def main():
     ('y+', 90, 60),
     ('x+', 360, 90) ]
 
-    plotSlidesVC(all_slides, edges=True, color='slides', midpoints=True, context=True, animate=True, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
+    print('NOW OUTPUTTING BLOB COST INFO')
+    for slide_num, slide in enumerate(all_slides):
+        print('Slide: ' + str(slide_num))
+        for blob in slide.blob2dlist:
+            print(' Blob:' + str(blob))
+            for partner_num, partner in enumerate(blob.possible_partners):
+                print('  Partner:' + str(blob.possible_partners[partner_num]) + ' has a stitching cost: ' + str(blob.partner_costs[partner_num]))
+
+    plotSlidesVC(all_slides, edges=True, color='slides', midpoints=True, context=True, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
 
 
     # plotSlidesVC(all_slides, edges=True, color='slides', midpoints=True, possible=True, context=True, canvas_size=(1000, 1000))#, color=None)
