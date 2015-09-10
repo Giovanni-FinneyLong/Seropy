@@ -4,3 +4,6 @@ Clone the repo, and install with 'pip install Serotonin', which will install the
 
 ### A 3D gif generated with the new graphic package (Vispy), demonstrating stitching between sample 2D Blobs using shape contexts with the Hungarian Algorithm ###
 ![3D-Gif](https://www.dropbox.com/s/a471w8z70jwav7n/Test_Example_of_Point_Matching.gif?dl=1)
+
+### A 3D gif demonstrating the newer approach of matching a subset of the pixels in each blob ###
+![3D-Gif](https://www.dropbox.com/s/8q0qi5l1slq5ujo/Animation_matching_subset_of_edge_pixels.gif?dl=1)
