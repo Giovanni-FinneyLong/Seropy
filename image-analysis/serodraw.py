@@ -64,9 +64,11 @@ debug_blob_ids = False
 debug_pixel_ops = False
 debug_set_merge = False
 remap_ids_by_group_size = True
-test_instead_of_data = True
+test_instead_of_data = False
 dePickle = False
 debug_pixel_ops_y_depth = 500
+
+overscan_coefficient = 1.1 # A number >= 1, which is the scaling for selecting edge pixels
 
 min_val_threshold = 250
     # Recommended = 250
@@ -98,7 +100,7 @@ def setMasterStartTime():
     master_start_time = time.time() # FIXME!
 
 
-def plotSlidesVC(slide_stack, **kwargs):
+def plotSlidesVC(slide_stack, stitchlist, **kwargs):
     '''
     For now, using V as a suffix to indicate that the plotting is being done via vispy, C for colored
     '''
@@ -122,6 +124,10 @@ def plotSlidesVC(slide_stack, **kwargs):
     orders = kwargs.get('orders') # ('command', total scaling/rotation, numberofframes)
     canvas_size = kwargs.get('canvas_size', (800,800))
     gif_size = kwargs.get('gif_size', canvas_size)
+    stitches = kwargs.get('stitches', False)
+
+    subpixels = kwargs.get('subpixels', False)
+
 
 
     def framesToGif(frames_folder, animation_time_string): # TODO convert to calling executable with: http://pastebin.com/JJ6ZuXdz
@@ -164,6 +170,15 @@ def plotSlidesVC(slide_stack, **kwargs):
         canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size)
 
     view = canvas.central_widget.add_view()
+    view.camera = 'turntable'  # or try 'arcball'
+    view.camera.elevation = -75
+    view.camera.azimuth = 1
+    print('VIEW = ' + str(view))
+    print('VIEW.Cam = ' + str(view.camera))
+
+
+
+
 
     if coloring == 'blobs':
         array_list = []
@@ -241,22 +256,147 @@ def plotSlidesVC(slide_stack, **kwargs):
         # for num, midp in enumerate(avg_list):
         #     view.add(visuals.Text(str(num), pos=midp, color='white'))
 
+
+    if stitches:
+        total_lower_pixels = 0
+        total_upper_pixels = 0
+        points_to_draw = 0
+        for stitch in stitchlist:
+            total_lower_pixels += len(stitch.lowerpixels)
+            total_upper_pixels += len(stitch.upperpixels)
+            points_to_draw += len(stitch.indeces)
+        print('DEBUG lower v upper pixels:' + str(total_lower_pixels) + ' ' + str(total_upper_pixels) + ' ' + str(points_to_draw))
+
+        lower_markers_locations = np.zeros([points_to_draw, 3]) # Note changes to points_to_draw (num indeces) rather than count of pixels
+        upper_markers_locations = np.zeros([points_to_draw, 3])
+        points_to_draw *= 2 # Multiply by 2 for start and end points
+        line_locations = np.zeros([points_to_draw, 3])
+
+
+        lower_index = 0
+        upper_index = 0
+        line_index = 0
+        for stitch in stitchlist:
+            for lowerpnum, upperpnum in stitch.indeces:
+                lowerpixel = stitch.lowerpixels[lowerpnum]
+                upperpixel = stitch.upperpixels[upperpnum]
+                lower_markers_locations[lower_index] = [lowerpixel.x / xdim, lowerpixel.y / ydim, (stitch.lowerslidenum ) / len(slide_stack)]
+                upper_markers_locations[upper_index] = [upperpixel.x / xdim, upperpixel.y / ydim, (stitch.upperslidenum ) / len(slide_stack)]
+                line_locations[line_index] = lower_markers_locations[lower_index]
+                line_locations[line_index + 1] = upper_markers_locations[upper_index]
+
+                lower_index += 1
+                upper_index += 1
+                line_index += 2
+        lower_markers = visuals.Markers()
+        upper_markers = visuals.Markers()
+        stitch_lines = visuals.Line()
+        # print('Stitch lower locations:' + str(lower_markers_locations))
+        # print('Stitch upper locations:' + str(upper_markers_locations))
+        lower_markers.set_data(lower_markers_locations, edge_color=None, face_color='yellow', size=20)
+        upper_markers.set_data(upper_markers_locations, edge_color=None, face_color='green', size=15)
+        stitch_lines.set_data(pos=line_locations, connect='segments')
+        lower_markers.symbol = 'ring'
+        upper_markers.symbol = '+'
+        view.add(lower_markers)
+        view.add(upper_markers)
+        view.add(stitch_lines)
+
+        # context_lines.set_data(pos=contextline_data, connect='segments')
+        # view.add(context_lines)
+
+
+        '''
+
+        contextline_data = np.zeros([contextline_count,1,3])
+        index = 0
+        print('Context Line Count: ' + str(contextline_count))
+        for slide_num, slide in enumerate(slide_stack[:-1]):
+            # print('Slide #' + str(slide_num))
+            for blob_num, blob in enumerate(slide.blob2dlist):
+                # print('partner_indeces: ' + str(blob.partner_indeces))
+                for partner_num, partner in enumerate(blob.partner_indeces):
+                    for edgep1, edgep2 in partner:
+                        # print(str(edgep1) + ' / ' + str(len(blob.edge_pixels)) + ' : ' +  str(edgep2) + ' / ' + str(len(blob.possible_partners[partner_num].edge_pixels)))
+                        if edgep1 < len(blob.edge_pixels) and edgep2 < len(blob.possible_partners[partner_num].edge_pixels):
+                            contextline_data[index] = blob.edge_pixels[edgep1].x / xdim, blob.edge_pixels[edgep1].y / ydim, slide_num / len(slide_stack)
+                            temp_pix = blob.possible_partners[partner_num].edge_pixels[edgep2]
+                            contextline_data[index+1] = temp_pix.x / xdim, temp_pix.y / ydim, (slide_num + 1) / len(slide_stack)
+                            # print('Line:' + str(contextline_data[index]) + ' : ' + str(contextline_data[index+1]) + ', index=' + str(index) + ' / ' + str(contextline_count))
+                            index += 2
+                        else:
+                            # print('Overflow, hopefully due to matrix expansion')
+                            maxEdge = max(edgep1, edgep2)
+                            maxEdgePixels = max(len(blob.edge_pixels), len(blob.possible_partners[partner_num].edge_pixels))
+                            if maxEdge > maxEdgePixels:
+                                print('\n\n-----ERROR! Pixel number was greater than both edge_pixel lists')
+                                debug()
+        '''
+
+
+
+
+
+
+
+    if subpixels:
+        total_partner_subpixels = 0
+        total_self_subpixels = 0
+        for slide_num, slide in enumerate(slide_stack[:-1]):
+            for blob in slide.blob2dlist:
+                for partner in blob.partner_subpixels:
+                    print('DEBUG, counting partner length of:' + str(partner))
+                    total_partner_subpixels += len(partner)
+                for pixel_subset in blob.my_subpixels:
+                    total_self_subpixels += len(pixel_subset)
+        partner_marker_locations = np.zeros([total_partner_subpixels, 3])
+        self_marker_locations = np.zeros([total_self_subpixels, 3])
+
+        partner_index = 0
+        self_index = 0
+        for slide_num, slide in enumerate(slide_stack[:-1]):
+            for blob in slide.blob2dlist:
+                for partner_num, partner in enumerate(blob.partner_subpixels): # Each partner is a list,with each element's value representing an index in edge_pixels
+                    parnter_blob = blob.possible_partners[partner_num]
+                    for partner_edge_index in partner:
+                        partner_edge_pixel = parnter_blob.edge_pixels[partner_edge_index]
+                        partner_marker_locations[partner_index] = [partner_edge_pixel.x / xdim, partner_edge_pixel.y  / ydim, (slide_num + 1) / len(slide_stack)]
+                        partner_index += 1
+                for subset_num, subset in enumerate(blob.my_subpixels):
+                    for my_edge_index in subset:
+                        my_edge_pixel = blob.edge_pixels[my_edge_index]
+                        self_marker_locations[self_index] = [my_edge_pixel.x / xdim, my_edge_pixel.y  / ydim, slide_num / len(slide_stack)]
+                        self_index += 1
+
+        partner_subpixel_markers = visuals.Markers()
+        self_subpixel_markers = visuals.Markers()
+        partner_subpixel_markers.set_data(partner_marker_locations, edge_color=None, face_color='yellow', size=20)
+        self_subpixel_markers.set_data(self_marker_locations, edge_color=None, face_color='green', size=15)
+
+        partner_subpixel_markers.symbol = 'ring'
+        self_subpixel_markers.symbol = '+'
+
+        view.add(partner_subpixel_markers)
+        view.add(self_subpixel_markers)
+
+
+
     if partnerlines:
         line_count = 0 # Counting the number of line segments to be drawn
         for slide in slide_stack:
             for blob in slide.blob2dlist:
                 line_count += len(blob.possible_partners)
         line_count *= 2 # Because need start and end points
-        linedata = np.zeros([line_count, 1, 3])
+        line_locations = np.zeros([line_count, 1, 3])
         index = 0
         for slide_num, slide in enumerate(slide_stack[:-1]): # All but the lat slide
             for blob in slide.blob2dlist:
                 # print('DB: Slide:' + str(slide_num) + ' Blob:' + str(blob) + ' partners:' + str(blob.possible_partners))
                 for partner in blob.possible_partners:
-                    linedata[index] = [blob.avgx / xdim, blob.avgy / ydim, slide_num / len(slide_stack)]
-                    linedata[index + 1] = [partner.avgx / xdim, partner.avgy / ydim, (slide_num + 1) / len(slide_stack)]
+                    line_locations[index] = [blob.avgx / xdim, blob.avgy / ydim, slide_num / len(slide_stack)]
+                    line_locations[index + 1] = [partner.avgx / xdim, partner.avgy / ydim, (slide_num + 1) / len(slide_stack)]
                     index += 2
-        possible_lines.set_data(pos=linedata, connect='segments')
+        possible_lines.set_data(pos=line_locations, connect='segments')
         view.add(possible_lines)
 
     if contextlines: # TODO
@@ -298,16 +438,12 @@ def plotSlidesVC(slide_stack, **kwargs):
                             if maxEdge > maxEdgePixels:
                                 print('\n\n-----ERROR! Pixel number was greater than both edge_pixel lists')
                                 debug()
-        print('Done generating contextline_data:' + str(contextline_data))
+        # print('Done generating contextline_data:' + str(contextline_data))
         context_lines.set_data(pos=contextline_data, connect='segments')
         view.add(context_lines)
 
 
-    view.camera = 'turntable'  # or try 'arcball'
-    view.camera.elevation = -75
-    view.camera.azimuth = 1
-    print('VIEW = ' + str(view))
-    print('VIEW.Cam = ' + str(view.camera))
+
 
     # add a colored 3D axis for orientation
     axis = visuals.XYZAxis(parent=view.scene)
@@ -375,7 +511,7 @@ def plotSlidesVC(slide_stack, **kwargs):
 
                 rotate_arr = np.multiply(rotate_arr, (scale * polarity))
 
-                possible_lines.set_data(pos=np.dot((linedata - .5), rotate_arr) + .5, connect='segments')
+                possible_lines.set_data(pos=np.dot((line_locations - .5), rotate_arr) + .5, connect='segments')
                 for arr in array_list:
                     draw_arrays.append(np.zeros(arr.shape))
                     # buf = np.dot(draw_arrays[-1], rotate_arr)
@@ -548,3 +684,30 @@ def plotSlides(slide_list):
     print('Now displaying rendering @' + str(time.ctime()))
     plt.show()
 
+# NOTE: all marker types:
+'''
+('*',
+ '+',
+ '-',
+ '->',
+ '>',
+ '^',
+ 'arrow',
+ 'clobber',
+ 'cross',
+ 'diamond',
+ 'disc',
+ 'hbar',
+ 'o',
+ 'ring',
+ 's',
+ 'square',
+ 'star',
+ 'tailed_arrow',
+ 'triangle_down',
+ 'triangle_up',
+ 'v',
+ 'vbar',
+ 'x',
+ '|')
+ '''

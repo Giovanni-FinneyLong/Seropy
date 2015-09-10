@@ -35,6 +35,7 @@ class Blob2d:
     total_blobs = 0 # Note that this is set AFTER merging is done, and so is not modified by blobs
 
 
+
     def __init__(self, idnum, list_of_pixels, master_array, slide):
         self.id = idnum
         # TODO may want to sort list here...
@@ -49,6 +50,10 @@ class Blob2d:
         self.possible_partners = [] # A list of blobs which MAY be part of the same blob3d as this blob2d
         self.partner_costs = [] # The minimal cost for the corresponding blob2d in possible_partners
         self.partner_indeces = [] # A list of indeces (row, column) for each
+
+        self.partner_subpixels = [] # Each element is a list of pixels, corresponding to a subset of the edge pixels from the partner blob
+                                    # The value of each element in the sublist for each partner is the index of the pixel from the corresponding partner
+        self.my_subpixels = []      # Set of own subpixels, with each list corresponding to a list from partner_subpixels
 
         # TODO make sure the list is sorted
         self.minx = list_of_pixels[0].x
@@ -90,20 +95,23 @@ class Blob2d:
         self.edge_pixels = [pixel for pixel in self.pixels if pixel.nz_neighbors < 8]
         self.edge_pixels.sort()
 
+
     def setTouchingBlobs(self):
+        '''
+        Updates the equivalency set of the slide containing the given blob.
+        This is used to combine blobs that are touching.
+        '''
         self.touching_blobs = set()
         for pixel in self.edge_pixels:
             neighbors = pixel.getNeighbors(self.master_array)
             for curn in neighbors:
                 if(curn != 0 and curn.blob_id != self.id):
-                    # print('DEBUG: Found a neighboring blob:' + str(curn.blob_id))
                     self.touching_blobs.add(curn.blob_id) # Not added if already in the set.
                     if (curn.blob_id < self.id):
                         self.slide.equivalency_set.add((curn.blob_id, self.id))
                     else:
                         self.slide.equivalency_set.add((self.id, curn.blob_id))
-        # if(len(self.touching_blobs)):
-        #     print('Blob #' + str(self.id) + ' is touching blobs with ids:' + str(self.touching_blobs))
+
 
     def updateid(self, newid):
         '''
@@ -114,41 +122,84 @@ class Blob2d:
         for pix in self.pixels:
             pix.blob_id = newid
 
+
     def setPossiblePartners(self, slide):
         '''
-        Finds all blobs in the given slide that overlap with the given blob, and so could be part of the same blob (partners)
+        Finds all blobs in the given slide that COULD overlap with the given blob.
+        These blobs could be part of the same blob3D (partners)
         '''
         # A blob is a possible partner to another blob if they are in adjacent slides, and they overlap in area
         # Overlap cases (minx, maxx, miny, maxy at play)
         #  minx2 <= (minx1 | max1) <= maxx2
         #  miny2 <= (miny1 | maxy1) <= maxy2
+
         print('DEBUG Checking blob for possible partners:' + str(self) + ' xrange: (' + str(self.minx) + ',' + str(self.maxx) + '), yrange: (' + str(self.miny) + ',' + str(self.maxy) + ')')
         for blob in slide.blob2dlist:
             # print('DEBUG  Comparing against blob:' + str(blob) + ' xrange: (' + str(blob.minx) + ',' + str(blob.maxx) + '), yrange: (' + str(blob.miny) + ',' + str(blob.maxy) + ')')
             inBounds = False
+            partnerSmaller = False
+
             if (blob.minx <= self.minx <= blob.maxx) or (blob.minx <= self.maxx <= blob.maxx): # Covers the case where the blob on the above slide is larger
                 # Overlaps in the x axis; a requirement even if overlapping in the y axis
                 if (blob.miny <= self.miny <= blob.maxy) or (blob.miny <= self.maxy <= blob.maxy):
                     inBounds = True
+                    partnerSmaller = False
             if not inBounds:
                 if (self.minx <= blob.minx <= self.maxx) or (self.minx <= blob.maxx <= self.maxx):
                     if (self.miny <= blob.miny <= self.maxy) or (self.miny <= blob.maxy <= self.maxy):
                         inBounds = True
+                        partnerSmaller = True
             # If either of the above was true, then one blob is within the bounding box of the other
             if inBounds:
                 self.possible_partners.append(blob)
                 print('DEBUG  Inspected blob was added to current blob\'s possible partners')
+                # TODO here we find a subset of the edge pixels from the potential partner that correspond to the area
+                # NOTE use self.avgx, self.avgy
+                if partnerSmaller:
+                    # Use partner's (blob) midpoints, and expand a proportion of minx, maxx, miny, maxy
+                    midx = blob.avgx
+                    midy = blob.avgy
+                    left_bound = midx - ((blob.avgx - blob.minx) * overscan_coefficient)
+                    right_bound = midx + ((blob.maxx - blob.avgx) * overscan_coefficient)
+                    down_bound = midy - ((blob.avgy - blob.miny) * overscan_coefficient)
+                    up_bound = midy + ((blob.maxy - blob.avgy) * overscan_coefficient)
+                else:
+                    # Use partner's (blob) midpoints, and expand a proportion of minx, maxx, miny, maxy
+                    midx = self.avgx
+                    midy = self.avgy
+                    left_bound = midx - ((self.avgx - self.minx) * overscan_coefficient)
+                    right_bound = midx + ((self.maxx - self.avgx) * overscan_coefficient)
+                    down_bound = midy - ((self.avgy - self.miny) * overscan_coefficient)
+                    up_bound = midy + ((self.maxy - self.avgy) * overscan_coefficient)
+                partner_subpixel_indeces = []
+                my_subpixel_indeces = []
+                for p_num, pixel in enumerate(blob.edge_pixels): # TODO TODO TODO IMPORTANT, need two way setup, for blob and self. FIXME
+                    if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
+                        partner_subpixel_indeces.append(p_num)
+                for p_num, pixel in enumerate(self.edge_pixels): # TODO TODO TODO IMPORTANT, need two way setup, for blob and self. FIXME
+                    if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
+                        my_subpixel_indeces.append(p_num)
+                self.partner_subpixels.append(partner_subpixel_indeces)
+                self.my_subpixels.append(my_subpixel_indeces)
+
 
         self.partner_costs = [0] * len(self.possible_partners)
+        # TODO update this method to do better filtering, like checking if the blobs are within each other etc
+
 
     def setShapeContexts(self, num_bins):
         '''
-        num_bins is the number of pins PER polar layer
+        Uses the methods described here: https://www.cs.berkeley.edu/~malik/papers/BMP-shape.pdf
+        to set a shape context histogram (with num_bins), for each edge pixel in the blob.
+        Note that only the edge_pixels are used to determine the shape context,
+        and that only edge points derive a context.
+
+        num_bins is the number of bins in the histogram for each point
         '''
-        # Note making bin depth = 2
         # Note making the reference point for each pixel itself
         # Note that angles are NORMALLY measured COUNTER-clockwise from the +x axis,
-        # Note  however the += 180, used to remove the negative values, makes it so that angles are counterclockwise from the NEGATIVE x-axis
+        # Note  however the += 180, used to remove the negative values,
+        # NOTE  makes it so that angles are counterclockwise from the NEGATIVE x-axis
         edgep = len(self.edge_pixels)
         self.context_bins = np.zeros((edgep , num_bins)) # Each edge pixel has rows of num_bins each
         # First bin is 0 - (360 / num_bins) degress
@@ -173,36 +224,35 @@ class Blob2d:
     __repr__ = __str__
 
     def totalBlobs(self):
+        '''
+        TODO depreciated, need to updated blob2d.total_blobs as merging blobs
+        This is currently being updated at the end of the slide_creation
+        '''
         return Blob2d.total_blobs
+
 
     @staticmethod
     def mergeblobs(bloblist):
         '''
         Returns a NEW list of blobs, which have been merged after having their ids updated (externally, beforehand)
+        Use the global variable 'debug_set_merge' to control output
         '''
         newlist = []
         copylist = list(bloblist) # Hack, fix by iterating backwards: http://stackoverflow.com/questions/2612802/how-to-clone-or-copy-a-list-in-python
         if debug_set_merge:
             print('Blobs to merge:' + str(copylist))
-
         while len(copylist) > 0:
             blob1 = copylist[0]
             newpixels = []
-            # killindeces = []
             merged = False
-            # print(len(copylist))
-            # print(copylist[1:])
             if debug_set_merge:
                 print('**Curblob:' + str(blob1))
             for (index2, blob2) in enumerate(copylist[1:]):
-                # if debug_set_merge:
-                #     print('  DEBUG: checking blob:' + str(blob1) + ' against blob:' + str(blob2))
                 if blob2.id == blob1.id:
                     if debug_set_merge:
                         print('   Found blobs to merge: ' + str(blob1) + ' & ' + str(blob2))
                     merged = True
                     newpixels = newpixels + blob2.pixels
-                    # killindeces.append(index2 + 1) # Note +1 b/c offset by 1
             if merged == False:
                 if debug_set_merge:
                     print('--Never merged on blob:' + str(blob1))
@@ -213,7 +263,6 @@ class Blob2d:
                     print(' Merging, newlist-pre:' + str(newlist))
                 if debug_set_merge:
                     print(' Merging, copylist-pre:' + str(copylist))
-                # print('Deleting ' + str(len(killindeces)) + ' elements with id:' + str(blob1.id))
                 index = 0
                 while index < len(copylist):
                     if debug_set_merge:
@@ -232,6 +281,139 @@ class Blob2d:
         if debug_set_merge:
             print('Merge result' + str(newlist))
         return newlist
+
+class Stitches:
+    """
+    Only created when it is expected that two blobs from different slides belong to the same blob3d
+    Contains the cost, and point information from stitching 2 blobs together.
+    Contains 2 sets of mappings to their edge pixels
+    """
+
+    def pixelsInBounds(self, subsetblob, boundaryblob):
+        """
+        :param subsetblob: A blob2d from which we will find a subset of edge_pixels which are within an acceptable bound
+        :param boundaryblob: A blob2d which is used to set the boundary constraints for pixels from subsetblob
+        :param scale: Advised 1-1.2, the amount to expand the boundary of the boundary blob
+            to contain the subset of the other blob
+        :return: A list of pixels, chosen from subsetblob.edge_pixels,
+            which are within the scaled boundary defined by boundaryblob
+        """
+        assert 0 < self.overscan_scale < 2
+        left_bound = boundaryblob.avgx - ((boundaryblob.avgx - boundaryblob.minx) * self.overscan_scale)
+        right_bound = boundaryblob.avgx + ((boundaryblob.maxx - boundaryblob.avgx) * self.overscan_scale)
+        down_bound = boundaryblob.avgy - ((boundaryblob.avgy - boundaryblob.miny) * self.overscan_scale)
+        up_bound = boundaryblob.avgy + ((boundaryblob.maxy - boundaryblob.avgy) * self.overscan_scale)
+        boundedpixels = []
+        for p_num, pixel in enumerate(subsetblob.edge_pixels): # TODO TODO TODO IMPORTANT, need two way setup, for blob and self. FIXME
+            if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
+                boundedpixels.append(pixel)
+        return boundedpixels
+
+
+    def setShapeContexts(self, num_bins):
+        '''
+        Uses the methods described here: https://www.cs.berkeley.edu/~malik/papers/BMP-shape.pdf
+        to set a shape context histogram (with num_bins), for each edge pixel in the blob.
+        Note that only the edge_pixels are used to determine the shape context,
+        and that only edge points derive a context.
+
+        num_bins is the number of bins in the histogram for each point
+        '''
+        # Note making the reference point for each pixel itself
+        # Note that angles are NORMALLY measured COUNTER-clockwise from the +x axis,
+        # Note  however the += 180, used to remove the negative values,
+        # NOTE  makes it so that angles are counterclockwise from the NEGATIVE x-axis
+        ledgep = len(self.lowerpixels)
+        uedgep = len(self.upperpixels)
+
+        self.lower_context_bins = np.zeros((ledgep , num_bins)) # Each edge pixel has rows of num_bins each
+        self.upper_context_bins = np.zeros((uedgep , num_bins)) # Each edge pixel has rows of num_bins each
+        # First bin is 0 - (360 / num_bins) degress
+        for (pix_num, pixel) in enumerate(self.lowerpixels):
+            for (pix_num2, pixel2) in enumerate(self.lowerpixels):
+                if pix_num != pix_num2: # Only check against other pixels.
+                    distance = math.sqrt(math.pow(pixel.x - pixel2.x, 2) + math.pow(pixel.y - pixel2.y, 2))
+                    angle = math.degrees(math.atan2(pixel2.y - pixel.y, pixel2.x - pixel.x)) # Note using atan2 handles the dy = 0 case
+                    angle += 180
+                    if not 0 <= angle <= 360:
+                        print('\n\n\n--ERROR: Angle=' + str(angle))
+                    # Now need bin # and magnitude for histogram
+                    bin_num = math.floor((angle / 360.) * (num_bins - 1)) # HACK PSOE from -1
+                    value = math.log(distance, 10)
+                    # print('DB: Pixel:' + str(pixel) + ' Pixel2:' + str(pixel2) + ' distance:' + str(distance) + ' angle:' + str(angle) + ' bin_num:' + str(bin_num))
+                    self.lower_context_bins[pix_num][bin_num] += value
+        for (pix_num, pixel) in enumerate(self.upperpixels):
+            for (pix_num2, pixel2) in enumerate(self.upperpixels):
+                if pix_num != pix_num2: # Only check against other pixels.
+                    distance = math.sqrt(math.pow(pixel.x - pixel2.x, 2) + math.pow(pixel.y - pixel2.y, 2))
+                    angle = math.degrees(math.atan2(pixel2.y - pixel.y, pixel2.x - pixel.x)) # Note using atan2 handles the dy = 0 case
+                    angle += 180
+                    if not 0 <= angle <= 360:
+                        print('\n\n\n--ERROR: Angle=' + str(angle))
+                    # Now need bin # and magnitude for histogram
+                    bin_num = math.floor((angle / 360.) * (num_bins - 1)) # HACK PSOE from -1
+                    value = math.log(distance, 10)
+                    # print('DB: Pixel:' + str(pixel) + ' Pixel2:' + str(pixel2) + ' distance:' + str(distance) + ' angle:' + str(angle) + ' bin_num:' + str(bin_num))
+                    self.upper_context_bins[pix_num][bin_num] += value
+
+
+    def munkresCost(self):
+        """
+        Finds the minimal cost of pairings between the chosen subsets of pixels and their generated context bins using their cost array
+        Generates self.cost_array based on the subsets of pixels
+        Then used the hungarian method (Munkres) to find the optimal subset of indeces & total cost from the given subset of edge_pixels
+        :return:
+        """
+        def costBetweenPoints(bins1, bins2):
+            assert len(bins1) == len(bins2)
+            cost = 0
+            for i in range(len(bins1)):
+                if (bins1[i] + bins2[i]) != 0:
+                    cost += math.pow(bins1[i] - bins2[i], 2) / (bins1[i] + bins2[i])
+            return cost / 2
+
+
+        def makeCostArray():
+            """
+            Generates a cost array (self.cost_array) from the subset of pixels
+            :return:
+            """
+            # Setting up cost array with the costs between respective points
+            ndim = min(len(self.lowerpixels), len(self.upperpixels)) # HACK HACK min for now, in the hopes that munkres can handle non-square matrices.
+            # cost_array = np.zeros([len(blob1.edge_pixels), len(blob2.edge_pixels)])
+            self.cost_array = np.zeros([ndim, ndim])
+            for i in range(ndim):
+                for j in range(ndim):
+                    self.cost_array[i][j] = costBetweenPoints(self.lower_context_bins[i], self.upper_context_bins[j])
+            return self.cost_array
+
+        makeCostArray()
+        munk = Munkres()
+        self.indeces = munk.compute(np.copy(self.cost_array).tolist())
+        self.cost = 0
+        # print(cost_array)
+        for row, col in self.indeces:
+            self.cost += self.cost_array[row][col]
+            # print ('(%d, %d) -> %d' % (row, col, value))
+
+    def __str__(self):
+        return str('Stitching slides:(' + str(self.lowerslidenum) + ',' + str(self.upperslidenum) + ') with blobs (' + str(self.lowerblob.id) + ',' + str(self.upperblob.id) + '). Cost:' + str(self.cost))
+
+    def __init__(self, lowerblob, upperblob, overscan_scale, num_bins):
+        self.overscan_scale = overscan_scale
+        self.num_bins = num_bins
+        self.lowerslidenum = lowerblob.slide.id_num
+        self.upperslidenum = upperblob.slide.id_num
+        self.lowerblob = lowerblob
+        self.upperblob = upperblob
+        self.lowerpixels = self.pixelsInBounds(lowerblob, upperblob) # TODO psoe on the order of lower and upper
+        self.upperpixels = self.pixelsInBounds(upperblob, lowerblob)
+        # HACK NOTE making the same amount of pixels both above and below for matching purposes
+
+        self.setShapeContexts(num_bins) # Set lower and upper context bins
+        self.munkresCost() # Now have set self.cost and self.indeces
+
+
 
 class Pixel:
     '''
@@ -284,7 +466,7 @@ class Pixel:
         else:
             return False
 
-    def getNeighbors(self, master_array):
+    def getNeighbors(self, master_array): # TODO depreciated
         neighbors = []
         xpos = self.x
         ypos = self.y
@@ -304,9 +486,16 @@ class Slide:
     total_slides = 0
 
     def __init__(self, filename):
-        Slide.total_slides += 1
+
 
         self.id_num = 0
+
+
+        self.id_num = Slide.total_slides # FIXME FIXME issue here, the above (incorrect) lines work, these correct lines cause an error with pixel_id_groups
+        # Slide.total_slides += 1
+        Slide.total_slides += 1
+
+
         self.t0 = time.time()
         self.filename = filename
         self.equivalency_set = set() # Used to keep track of touching blobs, which can then be merged. # NOTE, moving from blob2d
@@ -508,13 +697,16 @@ class Slide:
                                         derived_pixels.append(pixel)
                                         derived_ids.append(pixel.blob_id)
                                         derived_count += 1
+                                        # print('DEBUG adding to group:' + str(pixel.blob_id) + '/' + str(len(pixel_id_groups)))
                                         pixel_id_groups[pixel.blob_id].append(pixel)
 
             else:
                 if debug_pixel_ops:
                     print('****Pixel:' + str(pixel) + ' already had an id when the cursor reached it')
-            if pixel.blob_id == -1:
-                pixel.blob_id = self.getNextBlobId()
+            if pixel.blob_id == -1: # Didn't manage to derive an id_num from the neighboring pixels
+                pixel.blob_id = len(pixel_id_groups) # This is used to assign the next id to a pixel, using an id that is new
+
+
                 pixel_id_groups.append([pixel])
                 derived_ids.append(pixel.blob_id) # Todo should refactor 'derived_ids' to be more clear
                 equivalent_labels.append(pixel.blob_id) # Map the new pixel to itself until a low equivalent is found
@@ -598,27 +790,6 @@ def filterSparsePixelsFromList(listin):
     return filtered_pixels
 
 
-def KMeansClusterIntoLists(listin, num_clusters):
-
-    def doClustering(array_in, num_clusters):
-        'Take an array of tuples and returns a list of lists, each of which contains all the pixels of a cluster'
-        cluster_lists = [[] for i in range(num_clusters)]
-        (bookC, distortionC) = kmeans(array_in, num_clusters)
-        (centLabels, centroids) = vq(array_in, bookC)
-        for pixlabel in range(len(centLabels)):
-            cluster = centLabels[pixlabel]
-            # pix = max_pixel_array_floats[pixlabel]
-            # cluster_arrays[cluster][pix[1]][pix[2]] = pix[0]
-            cluster_lists[cluster].append(array_in[pixlabel])
-        return cluster_lists
-
-    max_tuples_as_arrays = np.asarray([(float(pixel.val), float(pixel.x), float(pixel.y)) for pixel in listin])
-    # NOTE: Is an array of shape (#pixels, 3), where each element is an array representing a tuple.
-    # NOTE: This is the required format for kmeans/vq
-    tuple_array = np.asarray([(float(pixel.val), float(pixel.x), float(pixel.y)) for pixel in listin])
-    return doClustering(tuple_array, num_clusters)
-
-
 def getIdLists(pixels, **kwargs):
     '''
     Returns a list of lists, each of which corresponds to an id. If remapped, the first list is the largest
@@ -682,19 +853,7 @@ def munkresCompare(blob1, blob2):
                 cost_array[i][j] = costBetweenPoints(blob1.context_bins[i], blob2.context_bins[j])
         i = len(blob1.context_bins)
         j = len(blob2.context_bins)
-        # print('i=' + str(i) + ' j=' + str(j))
-        # TODO TODO FIXME removed this temporarily, to see if munkres can handle without padding
-        # if i != j:
-        #     # Need to find max value currently in the array, and use it to add rows or cols so that the matrix is square
-        #     maxcost = np.amax(cost_array)
-        #     if i < j:
-        #         for r in range(i,j):
-        #             for s in range(j):
-        #                 cost_array[r][s] = maxcost # By convention
-        #     else:
-        #         for r in range(j,i):
-        #             for s in range(i):
-        #                 cost_array[r][s] = maxcost # By convention
+
         return cost_array
 
     # TODO run this on some simple examples provided online to confirm it is accurate.
@@ -719,6 +878,9 @@ def munkresCompare(blob1, blob2):
 
 
 def main():
+
+    stitchlist = []
+
 
     if not dePickle:
         setMasterStartTime()
@@ -748,18 +910,12 @@ def main():
                 blob.setPossiblePartners(all_slides[slide_num + 1])
                 # print(blob.possible_partners)
 
-        anim_orders = [
-            ('y+', 160, 120),
-            ('x+', 360, 90) ]
 
         # plotSlidesVC(all_slides, edges=True, color='slides', midpoints=True, possible=True, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(500,500))#, color=None)
 
-        # TODO: Match up Blob2Ds against their partners on either adjacent slide
         # Use the shape contexts approach from here: http://www.cs.berkeley.edu/~malik/papers/mori-belongie-malik-pami05.pdf
         # The paper uses 'Representative Shape Contexts' to do inital matching; I will do away with this in favor of checking bounds for possible overlaps
-        # Components:
-        #   Derive a context for every edge pixel
-        #   Minimalize shape combo costs
+
 
 
         print('DB about to set shape contexts')
@@ -778,6 +934,10 @@ def main():
 
                 for b2_num, blob2 in enumerate(blob1.possible_partners):
                     print('Comparing to blob2:' + str(blob2))
+                    stitchlist.append(Stitches(blob1, blob2, 1.1, 36))
+
+
+                    '''
                     t0 = time.time()
                     total_cost, indeces = munkresCompare(blob1, blob2)
                     tf = time.time()
@@ -786,6 +946,8 @@ def main():
                     blob1.partner_costs[b2_num] = total_cost
                     print('Indeces=' + str(indeces))
                     blob1.partner_indeces.append(indeces)
+                    '''
+
     else:
         print('Loading from pickle')
         all_slides = pickle.load(open('allslides.pickle', "rb"))
@@ -827,6 +989,13 @@ def main():
     # NOTE for each partner b1 has, it appends another list of elements in partner indeces
     # plotSlidesVC(all_slides, edges=True, color='slides')#, color=None)
 
+    for stitch in stitchlist:
+        print(stitch)
+        print(stitch.indeces)
+        # print(stitch.lowerpixels)
+        # print(stitch.upperpixels)
+
+
     anim_orders = [
     ('y+', 90, 60),
     ('x+', 360, 90) ]
@@ -839,8 +1008,11 @@ def main():
             for partner_num, partner in enumerate(blob.possible_partners):
                 print('  Partner:' + str(blob.possible_partners[partner_num]) + ' has a stitching cost: ' + str(blob.partner_costs[partner_num]))
 
-    plotSlidesVC(all_slides, edges=True, color='slides', midpoints=True, context=True, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
 
+
+    # plotSlidesVC(all_slides, stitchlist, stitches=True, edges=True, color='slides', subpixels=False, midpoints=True, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
+    plotSlidesVC(all_slides, stitchlist, stitches=True, edges=True, color='slides', subpixels=False, midpoints=True, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
+    debug()
 
     # plotSlidesVC(all_slides, edges=True, color='slides', midpoints=True, possible=True, context=True, canvas_size=(1000, 1000))#, color=None)
     # TODO had a memory error adding to view when midpoints = True
@@ -848,21 +1020,9 @@ def main():
 
     #DEBUG Total_cost=4744.92612892
 
-    # mplfig = plt.figure()
-    # for i in range(len(all_slides[0].blob2dlist[0].context_bins)):
-    #     print('I=' + str(i))
-    #     print(all_slides[0].blob2dlist[0].context_bins[i])
-    #     plt.bar(range(36), all_slides[0].blob2dlist[0].context_bins[i])
-    #     plt.show()
-
-    # NOTE: Dummy rows/cols should be added to a hungarian matrix so that it is nxn and the Hungarian Method can be used.
-    # The dummy rows/cols are filled with the largest value in the matrix
-    # Blob1 will consist of N points, blob2 will consist of M points
-    # The cost of matching a point Pi on the first shape to the point Qj on the second shape is:
-    # Sum(Cost(
 
 
-
+    # NOTE slide id's are fixed
 
 
 
