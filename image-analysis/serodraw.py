@@ -173,7 +173,6 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
     view.camera = 'turntable'  # or try 'arcball'
     view.camera.elevation = -75
     view.camera.azimuth = 1
-    print('VIEW = ' + str(view))
     print('VIEW.Cam = ' + str(view.camera))
 
 
@@ -265,7 +264,7 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
             total_lower_pixels += len(stitch.lowerpixels)
             total_upper_pixels += len(stitch.upperpixels)
             points_to_draw += len(stitch.indeces)
-        print('DEBUG lower v upper pixels:' + str(total_lower_pixels) + ' ' + str(total_upper_pixels) + ' ' + str(points_to_draw))
+        print('DEBUG lower v upper pixels v lines:' + str(total_lower_pixels) + ' ' + str(total_upper_pixels) + ' ' + str(points_to_draw))
 
         lower_markers_locations = np.zeros([points_to_draw, 3]) # Note changes to points_to_draw (num indeces) rather than count of pixels
         upper_markers_locations = np.zeros([points_to_draw, 3])
@@ -293,8 +292,17 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
         stitch_lines = visuals.Line()
         # print('Stitch lower locations:' + str(lower_markers_locations))
         # print('Stitch upper locations:' + str(upper_markers_locations))
-        lower_markers.set_data(lower_markers_locations, edge_color=None, face_color='yellow', size=20)
-        upper_markers.set_data(upper_markers_locations, edge_color=None, face_color='green', size=15)
+
+        if xdim < 300 or ydim < 300: # HACK
+            lowersize = 20
+            uppersize = 15
+        else: # Basically for the actual slides
+            lowersize = 10
+            uppersize = 7
+
+
+        lower_markers.set_data(lower_markers_locations, edge_color=None, face_color='yellow', size=lowersize)
+        upper_markers.set_data(upper_markers_locations, edge_color=None, face_color='green', size=uppersize)
         stitch_lines.set_data(pos=line_locations, connect='segments')
         lower_markers.symbol = 'ring'
         upper_markers.symbol = '+'
@@ -606,11 +614,11 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
         view.camera.interactive = False
         timer = vispy.app.Timer(interval=0, connect=update_camera, start=True, iterations=frames+1) # Hack +1 fpr writing?
     # DEBUG
-    print('Now starting visuals, but first, slide/ blob info:')
-    for snum, slide in enumerate(slide_stack):
-        print('Slide: ' + str(snum) + ' / ' + str(len(slide_stack)))
-        for blobl in slide.blob2dlist:
-            print(' Blob:' + str(blob) + ' which has' + str(len(blob.possible_partners)) + ' possible partners')
+    # print('Now starting visuals, but first, slide/ blob info:')
+    # for snum, slide in enumerate(slide_stack):
+    #     print('Slide: ' + str(snum) + ' / ' + str(len(slide_stack)))
+    #     for blob in slide.blob2dlist:
+    #         print(' Blob:' + str(blob) + ' which has' + str(len(blob.possible_partners)) + ' possible partners')
     vispy.app.run()
 
 

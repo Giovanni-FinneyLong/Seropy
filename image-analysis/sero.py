@@ -133,7 +133,7 @@ class Blob2d:
         #  minx2 <= (minx1 | max1) <= maxx2
         #  miny2 <= (miny1 | maxy1) <= maxy2
 
-        print('DEBUG Checking blob for possible partners:' + str(self) + ' xrange: (' + str(self.minx) + ',' + str(self.maxx) + '), yrange: (' + str(self.miny) + ',' + str(self.maxy) + ')')
+        # print('DEBUG Checking blob for possible partners:' + str(self) + ' xrange: (' + str(self.minx) + ',' + str(self.maxx) + '), yrange: (' + str(self.miny) + ',' + str(self.maxy) + ')')
         for blob in slide.blob2dlist:
             # print('DEBUG  Comparing against blob:' + str(blob) + ' xrange: (' + str(blob.minx) + ',' + str(blob.maxx) + '), yrange: (' + str(blob.miny) + ',' + str(blob.maxy) + ')')
             inBounds = False
@@ -152,8 +152,8 @@ class Blob2d:
             # If either of the above was true, then one blob is within the bounding box of the other
             if inBounds:
                 self.possible_partners.append(blob)
-                print('DEBUG  Inspected blob was added to current blob\'s possible partners')
-                # TODO here we find a subset of the edge pixels from the potential partner that correspond to the area
+                # print('DEBUG  Inspected blob was added to current blob\'s possible partners')
+                # TODFO here we find a subset of the edge pixels from the potential partner that correspond to the area
                 # NOTE use self.avgx, self.avgy
                 if partnerSmaller:
                     # Use partner's (blob) midpoints, and expand a proportion of minx, maxx, miny, maxy
@@ -287,6 +287,8 @@ class Stitches:
     Only created when it is expected that two blobs from different slides belong to the same blob3d
     Contains the cost, and point information from stitching 2 blobs together.
     Contains 2 sets of mappings to their edge pixels
+    As stitches are created before it is confirmed that two blobs may overlap or be suitable partners, the internal vars
+        isConnected and isPartners indicate whether the Stitches are valid, in the sense of overlap and viable partners respectively
     """
 
     def pixelsInBounds(self, subsetblob, boundaryblob):
@@ -389,15 +391,20 @@ class Stitches:
 
         makeCostArray()
         munk = Munkres()
-        self.indeces = munk.compute(np.copy(self.cost_array).tolist())
+        # print('Upper blob:' + str(self.upperblob) + ' lowerblob:' + str(self.lowerblob))
+        # print('Lower pix:' + str(self.lowerpixels) + ' upper pix:' + str(self.upperpixels))
+        # print('Lower slide:' + str(self.lowerslidenum) + ' ' + ' upper slide' + str(self.upperslidenum))
+        # print('About to find indeces for cost array:' + str(self.cost_array))
+        self.indeces = munk.compute(np.copy(self.cost_array))
         self.cost = 0
-        # print(cost_array)
         for row, col in self.indeces:
             self.cost += self.cost_array[row][col]
-            # print ('(%d, %d) -> %d' % (row, col, value))
 
     def __str__(self):
-        return str('Stitching slides:(' + str(self.lowerslidenum) + ',' + str(self.upperslidenum) + ') with blobs (' + str(self.lowerblob.id) + ',' + str(self.upperblob.id) + '). Cost:' + str(self.cost))
+        return str('Stitching slides:(' + str(self.lowerslidenum) + ',' + str(self.upperslidenum) + ') with blobs (' +
+                   str(self.lowerblob.id) + ',' + str(self.upperblob.id) + '). Chose:' + str(len(self.lowerpixels)) +
+                   '/' + str(len(self.lowerblob.edge_pixels)) + ' lower blob pixels and ' + str(len(self.upperpixels)) +
+                   '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels. ' + 'Cost:' + str(self.cost))
 
     def __init__(self, lowerblob, upperblob, overscan_scale, num_bins):
         self.overscan_scale = overscan_scale
@@ -406,14 +413,39 @@ class Stitches:
         self.upperslidenum = upperblob.slide.id_num
         self.lowerblob = lowerblob
         self.upperblob = upperblob
+        self.upperpixels = None
         self.lowerpixels = self.pixelsInBounds(lowerblob, upperblob) # TODO psoe on the order of lower and upper
-        self.upperpixels = self.pixelsInBounds(upperblob, lowerblob)
-        # HACK NOTE making the same amount of pixels both above and below for matching purposes
+        self.cost = -1
+        self.isReduced = False # True when have chosen a subset of the edge pixels to reduce computation
+        if len(self.lowerpixels) != 0: # Optimization
+            self.upperpixels = self.pixelsInBounds(upperblob, lowerblob)
+        if self.upperpixels is not None and len(self.upperpixels) != 0 and len(self.lowerpixels) != 0:
+            # HACK
+            # NOTE planning to reduce to a subset
+            # NOTE 1:28 for (203,301) pre-opt, :37 for (174, 178), 66mins for (640, 616) -> 4 mins after optimization (picking half of each) -> 59 seconds with selective[::3]
+            # NOTE After ::2 opt, total time for [:3] data slides = 10 mins 19 seconds, instead of ~ 2 hours, after selective[::3], total time = 6mins 49 seconds
+            # selective [::3] with 5 slides = 36 mins
+            if len(self.upperpixels) > 200 and len(self.lowerpixels) > 200:
+                print('-->Too many pixels in below stitch, reducing to a subset, originally was: ' + str(len(self.lowerpixels)) +
+                   '/' + str(len(self.lowerblob.edge_pixels)) + ' lower blob pixels and ' + str(len(self.upperpixels)) +
+                   '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels.')
+                pickoneover = 2
+                self.isReduced = True
+                if len(self.upperpixels) > 500 and len(self.lowerpixels) > 500:
+                    pickoneover = 3
 
-        self.setShapeContexts(num_bins) # Set lower and upper context bins
-        self.munkresCost() # Now have set self.cost and self.indeces
+                self.upperpixels = self.upperpixels[::pickoneover] # Every pickoneover'th element
+                self.lowerpixels = self.lowerpixels[::pickoneover] # HACK this is a crude way of reducing the number of pixels
 
 
+            self.isConnected = True
+            self.setShapeContexts(num_bins) # Set lower and upper context bins
+            print('   ', end='') # Fo
+            print(self)
+            self.munkresCost() # Now have set self.cost and self.indeces and self.connect
+            # TODO grade the stitching based on the cost and num of pixels, and then set isPartners
+        else:
+            self.isConnected = False
 
 class Pixel:
     '''
@@ -488,11 +520,7 @@ class Slide:
     def __init__(self, filename):
 
 
-        self.id_num = 0
-
-
-        self.id_num = Slide.total_slides # FIXME FIXME issue here, the above (incorrect) lines work, these correct lines cause an error with pixel_id_groups
-        # Slide.total_slides += 1
+        self.id_num = Slide.total_slides
         Slide.total_slides += 1
 
 
@@ -513,7 +541,7 @@ class Slide:
             buf = np.array(image_channels[s])
             slices.append(buf)
             if np.amax(slices[s]) == 0:
-                print('Slice #' + str(s) + ' is an empty slice')
+                print('Channel #' + str(s) + ' is empty')
         for curx in range(xdim):
             for cury in range(ydim):
                 pixel_value = slices[0][curx][cury] # CHANGED back,  FIXME # reversed so that orientation is the same as the original when plotted with a reversed y.
@@ -541,7 +569,7 @@ class Slide:
         (derived_ids, derived_count, num_ids_equiv) = self.firstPass(self.alive_pixels)
         counter = collections.Counter(derived_ids)
         total_ids = len(counter.items())
-        print('There were: ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(total_ids) + ' ids')
+        print('There were: ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(total_ids) + ' blobs')
         most_common_ids = counter.most_common()# HACK Grabbing all for now, +1 b/c we start at 0 # NOTE Stored as (id, count)
         id_lists = getIdLists(self.alive_pixels, remap=remap_ids_by_group_size, id_counts=most_common_ids) # Hack, don't ned to supply id_counts of remap is false; just convenient for now
         self.blob2dlist = [] # Note that blobs in the blob list are ordered by number of pixels, not id, this makes merging faster
@@ -808,8 +836,11 @@ def getIdLists(pixels, **kwargs):
     if kwargs_ok:
         id_lists = [[] for i in range(len(id_counts))]
         if do_remap:
-            remap = [None] * len(id_counts)
-            for id in range(len(id_counts)): # Supposedly up to 2.5x faster than using numpy's .tolist()
+            # remap = [None] * len(id_counts)
+            remap = dict()
+
+            for id_index, id in enumerate(range(len(id_counts))): # Supposedly up to 2.5x faster than using numpy's .tolist()
+                # print(' id=' + str(id) + ' id_counts[id]=' + str(id_counts[id]) + ' id_counts[id][0]=' + str(id_counts[id][0]))
                 remap[id_counts[id][0]] = id
             for pixel in pixels:
                 id_lists[remap[pixel.blob_id]].append(pixel)
@@ -819,6 +850,8 @@ def getIdLists(pixels, **kwargs):
                     print('DEBUG: About to fail:' + str(pixel)) # DEBUG
                 id_lists[pixel.blob_id].append(pixel)
         return id_lists
+    else:
+        print('Issue with kwargs in call to getIdLists!!')
 
 
 def munkresCompare(blob1, blob2):
@@ -877,9 +910,80 @@ def munkresCompare(blob1, blob2):
     return total_cost, indeces
 
 
+def doPickle(slidelist, stitchlist, filename):
+    pickledict = dict()
+    pickledict['slides'] = slidelist
+    pickledict['stitches'] = stitchlist
+    pickledict['xdim'] = xdim
+    pickledict['ydim'] = ydim
+    pickledict['zdim'] = zdim
+    pickle.dump(pickledict, open(filename, "wb"))
+
+
+def unPickle(filename):
+        print('Loading from pickle')
+        pickledict = pickle.load(open(filename, "rb"))
+        slidelist = pickledict['slides']
+        stitchlist = pickledict['stitches']
+        xdim = pickledict['xdim']
+        ydim = pickledict['ydim']
+        zdim = pickledict['zdim']
+        setglobaldims(xdim, ydim, zdim)
+        return slidelist, stitchlist
+
+
+def setAllPossiblePartners(slidelist):
+    for slide_num, slide in enumerate(slidelist[:-1]): # All but the last slide
+        for blob in slide.blob2dlist:
+            blob.setPossiblePartners(slidelist[slide_num + 1])
+
+
+def setAllShapeContexts(slidelist):
+    # Use the shape contexts approach from here: http://www.cs.berkeley.edu/~malik/papers/mori-belongie-malik-pami05.pdf
+    # The paper uses 'Representative Shape Contexts' to do inital matching; I will do away with this in favor of checking bounds for possible overlaps
+    for slide in slidelist:
+        for blob in slide.blob2dlist:
+            blob.setShapeContexts(36)
+
+
+def stitchAllBlobs(slidelist):
+    stitchlist = []
+    print('Beginning to stitch together blobs')
+    for slide_num, slide in enumerate(slidelist):
+        print('Starting slide #' + str(slide_num) + ', len(blob2dlist)=' + str(len(slide.blob2dlist)))
+        for blob1 in slide.blob2dlist:
+            print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
+            # print('  Blob1 current parter_costs:' + str(blob1.partner_costs))
+
+            for b2_num, blob2 in enumerate(blob1.possible_partners):
+                print('   Comparing to blob2:' + str(blob2))
+                t0 = time.time()
+                bufStitch = Stitches(blob1, blob2, 1.1, 36)
+                if bufStitch.isConnected:
+                    stitchlist.append(bufStitch)
+                    tf = time.time()
+                    print('    ', end='') # Formatting output
+                    printElapsedTime(t0, tf)
+                    ''' # Code normally used to generate munkres costs for entire blob edge_pixels instead of subset
+                    t0 = time.time()
+                    total_cost, indeces = munkresCompare(blob1, blob2)
+                    tf = time.time()
+                    printElapsedTime(t0, tf)
+                    print('Total_cost=' + str(total_cost))
+                    blob1.partner_costs[b2_num] = total_cost
+                    print('Indeces=' + str(indeces))
+                    blob1.partner_indeces.append(indeces)
+                    '''
+    return stitchlist
+
+
 def main():
 
     stitchlist = []
+    if test_instead_of_data:
+        picklefile = 'pickletest.pickle'
+    else:
+        picklefile = 'pickledata.pickle'
 
 
     if not dePickle:
@@ -894,142 +998,47 @@ def main():
 
         # # HACK
         if not test_instead_of_data:
-            all_images = all_images[:2]
+            all_images = all_images[:6]
 
         print(all_images)
         all_slides = []
         for imagefile in all_images:
-            all_slides.append(Slide(imagefile)) # Computations are done here, as the slide is created.
-            cur_slide = all_slides[-1]
+            all_slides.append(Slide(imagefile)) # Pixel computations are done here, as the slide is created.
         # Note now that all slides are generated, and blobs are merged, time to start mapping blobs upward, to their possible partners
 
-        # TODO plotting midpoints is currently MUCH slower and more cpu instensive.
-        for slide_num, slide in enumerate(all_slides[:-1]): # All but the last slide
-            print('DEBUG SETTING POSSIBLE PARTNERS FOR BLOBS IN SLIDE: ' + str(slide_num) + ' against blobs from slide ' + str(slide_num + 1))
-            for blob in slide.blob2dlist:
-                blob.setPossiblePartners(all_slides[slide_num + 1])
-                # print(blob.possible_partners)
-
-
-        # plotSlidesVC(all_slides, edges=True, color='slides', midpoints=True, possible=True, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(500,500))#, color=None)
-
-        # Use the shape contexts approach from here: http://www.cs.berkeley.edu/~malik/papers/mori-belongie-malik-pami05.pdf
-        # The paper uses 'Representative Shape Contexts' to do inital matching; I will do away with this in favor of checking bounds for possible overlaps
-
-
-
-        print('DB about to set shape contexts')
-
-        for slide in all_slides:
-            for blob in slide.blob2dlist:
-                print('Blob:' + str(blob))
-                blob.setShapeContexts(36)
+        setAllPossiblePartners(all_slides)
+        setAllShapeContexts(all_slides)
         t_start_munkres = time.time()
-        print('Done setting contexts, len(all_slides)=' + str(len(all_slides)))
-        for slide in all_slides:
-            print(' Starting slide, len(blob2dlist)=' + str(len(slide.blob2dlist)))
-            for blob1 in slide.blob2dlist:
-                print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
-                print('  Blob1 current parter_costs:' + str(blob1.partner_costs))
-
-                for b2_num, blob2 in enumerate(blob1.possible_partners):
-                    print('Comparing to blob2:' + str(blob2))
-                    stitchlist.append(Stitches(blob1, blob2, 1.1, 36))
-
-
-                    '''
-                    t0 = time.time()
-                    total_cost, indeces = munkresCompare(blob1, blob2)
-                    tf = time.time()
-                    printElapsedTime(t0, tf)
-                    print('Total_cost=' + str(total_cost))
-                    blob1.partner_costs[b2_num] = total_cost
-                    print('Indeces=' + str(indeces))
-                    blob1.partner_indeces.append(indeces)
-                    '''
-
+        stitchlist = stitchAllBlobs(all_slides)
+        t_finish_munkres = time.time()
+        print('Done stitching together blobs, total time for all: ', end='')
+        printElapsedTime(t_start_munkres, t_finish_munkres)
     else:
-        print('Loading from pickle')
-        all_slides = pickle.load(open('allslides.pickle', "rb"))
-
-        # NOTE was loading indeces to save as [indeces], so pickled indeceas data is temporarily [[]]
-        contextline_count = 0
-        for slide in all_slides:
-            for blob in slide.blob2dlist:
-                for partner in blob.partner_indeces:
-                    partner = partner[0] # NOTE HACK remove this once re-pickled
-                    print('Adding to max index: (' + str(len(partner)) + ') ' + str(partner))
-                    contextline_count += len(partner)
-        contextline_count *= 2 # Because need start and end point
-        contextline_data = np.zeros([contextline_count,1,3])
-        index = 0
-        print('Context Line Count: ' + str(contextline_count))
-        for slide_num, slide in enumerate(all_slides[:-1]):
-            # print('Slide #' + str(slide_num))
-            for blob_num, blob in enumerate(slide.blob2dlist):
-                # print('partner_indeces: ' + str(blob.partner_indeces))
-                for partner_num, partner in enumerate(blob.partner_indeces):
-                    partner = partner[0] # NOTE HACK remove this once re-pickled
-                    # print('partner: ' + str(partner))
-                    for edgep1, edgep2 in partner:
-                        # print(str(edgep1) + ' / ' + str(len(blob.edge_pixels)) + ' : ' +  str(edgep2) + ' / ' + str(len(blob.possible_partners[partner_num].edge_pixels)))
-                        if edgep1 < len(blob.edge_pixels) and edgep2 < len(blob.possible_partners[partner_num].edge_pixels):
-                            contextline_data[index] = blob.edge_pixels[edgep1].x, blob.edge_pixels[edgep1].y, slide_num / len(all_slides)
-                            temp_pix = blob.possible_partners[partner_num].edge_pixels[edgep2]
-                            contextline_data[index+1] = temp_pix.x, temp_pix.y, (slide_num + 1) / len(all_slides)
-                            # print('Line:' + str(contextline_data[index]) + ' : ' + str(contextline_data[index+1]) + ', index=' + str(index) + ' / ' + str(contextline_count))
-                            index += 2
-                        else:
-                            # print('Overflow, hopefully due to matrix expansion')
-                            maxEdge = max(edgep1, edgep2)
-                            maxEdgePixels = max(len(blob.edge_pixels), len(blob.possible_partners[partner_num].edge_pixels))
-                            if maxEdge > maxEdgePixels:
-                                print('\n\n-----ERROR! Pixel number was greater than both edge_pixel lists')
-                                debug()
-    # NOTE for each partner b1 has, it appends another list of elements in partner indeces
-    # plotSlidesVC(all_slides, edges=True, color='slides')#, color=None)
+        all_slides, stitchlist = unPickle(picklefile)
 
     for stitch in stitchlist:
         print(stitch)
-        print(stitch.indeces)
-        # print(stitch.lowerpixels)
-        # print(stitch.upperpixels)
 
 
     anim_orders = [
-    ('y+', 90, 60),
-    ('x+', 360, 90) ]
-
-    print('NOW OUTPUTTING BLOB COST INFO')
-    for slide_num, slide in enumerate(all_slides):
-        print('Slide: ' + str(slide_num))
-        for blob in slide.blob2dlist:
-            print(' Blob:' + str(blob))
-            for partner_num, partner in enumerate(blob.possible_partners):
-                print('  Partner:' + str(blob.possible_partners[partner_num]) + ' has a stitching cost: ' + str(blob.partner_costs[partner_num]))
-
-
+    ('y+', 90+360, 60+360),
+    ('x+', 360, 90+360) ]
 
     # plotSlidesVC(all_slides, stitchlist, stitches=True, edges=True, color='slides', subpixels=False, midpoints=True, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
-    plotSlidesVC(all_slides, stitchlist, stitches=True, edges=True, color='slides', subpixels=False, midpoints=True, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
+    if not dePickle:
+        doPickle(all_slides, stitchlist, picklefile)
+    plotSlidesVC(all_slides, stitchlist, stitches=True, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
     debug()
 
     # plotSlidesVC(all_slides, edges=True, color='slides', midpoints=True, possible=True, context=True, canvas_size=(1000, 1000))#, color=None)
     # TODO had a memory error adding to view when midpoints = True
     debug()
 
-    #DEBUG Total_cost=4744.92612892
-
-
-
-    # NOTE slide id's are fixed
+    # Note took 10 mins 19 seconds for [:3] with ::2 opt
 
 
 
 '''
-My informal Rules:
-    Any pixel next to each other belong together
-    Any pixel that has no pixels around it is removed as noise
     TODO: https://books.google.com/books?id=ROHaCQAAQBAJ&pg=PA287&lpg=PA287&dq=python+group+neighborhoods&source=bl&ots=f7Vuu9CQdg&sig=l6ASHdi27nvqbkyO_VvztpO9bRI&hl=en&sa=X&ei=4COgVbGFD8H1-QGTl7aABQ&ved=0CCUQ6AEwAQ#v=onepage&q=python%20group%20neighborhoods&f=false
         Info on neighborhoods
 '''
