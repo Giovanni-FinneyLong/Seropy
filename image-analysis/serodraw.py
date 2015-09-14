@@ -60,22 +60,7 @@ zdim = -1
 
 # master_start_time = 0 # Set at the start of main # FIXME!
 
-debug_blob_ids = False
-debug_pixel_ops = False
-debug_set_merge = False
-remap_ids_by_group_size = True
-test_instead_of_data = False
-dePickle = False
-debug_pixel_ops_y_depth = 500
 
-overscan_coefficient = 1.1 # A number >= 1, which is the scaling for selecting edge pixels
-
-min_val_threshold = 250
-    # Recommended = 250
-max_val_step = 5 # The maximum amount that two neighboring pixels can differ in val and be grouped by blob_id
-    # Recommended = 5
-minimal_nonzero_neighbors = 2 # The minimal amount of nzn a pixel must have to avoid being filtered; 0 = no filter
-    # Recommended = 2
 # NOTE  ##########################
 
 
@@ -187,11 +172,11 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
                 if edges:
                     array_list.append(np.zeros([len(blob.edge_pixels), 3]))
                     for (p_num, pix) in enumerate(blob.edge_pixels):
-                        array_list[-1][p_num] = [pix.x / xdim, pix.y / ydim, slide_num / len(slide_stack)]
+                        array_list[-1][p_num] = [pix.x / xdim, pix.y / ydim, slide_num / ( z_compression * len(slide_stack))]
                 else:
                     array_list.append(np.zeros([len(blob.pixels), 3]))
                     for (p_num, pix) in enumerate(blob.pixels):
-                        array_list[-1][p_num] = [pix.x / xdim, pix.y / ydim, slide_num / len(slide_stack)]
+                        array_list[-1][p_num] = [pix.x / xdim, pix.y / ydim, slide_num / ( z_compression * len(slide_stack))]
     elif coloring == 'slides':
         array_list = []
         for (slide_num, slide) in enumerate(slide_stack):
@@ -199,11 +184,11 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
             if edges:
                 array_list.append(np.zeros([len(slide.edge_pixels), 3]))
                 for (p_num, pix) in enumerate(slide.edge_pixels):
-                    array_list[-1][p_num] = [pix.x / xdim, pix.y / ydim, slide_num / len(slide_stack)]
+                    array_list[-1][p_num] = [pix.x / xdim, pix.y / ydim, slide_num / ( z_compression * len(slide_stack))]
             else:
                 array_list.append(np.zeros([len(slide.alive_pixels), 3]))
                 for (p_num, pix) in enumerate(slide.alive_pixels):
-                    array_list[-1][p_num] = [pix.x / xdim, pix.y / ydim, slide_num / len(slide_stack)]
+                    array_list[-1][p_num] = [pix.x / xdim, pix.y / ydim, slide_num / ( z_compression * len(slide_stack))]
         # # DEBUG
         # print('Done adding colored slides:' + str(array_list))
     else: # No coloring
@@ -220,11 +205,11 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
             print('Adding slide:' + str(slide_num) + '/' + str(len(slide_stack)))
             if edges:
                 for pix in slide.edge_pixels:
-                    array_list[index] = [pix.x / xdim, pix.y / ydim, slide_num / len(slide_stack)]
+                    array_list[index] = [pix.x / xdim, pix.y / ydim, slide_num / ( z_compression * len(slide_stack))]
                     index += 1
             else:
                 for pix in slide.alive_pixels:
-                    array_list[index] = [pix.x / xdim, pix.y / ydim, slide_num / len(slide_stack)]
+                    array_list[index] = [pix.x / xdim, pix.y / ydim, slide_num / ( z_compression * len(slide_stack))]
                     index += 1
 
         scatter = visuals.Markers() # TODO remove
@@ -249,7 +234,7 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
         index = 0
         for slide_num, slide in enumerate(slide_stack):
             for blob in slide.blob2dlist:
-                avg_list[index] = [blob.avgx / xdim, blob.avgy / ydim, slide_num / len(slide_stack)]
+                avg_list[index] = [blob.avgx / xdim, blob.avgy / ydim, slide_num / ( z_compression * len(slide_stack))]
                 view.add(visuals.Text(str(blob.id) + ':' + str(index), pos=avg_list[index], color='white'))
                 index += 1
         # for num, midp in enumerate(avg_list):
@@ -275,12 +260,16 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
         lower_index = 0
         upper_index = 0
         line_index = 0
+
+        #
+
+
         for stitch in stitchlist:
             for lowerpnum, upperpnum in stitch.indeces:
                 lowerpixel = stitch.lowerpixels[lowerpnum]
                 upperpixel = stitch.upperpixels[upperpnum]
-                lower_markers_locations[lower_index] = [lowerpixel.x / xdim, lowerpixel.y / ydim, (stitch.lowerslidenum ) / len(slide_stack)]
-                upper_markers_locations[upper_index] = [upperpixel.x / xdim, upperpixel.y / ydim, (stitch.upperslidenum ) / len(slide_stack)]
+                lower_markers_locations[lower_index] = [lowerpixel.x / xdim, lowerpixel.y / ydim, (stitch.lowerslidenum ) / ( z_compression * len(slide_stack))]
+                upper_markers_locations[upper_index] = [upperpixel.x / xdim, upperpixel.y / ydim, (stitch.upperslidenum ) / ( z_compression * len(slide_stack))]
                 line_locations[line_index] = lower_markers_locations[lower_index]
                 line_locations[line_index + 1] = upper_markers_locations[upper_index]
 
@@ -327,9 +316,9 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
                     for edgep1, edgep2 in partner:
                         # print(str(edgep1) + ' / ' + str(len(blob.edge_pixels)) + ' : ' +  str(edgep2) + ' / ' + str(len(blob.possible_partners[partner_num].edge_pixels)))
                         if edgep1 < len(blob.edge_pixels) and edgep2 < len(blob.possible_partners[partner_num].edge_pixels):
-                            contextline_data[index] = blob.edge_pixels[edgep1].x / xdim, blob.edge_pixels[edgep1].y / ydim, slide_num / len(slide_stack)
+                            contextline_data[index] = blob.edge_pixels[edgep1].x / xdim, blob.edge_pixels[edgep1].y / ydim, slide_num / ( z_compression * len(slide_stack))
                             temp_pix = blob.possible_partners[partner_num].edge_pixels[edgep2]
-                            contextline_data[index+1] = temp_pix.x / xdim, temp_pix.y / ydim, (slide_num + 1) / len(slide_stack)
+                            contextline_data[index+1] = temp_pix.x / xdim, temp_pix.y / ydim, (slide_num + 1) / ( z_compression * len(slide_stack))
                             # print('Line:' + str(contextline_data[index]) + ' : ' + str(contextline_data[index+1]) + ', index=' + str(index) + ' / ' + str(contextline_count))
                             index += 2
                         else:
@@ -368,12 +357,12 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
                     parnter_blob = blob.possible_partners[partner_num]
                     for partner_edge_index in partner:
                         partner_edge_pixel = parnter_blob.edge_pixels[partner_edge_index]
-                        partner_marker_locations[partner_index] = [partner_edge_pixel.x / xdim, partner_edge_pixel.y  / ydim, (slide_num + 1) / len(slide_stack)]
+                        partner_marker_locations[partner_index] = [partner_edge_pixel.x / xdim, partner_edge_pixel.y  / ydim, (slide_num + 1) / ( z_compression * len(slide_stack))]
                         partner_index += 1
                 for subset_num, subset in enumerate(blob.my_subpixels):
                     for my_edge_index in subset:
                         my_edge_pixel = blob.edge_pixels[my_edge_index]
-                        self_marker_locations[self_index] = [my_edge_pixel.x / xdim, my_edge_pixel.y  / ydim, slide_num / len(slide_stack)]
+                        self_marker_locations[self_index] = [my_edge_pixel.x / xdim, my_edge_pixel.y  / ydim, slide_num / ( z_compression * len(slide_stack))]
                         self_index += 1
 
         partner_subpixel_markers = visuals.Markers()
@@ -401,8 +390,8 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
             for blob in slide.blob2dlist:
                 # print('DB: Slide:' + str(slide_num) + ' Blob:' + str(blob) + ' partners:' + str(blob.possible_partners))
                 for partner in blob.possible_partners:
-                    line_locations[index] = [blob.avgx / xdim, blob.avgy / ydim, slide_num / len(slide_stack)]
-                    line_locations[index + 1] = [partner.avgx / xdim, partner.avgy / ydim, (slide_num + 1) / len(slide_stack)]
+                    line_locations[index] = [blob.avgx / xdim, blob.avgy / ydim, slide_num / ( z_compression * len(slide_stack))]
+                    line_locations[index + 1] = [partner.avgx / xdim, partner.avgy / ydim, (slide_num + 1) / ( z_compression * len(slide_stack))]
                     index += 2
         possible_lines.set_data(pos=line_locations, connect='segments')
         view.add(possible_lines)
@@ -434,9 +423,9 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
                     for edgep1, edgep2 in partner:
                         # print(str(edgep1) + ' / ' + str(len(blob.edge_pixels)) + ' : ' +  str(edgep2) + ' / ' + str(len(blob.possible_partners[partner_num].edge_pixels)))
                         if edgep1 < len(blob.edge_pixels) and edgep2 < len(blob.possible_partners[partner_num].edge_pixels):
-                            contextline_data[index] = blob.edge_pixels[edgep1].x / xdim, blob.edge_pixels[edgep1].y / ydim, slide_num / len(slide_stack)
+                            contextline_data[index] = blob.edge_pixels[edgep1].x / xdim, blob.edge_pixels[edgep1].y / ydim, slide_num / ( z_compression * len(slide_stack))
                             temp_pix = blob.possible_partners[partner_num].edge_pixels[edgep2]
-                            contextline_data[index+1] = temp_pix.x / xdim, temp_pix.y / ydim, (slide_num + 1) / len(slide_stack)
+                            contextline_data[index+1] = temp_pix.x / xdim, temp_pix.y / ydim, (slide_num + 1) / ( z_compression * len(slide_stack))
                             # print('Line:' + str(contextline_data[index]) + ' : ' + str(contextline_data[index+1]) + ', index=' + str(index) + ' / ' + str(contextline_count))
                             index += 2
                         else:

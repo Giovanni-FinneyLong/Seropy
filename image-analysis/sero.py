@@ -997,8 +997,8 @@ def main():
         all_images = glob.glob(dir + extension)
 
         # # HACK
-        if not test_instead_of_data:
-            all_images = all_images[:6]
+        # if not test_instead_of_data:
+        #     all_images = all_images[:10]
 
         print(all_images)
         all_slides = []
