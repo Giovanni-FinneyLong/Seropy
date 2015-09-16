@@ -6,7 +6,8 @@ install = [
     'matplotlib',
     'scipy',
     'scikit-learn',
-    'vispy'
+    'vispy',
+    'munkres'
 ]
 
 
