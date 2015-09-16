@@ -8,6 +8,7 @@ debug_set_merge = False
 remap_ids_by_group_size = True
 test_instead_of_data = False
 dePickle = True
+OpenGLLinesInsteadOfAgg = True
 
 
   ### Variables ###
@@ -30,3 +31,8 @@ FIGURES_DIR = 'H:/Dropbox/Serotonin/generated_figures/'
 DATA_DIR =  'H:/Dropbox/Serotonin/data/'
 TEST_DIR = 'C:/Users/gio/Documents/Programming/serotonin/image-analysis/tests/'
 IMAGEMAGICK_CONVERT_EXEC = 'C:/Program Files/ImageMagick-6.9.1-Q8/convert.exe'
+
+if OpenGLLinesInsteadOfAgg:
+  linemethod = 'gl'
+else:
+  linemethod = 'agg'

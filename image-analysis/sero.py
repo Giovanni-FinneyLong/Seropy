@@ -1027,7 +1027,7 @@ def main():
     # plotSlidesVC(all_slides, stitchlist, stitches=True, edges=True, color='slides', subpixels=False, midpoints=True, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
     if not dePickle:
         doPickle(all_slides, stitchlist, picklefile)
-    plotSlidesVC(all_slides, stitchlist, stitches=True, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
+    plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
     debug()
 
     # plotSlidesVC(all_slides, edges=True, color='slides', midpoints=True, possible=True, context=True, canvas_size=(1000, 1000))#, color=None)

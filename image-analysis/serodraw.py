@@ -69,8 +69,8 @@ array_list = []
 frame_num = 0
 scatter = visuals.Markers()
 scatter_list = []
-possible_lines = visuals.Line()
-context_lines = visuals.Line()
+possible_lines = visuals.Line(method=linemethod)
+context_lines = visuals.Line(method=linemethod)
 rotation = 'x'
 scale = 1.
 animation_time_string = ''
@@ -110,7 +110,7 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
     canvas_size = kwargs.get('canvas_size', (800,800))
     gif_size = kwargs.get('gif_size', canvas_size)
     stitches = kwargs.get('stitches', False)
-
+    polygons = kwargs.get('polygons', False)
     subpixels = kwargs.get('subpixels', False)
 
 
@@ -241,6 +241,25 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
         #     view.add(visuals.Text(str(num), pos=midp, color='white'))
 
 
+    if polygons: # See https://github.com/vispy/vispy/blob/6834a2b89e4a218f1c1783c588d5f47a781a2f7f/examples/basics/scene/surface_plot.py for surface plots
+        polygonvisuals = []
+        x = []
+        y = []
+        z = []
+        for stitch in stitchlist:
+            vol = np.zeros([2 * len(stitch.indeces), 3])
+            print ('Vol ndim:' + str(vol.ndim))
+            for index_num, (lowerpnum, upperpnum) in enumerate(stitch.indeces):
+                lowerpixel = stitch.lowerpixels[lowerpnum]
+                upperpixel = stitch.upperpixels[upperpnum]
+                vol[2 * index_num] = [lowerpixel.x, lowerpixel.y, stitch.lowerslidenum / ( z_compression * len(slide_stack))]
+                vol[2 * index_num + 1] = [upperpixel.x, upperpixel.y, stitch.upperslidenum / ( z_compression * len(slide_stack))]
+                view.add(visuals.Polygon(vol)) # TODO FIXME NEEDS A 3d image
+                # view.add(visuals.SurfacePlot(x=np.array(x).flatten(), y=np.array(y).flatten(), color=(0.3, 0.3, 1, 1)))
+                # if index_num == len(stitch.indeces) - 1: # Wrap around, to draw the last polygon with the same edge as the first
+
+
+
     if stitches:
         total_lower_pixels = 0
         total_upper_pixels = 0
@@ -261,9 +280,6 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
         upper_index = 0
         line_index = 0
 
-        #
-
-
         for stitch in stitchlist:
             for lowerpnum, upperpnum in stitch.indeces:
                 lowerpixel = stitch.lowerpixels[lowerpnum]
@@ -278,7 +294,7 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
                 line_index += 2
         lower_markers = visuals.Markers()
         upper_markers = visuals.Markers()
-        stitch_lines = visuals.Line()
+        stitch_lines = visuals.Line(method=linemethod)
         # print('Stitch lower locations:' + str(lower_markers_locations))
         # print('Stitch upper locations:' + str(upper_markers_locations))
 
