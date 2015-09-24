@@ -42,6 +42,7 @@ class Blob2d:
         self.pixels = list_of_pixels
         self.num_pixels = len(list_of_pixels)
         sum_vals = 0
+        self.assignedto3d = False # Set to true once a blod2d has been added to a list that will be used to construct a blob3d
         self.avgx = 0
         self.avgy = 0
         self.sum_vals = 0
@@ -54,7 +55,7 @@ class Blob2d:
         self.partner_subpixels = [] # Each element is a list of pixels, corresponding to a subset of the edge pixels from the partner blob
                                     # The value of each element in the sublist for each partner is the index of the pixel from the corresponding partner
         self.my_subpixels = []      # Set of own subpixels, with each list corresponding to a list from partner_subpixels
-
+        self.stitches = [] # A list of stitches that this blob belongs to
         # TODO make sure the list is sorted
         self.minx = list_of_pixels[0].x
         self.miny = list_of_pixels[0].y
@@ -230,6 +231,48 @@ class Blob2d:
         '''
         return Blob2d.total_blobs
 
+    def addToStitches(self, stitches):
+        # HACK FIXME added hasattr because pickled blobs dont have a stitches list
+        if not hasattr(self, 'stitches'):
+            self.stitches = []
+        self.stitches.append(stitches)
+
+    def getconnectedblob2ds(self):
+        '''
+        Recursively finds all blobs that are directly or indirectly connected to this blob via stitching
+        :return: The list of all blobs that are connected to this blob, including the seed blob
+            OR an empty list if this blob has already been formed into a chain, and cannot be used as a seed.
+        '''
+        def followstitches(cursorblob, blob2dlist):
+            '''
+            Recursive support function for getconnectedblob2ds
+            :param: cursorblob: The blob whose stitching is examined for connected blob2ds
+            :param: blob2dlist: The accumulated list of a blob2ds which are connected directly or indirectly to the inital seed blob
+            '''
+            if hasattr(cursorblob, 'stitches'):
+                self.assignedto3d = True
+                # TODO check against base case
+                for stitch in cursorblob.stitches:
+                    for blob in (stitch.lowerblob, stitch.upperblob):
+                        if not hasattr(blob, 'assignedto3d') or not blob.assignedto3d: # HACK hasattr to work with out of date pickle
+                            blob2dlist.append(blob)
+                            blob.assignedto3d = True
+                            followstitches(blob, blob2dlist)
+                        else:
+                            print('==> WARNINING, DUPLICATE STITCH PATH!') # DEBUG
+                return blob2dlist
+            else:
+                print('Skipping blob: ' + str(cursorblob) + ' because it has no stitching')
+                return []
+
+
+        #DEBUG use assigned to 3d to check for errors in recursive tracing
+        # Note use assignedto3d to avoid using a blob as
+        return followstitches(self, [self])
+
+
+
+
 
     @staticmethod
     def mergeblobs(bloblist):
@@ -282,6 +325,9 @@ class Blob2d:
             print('Merge result' + str(newlist))
         return newlist
 
+
+
+
 class Stitches:
     """
     Only created when it is expected that two blobs from different slides belong to the same blob3d
@@ -291,7 +337,7 @@ class Stitches:
         isConnected and isPartners indicate whether the Stitches are valid, in the sense of overlap and viable partners respectively
     """
 
-    def pixelsInBounds(self, subsetblob, boundaryblob):
+    def edgepixelsinbounds(self, subsetblob, boundaryblob):
         """
         :param subsetblob: A blob2d from which we will find a subset of edge_pixels which are within an acceptable bound
         :param boundaryblob: A blob2d which is used to set the boundary constraints for pixels from subsetblob
@@ -401,10 +447,11 @@ class Stitches:
             self.cost += self.cost_array[row][col]
 
     def __str__(self):
-        return str('Stitching slides:(' + str(self.lowerslidenum) + ',' + str(self.upperslidenum) + ') with blobs (' +
+        return str('Stitch with slides:(' + str(self.lowerslidenum) + ',' + str(self.upperslidenum) + ') with blobs (' +
                    str(self.lowerblob.id) + ',' + str(self.upperblob.id) + '). Chose:' + str(len(self.lowerpixels)) +
                    '/' + str(len(self.lowerblob.edge_pixels)) + ' lower blob pixels and ' + str(len(self.upperpixels)) +
                    '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels. ' + 'Cost:' + str(self.cost))
+    __repr__ = __str__
 
     def __init__(self, lowerblob, upperblob, overscan_scale, num_bins):
         self.overscan_scale = overscan_scale
@@ -412,13 +459,15 @@ class Stitches:
         self.lowerslidenum = lowerblob.slide.id_num
         self.upperslidenum = upperblob.slide.id_num
         self.lowerblob = lowerblob
+        lowerblob.addToStitches(self)
         self.upperblob = upperblob
+        upperblob.addToStitches(self)
         self.upperpixels = None
-        self.lowerpixels = self.pixelsInBounds(lowerblob, upperblob) # TODO psoe on the order of lower and upper
+        self.lowerpixels = self.edgepixelsinbounds(lowerblob, upperblob) # TODO psoe on the order of lower and upper
         self.cost = -1
         self.isReduced = False # True when have chosen a subset of the edge pixels to reduce computation
         if len(self.lowerpixels) != 0: # Optimization
-            self.upperpixels = self.pixelsInBounds(upperblob, lowerblob)
+            self.upperpixels = self.edgepixelsinbounds(upperblob, lowerblob)
         if self.upperpixels is not None and len(self.upperpixels) != 0 and len(self.lowerpixels) != 0:
             # HACK
             # NOTE planning to reduce to a subset
@@ -429,7 +478,7 @@ class Stitches:
                 print('-->Too many pixels in below stitch, reducing to a subset, originally was: ' + str(len(self.lowerpixels)) +
                    '/' + str(len(self.lowerblob.edge_pixels)) + ' lower blob pixels and ' + str(len(self.upperpixels)) +
                    '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels.')
-                pickoneover = 2
+                pickoneover = 2 # HACK TODO Modify these values to be more suitable dependent on computation time
                 self.isReduced = True
                 if len(self.upperpixels) > 500 and len(self.lowerpixels) > 500:
                     pickoneover = 3
@@ -784,6 +833,23 @@ class Slide:
 
         return (derived_ids, derived_count, removed_id_count)
 
+class Blob3d:
+    '''
+    A group of stitches that chain together into a 3d shape
+    '''
+    total_blobs = 0
+
+    def __int__(self, stitchlist):
+        self.blob2ds = [] # List of the blob 2ds used to create this blob3d
+        for stitch in stitchlist:
+            if stitch.lowerblob not in self.blob2ds:
+                self.blob2ds.append(stitch.lowerblob)
+            if stitch.upperblob not in self.blob2ds:
+                self.blob2ds.append(stitch.upperblob)
+        self.blob2ds.sort(key=lambda x: x.slide.id_num, reverse=True)
+
+
+
 
 def filterSparsePixelsFromList(listin):
     max_float_array = zeros([xdim, ydim])
@@ -1027,8 +1093,51 @@ def main():
     # plotSlidesVC(all_slides, stitchlist, stitches=True, edges=True, color='slides', subpixels=False, midpoints=True, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
     if not dePickle:
         doPickle(all_slides, stitchlist, picklefile)
-    plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
-    debug()
+
+    for stitch in stitchlist:
+        stitch.lowerblob.addToStitches(stitch)
+        stitch.upperblob.addToStitches(stitch)
+        # print(str(stitch.lowerblob) + '   ' + str(stitch.upperblob) + '   ' + str(stitch.lowerblob.stitches))
+
+    # TODO now take the stitches in stitchlist, and sort them based on their lowest slide_num
+    # Note that each blob can belong to MORE than 2 stitches
+
+    stitchlist.sort(key = lambda x: x.lowerslidenum) # Sort slides by lowest to highest lowerslideid
+    # for stitch in stitchlist:
+    #     print(stitch)
+    stitchstacks = [] # A list of lists of connected stitches, with each sublist eventually being used to form a blob3d
+    blobstacks = [] # A list of lists of blob2ds. Each sublist belongs to a blob3ds
+    index = 0
+
+
+    # NOTE temp: in the original 20 swellshark scans, there are ~ 11K blobs, ~9K stitches
+
+
+    # NOTE TEST:
+
+    print()
+    list3ds = []
+    for slide in all_slides:
+        for blob in slide.blob2dlist:
+            buf = blob.getconnectedblob2ds()
+            if len(buf) != 0:
+                list3ds.append(buf)
+
+    for num, threed in enumerate(list3ds):
+        print(str(num) + ':' + str(threed))
+    print('Number of 3d blobs: ' + str(len(list3ds)))
+    # for stitch in stitchlist:
+    #     for blob2d in (stitch.lowerblob, stitch.upperblob):
+    #         found = False
+    #         for stack in blobstacks:
+    #             if blob2d
+
+
+    # plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
+
+
+    # NOTE temp: as pickle doesnt have each blob2d already complete with the stitches that it belongs to, manually completing here.
+    # Note this can be removed once the pickle is regen, added: 9/16/15
 
     # plotSlidesVC(all_slides, edges=True, color='slides', midpoints=True, possible=True, context=True, canvas_size=(1000, 1000))#, color=None)
     # TODO had a memory error adding to view when midpoints = True
