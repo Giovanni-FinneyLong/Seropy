@@ -33,8 +33,7 @@ class Blob2d:
 
     # equivalency_set = set() # Used to keep track of touching blobs, which can then be merged.
     total_blobs = 0 # Note that this is set AFTER merging is done, and so is not modified by blobs
-
-
+    blobswithoutstitches = 0
 
     def __init__(self, idnum, list_of_pixels, master_array, slide):
         self.id = idnum
@@ -241,34 +240,47 @@ class Blob2d:
         '''
         Recursively finds all blobs that are directly or indirectly connected to this blob via stitching
         :return: The list of all blobs that are connected to this blob, including the seed blob
-            OR an empty list if this blob has already been formed into a chain, and cannot be used as a seed.
+            OR [] if this blob has already been formed into a chain, and cannot be used as a seed.
         '''
+        # TODO update this documentation
+
         def followstitches(cursorblob, blob2dlist):
             '''
             Recursive support function for getconnectedblob2ds
             :param: cursorblob: The blob whose stitching is examined for connected blob2ds
             :param: blob2dlist: The accumulated list of a blob2ds which are connected directly or indirectly to the inital seed blob
             '''
-            if hasattr(cursorblob, 'stitches'):
-                self.assignedto3d = True
-                # TODO check against base case
-                for stitch in cursorblob.stitches:
-                    for blob in (stitch.lowerblob, stitch.upperblob):
-                        if not hasattr(blob, 'assignedto3d') or not blob.assignedto3d: # HACK hasattr to work with out of date pickle
-                            blob2dlist.append(blob)
-                            blob.assignedto3d = True
+
+            # print('DB: enter follow stitches')
+            # print('DB: hasattr:' + str(hasattr(cursorblob, 'stitches')))
+            # if hasattr(cursorblob, 'stitches'):
+            #     print('   DB: len of stitches:' + str(len(cursorblob.stitches)))
+            if hasattr(cursorblob, 'stitches') and len(cursorblob.stitches) != 0:
+                if cursorblob not in blob2dlist:
+                    if hasattr(cursorblob, 'assignedto3d') and cursorblob.assignedto3d:
+                        print('====> DB Warning, adding a blob to list that has already been assigned: ' + str(cursorblob))
+                    cursorblob.assignedto3d = True
+                    blob2dlist.append(cursorblob)
+                    # print('DB updated blob2d list to:' + str(blob2dlist))
+                    for stitch in cursorblob.stitches:
+                        for blob in (stitch.lowerblob, stitch.upperblob):
                             followstitches(blob, blob2dlist)
-                        else:
-                            print('==> WARNINING, DUPLICATE STITCH PATH!') # DEBUG
-                return blob2dlist
             else:
-                print('Skipping blob: ' + str(cursorblob) + ' because it has no stitching')
-                return []
+                 Blob2d.blobswithoutstitches += 1
+
+            #     print('Skipping blob: ' + str(cursorblob) + ' because it has no stitching')
+
 
 
         #DEBUG use assigned to 3d to check for errors in recursive tracing
         # Note use assignedto3d to avoid using a blob as
-        return followstitches(self, [self])
+        if hasattr(self, 'assignedto3d'):
+            # Has already been assigned to a blob3d group, so no need to use as a seed
+            return []
+        blob2dlist = []
+        followstitches(self, blob2dlist)
+        return  blob2dlist
+
 
 
 
@@ -1115,7 +1127,7 @@ def main():
 
     # NOTE TEST:
 
-    print()
+    print('About to merge 2d blobs into 3d')
     list3ds = []
     for slide in all_slides:
         for blob in slide.blob2dlist:
@@ -1123,9 +1135,22 @@ def main():
             if len(buf) != 0:
                 list3ds.append(buf)
 
+    # Note that currently Blob2d.total_blobs is unset in the pickle file, however it will be updated and included in the next pickle file
+    # Temp: HACK
+    if Blob2d.total_blobs == 0:
+        slide_blobs = 0
+        for slide in all_slides:
+            slide_blobs += len(slide.blob2dlist)
+
     for num, threed in enumerate(list3ds):
         print(str(num) + ':' + str(threed))
     print('Number of 3d blobs: ' + str(len(list3ds)))
+    print('Number of 2d blobs without stitching:' + str(Blob2d.blobswithoutstitches) + '/' + str(slide_blobs))
+
+
+
+
+
     # for stitch in stitchlist:
     #     for blob2d in (stitch.lowerblob, stitch.upperblob):
     #         found = False
