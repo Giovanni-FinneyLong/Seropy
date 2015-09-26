@@ -30,7 +30,7 @@ import time
 import math
 from PIL import Image
 from numpy import zeros
-from visvis.vvmovie.images2gif import writeGif
+# from visvis.vvmovie.images2gif import writeGif
 # from Scripts.images2gif import writeGif
 from scipy.cluster.vq import vq, kmeans, whiten, kmeans2
 
@@ -84,6 +84,57 @@ view = None
 def setMasterStartTime():
     master_start_time = time.time() # FIXME!
 
+def plotBlod3ds(blob3dlist, total_slides):
+    global canvas
+    global view
+
+    canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size)
+    view = canvas.central_widget.add_view()
+    view.camera = 'turntable'  # or try 'arcball'
+    view.camera.elevation = -75
+    view.camera.azimuth = 1
+    edge_pixel_arrays = [] # One array per 3d blob
+    markerlist = []
+    colors = vispy.color.get_color_names() # ALl possible colors
+    lineendpoints = 0
+    for blob_num, blob3d in enumerate(blob3dlist):
+        edge_pixel_arrays.append(np.zeros([len(blob3d.edge_pixels), 3]))
+        for (p_num, pix) in enumerate(blob3d.edge_pixels):
+            edge_pixel_arrays[-1][p_num] = [pix.x / xdim, pix.y / ydim, pix.z / ( z_compression * total_slides)]
+        markerlist.append(visuals.Markers())
+        markerlist[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[blob_num % len(colors)], size=55)
+        view.add(markerlist[-1])
+        for stitch in blob3d.stitches:
+            lineendpoints += (2 * stitch.indeces) # 2 as each line has 2 endpoints
+
+
+
+    lower_index = 0
+    upper_index = 0
+    line_index = 0
+    
+    lower_markers_locations = np.zeros([lineendpoints / 2, 3]) # Note changes to points_to_draw (num indeces) rather than count of pixels
+    upper_markers_locations = np.zeros([lineendpoints / 2, 3])
+    line_locations = np.zeros([lineendpoints, 3])
+
+
+    for stitch in blob3d.:
+        for lowerpnum, upperpnum in stitch.indeces:
+            lowerpixel = stitch.lowerpixels[lowerpnum]
+            upperpixel = stitch.upperpixels[upperpnum]
+            lower_markers_locations[lower_index] = [lowerpixel.x / xdim, lowerpixel.y / ydim, (stitch.lowerslidenum ) / ( z_compression * len(slide_stack))]
+            upper_markers_locations[upper_index] = [upperpixel.x / xdim, upperpixel.y / ydim, (stitch.upperslidenum ) / ( z_compression * len(slide_stack))]
+            line_locations[line_index] = lower_markers_locations[lower_index]
+            line_locations[line_index + 1] = upper_markers_locations[upper_index]
+
+            lower_index += 1
+            upper_index += 1
+            line_index += 2
+        lower_markers = visuals.Markers()
+        upper_markers = visuals.Markers()
+        stitch_lines = visuals.Line(method=linemethod)
+
+
 
 def plotSlidesVC(slide_stack, stitchlist, **kwargs):
     '''
@@ -100,6 +151,7 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
     global canvas
     global view
 
+
     edges = kwargs.get('edges', False) # True if only want to plot the edge pixels of each blob
     coloring = kwargs.get('color', None)
     midpoints = kwargs.get('midpoints', True)
@@ -112,6 +164,7 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
     stitches = kwargs.get('stitches', False)
     polygons = kwargs.get('polygons', False)
     subpixels = kwargs.get('subpixels', False)
+
 
 
 
@@ -130,8 +183,6 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
         m = math.floor((t2-t1) / 60)
         s = (t2-t1) % 60
         print('Done saving animated gif; took: ' + str(m) + ' mins & ' + str(s) + ' seconds.')
-
-
 
 
     assert coloring in [None, 'blobs', 'slides']
@@ -220,7 +271,8 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
         for (a_num, arr) in enumerate(array_list):
             print('Array_num:' + str(a_num) + ' is colored:' + str(colors[a_num % len(colors)]))
             scatter_list.append(visuals.Markers())
-            scatter_list[-1].set_data(arr, edge_color=None, face_color=colors[a_num % len(colors)], size=5)
+            scatter_list[-1].set_data(arr, edge_color=None, face_color=colors[a_num % len(colors)], size=55) # HACK TO 55 instead of 5 fixme
+            # print('DEBUG array data:' + str(arr))
             view.add(scatter_list[-1])
 
 
@@ -420,8 +472,8 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
                 for partner in blob.partner_indeces:
 
 
-                    if dePickle:
-                        partner = partner[0] # NOTE HACK remove this once re-pickled
+                    # if dePickle:
+                    #     partner = partner[0] # NOTE HACK remove this once re-pickled
                     contextline_count += len(partner)
         contextline_count *= 2 # Because need start and end point
         contextline_data = np.zeros([contextline_count,1,3])
@@ -433,8 +485,8 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
                 # print('partner_indeces: ' + str(blob.partner_indeces))
                 for partner_num, partner in enumerate(blob.partner_indeces):
 
-                    if dePickle:
-                        partner = partner[0] # NOTE HACK remove this once re-pickled
+                    # if dePickle:
+                    #     partner = partner[0] # NOTE HACK remove this once re-pickled
                     # print('partner: ' + str(partner))
                     for edgep1, edgep2 in partner:
                         # print(str(edgep1) + ' / ' + str(len(blob.edge_pixels)) + ' : ' +  str(edgep2) + ' / ' + str(len(blob.possible_partners[partner_num].edge_pixels)))
@@ -533,6 +585,7 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
                 if coloring is not None:
                     for (a_num, arr) in enumerate(draw_arrays):
                         # scatter_list[a_num].set_data(arr, edge_color=None, face_color=colors[(a_num + frame_num) % len(colors)], size=5)
+                        print('Debug setting scatter data to:' + str(arr))
                         scatter_list[a_num].set_data(arr, edge_color=None, face_color=colors[(a_num) % len(colors)], size=5)
 
                 image = canvas.render()
@@ -612,6 +665,24 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
 
         # Note elevation is RESTRICTED to the range (-90, 90) = Rotate camera over
         # Note  azimuth ROUND (0, 180/-179, -1) (loops at end of range) = Rotate camera around
+    # FIXME DEBUG
+    n = 500
+    pos = np.zeros((n, 3))
+    colors = np.ones((n, 4), dtype=np.float32)
+    radius, theta, dtheta = 1.0, 0.0, 5.5 / 180.0 * np.pi
+    for i in range(500):
+        theta += dtheta
+        x = i / 500
+        y = i / 500
+        r = 10.1 - i * 0.02
+        radius -= 0.45
+        pos[i] = x, y, .5
+    debugmarkers = visuals.Markers()
+    debugmarkers.set_data(pos, face_color=(1, 0, 1, .5), size=5)
+    print(pos)
+    view.add(debugmarkers)
+    debugmarkers.update()
+
 
 
     if animate:

@@ -514,9 +514,10 @@ class Pixel:
     '''
 
     id_num = 0
-    def __init__(self, value, xin, yin):
+    def __init__(self, value, xin, yin, slideid):
         self.x = xin  # The x coordinate, int
         self.y = yin  # The y coordinate, int
+        self.z = slideid
         self.val = value  # float
         self.nz_neighbors = 0
         self.maximal_neighbors = 0
@@ -607,7 +608,7 @@ class Slide:
             for cury in range(ydim):
                 pixel_value = slices[0][curx][cury] # CHANGED back,  FIXME # reversed so that orientation is the same as the original when plotted with a reversed y.
                 if (pixel_value != 0):  # Can use alternate min threshold and <=
-                    pixels.append(Pixel(pixel_value, curx, cury))
+                    pixels.append(Pixel(pixel_value, curx, cury, self.id_num))
                     self.sum_pixels += pixel_value
         print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(xdim * ydim) + ' pixels')
         pixels.sort(key=lambda pix: pix.val, reverse=True)# Note that sorting is being done like so to sort based on value not position as is normal with pixels. Sorting is better as no new list
@@ -847,18 +848,29 @@ class Slide:
 
 class Blob3d:
     '''
-    A group of stitches that chain together into a 3d shape
+    A group of blob2ds that chain together with stitches into a 3d shape
     '''
     total_blobs = 0
 
-    def __int__(self, stitchlist):
-        self.blob2ds = [] # List of the blob 2ds used to create this blob3d
-        for stitch in stitchlist:
-            if stitch.lowerblob not in self.blob2ds:
-                self.blob2ds.append(stitch.lowerblob)
-            if stitch.upperblob not in self.blob2ds:
-                self.blob2ds.append(stitch.upperblob)
-        self.blob2ds.sort(key=lambda x: x.slide.id_num, reverse=True)
+    def __init__(self, blob2dlist):
+        self.id = Blob3d.total_blobs
+        Blob3d.total_blobs += 1
+        self.blob2ds = blob2dlist          # List of the blob 2ds used to create this blob3d
+        # Now find my stitches
+        self.stitches = []
+        self.edge_pixels = []
+        self.pixels = []
+        for blob in self.blob2ds:
+            self.edge_pixels += blob.edge_pixels
+            self.pixels += blob.pixels
+            for stitch in blob.stitches:
+                if stitch not in self.stitches:
+                    self.stitches.append(stitch)
+
+
+
+
+
 
 
 
@@ -1137,15 +1149,24 @@ def main():
 
     # Note that currently Blob2d.total_blobs is unset in the pickle file, however it will be updated and included in the next pickle file
     # Temp: HACK
+    slide_blobs = 0
     if Blob2d.total_blobs == 0:
-        slide_blobs = 0
+
         for slide in all_slides:
             slide_blobs += len(slide.blob2dlist)
 
     for num, threed in enumerate(list3ds):
         print(str(num) + ':' + str(threed))
     print('Number of 3d blobs: ' + str(len(list3ds)))
-    print('Number of 2d blobs without stitching:' + str(Blob2d.blobswithoutstitches) + '/' + str(slide_blobs))
+    print('Number of 2d blobs without stitching:' + str(Blob2d.blobswithoutstitches) + '/' + str(max(Blob2d.total_blobs, slide_blobs)))
+
+    # TIme to convert to 3d blobs
+
+    blob3dlist = []
+    for blob2dlist in list3ds:
+        blob3dlist.append(Blob3d(blob2dlist))
+
+
 
 
 
@@ -1162,7 +1183,7 @@ def main():
 
 
     # NOTE temp: as pickle doesnt have each blob2d already complete with the stitches that it belongs to, manually completing here.
-    # Note this can be removed once the pickle is regen, added: 9/16/15
+    # Note 3this can be removed once the pickle is regen, added: 9/16/15
 
     # plotSlidesVC(all_slides, edges=True, color='slides', midpoints=True, possible=True, context=True, canvas_size=(1000, 1000))#, color=None)
     # TODO had a memory error adding to view when midpoints = True
