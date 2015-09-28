@@ -20,9 +20,9 @@ def setglobaldims(x, y, z):
         global xdim
         global ydim
         global zdim
-        xdim = x
-        ydim = y
-        zdim = z
+        xdim = int(x)
+        ydim = int(y)
+        zdim = int(z)
     setserodims(x, y, z) # Need both calls, one to set the global vars in each file, otherwise they don't carry
     setseerodrawdims(x, y, z) # Even when using 'global'; one method needs to be in each file
 
@@ -230,11 +230,16 @@ class Blob2d:
         '''
         return Blob2d.total_blobs
 
-    def addToStitches(self, stitches):
+    def updateStitches(self, stitches):
         # HACK FIXME added hasattr because pickled blobs dont have a stitches list
         if not hasattr(self, 'stitches'):
             self.stitches = []
+
+        # print('DB: IN addtostitches. Before:' + str(self.stitches))
         self.stitches.append(stitches)
+        # print('DB: After:' + str(self.stitches))
+
+
 
     def getconnectedblob2ds(self):
         '''
@@ -244,6 +249,8 @@ class Blob2d:
         '''
         # TODO update this documentation
 
+
+
         def followstitches(cursorblob, blob2dlist):
             '''
             Recursive support function for getconnectedblob2ds
@@ -252,7 +259,6 @@ class Blob2d:
             '''
 
             # print('DB: enter follow stitches')
-            # print('DB: hasattr:' + str(hasattr(cursorblob, 'stitches')))
             # if hasattr(cursorblob, 'stitches'):
             #     print('   DB: len of stitches:' + str(len(cursorblob.stitches)))
             if hasattr(cursorblob, 'stitches') and len(cursorblob.stitches) != 0:
@@ -274,7 +280,7 @@ class Blob2d:
 
         #DEBUG use assigned to 3d to check for errors in recursive tracing
         # Note use assignedto3d to avoid using a blob as
-        if hasattr(self, 'assignedto3d'):
+        if hasattr(self, 'assignedto3d') and self.assignedto3d is True: # hasattr included to deal with outdate pickle files
             # Has already been assigned to a blob3d group, so no need to use as a seed
             return []
         blob2dlist = []
@@ -454,6 +460,10 @@ class Stitches:
         # print('Lower slide:' + str(self.lowerslidenum) + ' ' + ' upper slide' + str(self.upperslidenum))
         # print('About to find indeces for cost array:' + str(self.cost_array))
         self.indeces = munk.compute(np.copy(self.cost_array))
+
+        print('DB found indeces = ' + str(self.indeces))
+
+
         self.cost = 0
         for row, col in self.indeces:
             self.cost += self.cost_array[row][col]
@@ -471,13 +481,18 @@ class Stitches:
         self.lowerslidenum = lowerblob.slide.id_num
         self.upperslidenum = upperblob.slide.id_num
         self.lowerblob = lowerblob
-        lowerblob.addToStitches(self)
         self.upperblob = upperblob
-        upperblob.addToStitches(self)
+
+        print('DB set stitch upperblob:' + str(self.upperblob) + ' and lowerblob:' + str(self.lowerblob))
+
         self.upperpixels = None
         self.lowerpixels = self.edgepixelsinbounds(lowerblob, upperblob) # TODO psoe on the order of lower and upper
         self.cost = -1
         self.isReduced = False # True when have chosen a subset of the edge pixels to reduce computation
+        lowerblob.updateStitches(self)
+        upperblob.updateStitches(self)
+
+
         if len(self.lowerpixels) != 0: # Optimization
             self.upperpixels = self.edgepixelsinbounds(upperblob, lowerblob)
         if self.upperpixels is not None and len(self.upperpixels) != 0 and len(self.lowerpixels) != 0:
@@ -490,10 +505,10 @@ class Stitches:
                 print('-->Too many pixels in below stitch, reducing to a subset, originally was: ' + str(len(self.lowerpixels)) +
                    '/' + str(len(self.lowerblob.edge_pixels)) + ' lower blob pixels and ' + str(len(self.upperpixels)) +
                    '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels.')
-                pickoneover = 2 # HACK TODO Modify these values to be more suitable dependent on computation time
+                pickoneover = 3 # HACK TODO Modify these values to be more suitable dependent on computation time
                 self.isReduced = True
                 if len(self.upperpixels) > 500 and len(self.lowerpixels) > 500:
-                    pickoneover = 3
+                    pickoneover = 5
 
                 self.upperpixels = self.upperpixels[::pickoneover] # Every pickoneover'th element
                 self.lowerpixels = self.lowerpixels[::pickoneover] # HACK this is a crude way of reducing the number of pixels
@@ -593,7 +608,7 @@ class Slide:
         print('Starting on image: ' + filename)
         imarray = np.array(imagein)
         (im_xdim, im_ydim, im_zdim) = imarray.shape
-        setglobaldims(im_xdim, im_ydim, im_zdim) # TODO FIXME
+        setglobaldims(im_xdim * slide_portion, im_ydim * slide_portion, im_zdim * slide_portion) # TODO FIXME
         print('The are ' + str(zdim) + ' channels')
         image_channels = imagein.split()
         slices = []
@@ -1042,7 +1057,8 @@ def stitchAllBlobs(slidelist):
     for slide_num, slide in enumerate(slidelist):
         print('Starting slide #' + str(slide_num) + ', len(blob2dlist)=' + str(len(slide.blob2dlist)))
         for blob1 in slide.blob2dlist:
-            print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
+            if len(blob1.possible_partners) > 0:
+                print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
             # print('  Blob1 current parter_costs:' + str(blob1.partner_costs))
 
             for b2_num, blob2 in enumerate(blob1.possible_partners):
@@ -1086,9 +1102,9 @@ def main():
             extension = 'Swell*.tif'
         all_images = glob.glob(dir + extension)
 
-        # # HACK
-        # if not test_instead_of_data:
-        #     all_images = all_images[:10]
+        # HACK
+        if not test_instead_of_data:
+            all_images = all_images[:2]
 
         print(all_images)
         all_slides = []
@@ -1106,8 +1122,12 @@ def main():
     else:
         all_slides, stitchlist = unPickle(picklefile)
 
-    for stitch in stitchlist:
-        print(stitch)
+
+
+    # print('DEBUG printing ALLLLLL stitches!!!! AGAIN!!!!')
+    # for stitch in stitchlist:
+    #     print(stitch)
+    #     print(stitch.indeces)
 
 
     anim_orders = [
@@ -1118,15 +1138,21 @@ def main():
     if not dePickle:
         doPickle(all_slides, stitchlist, picklefile)
 
-    for stitch in stitchlist:
-        stitch.lowerblob.addToStitches(stitch)
-        stitch.upperblob.addToStitches(stitch)
-        # print(str(stitch.lowerblob) + '   ' + str(stitch.upperblob) + '   ' + str(stitch.lowerblob.stitches))
+    # for stitch in stitchlist:
+    #     print(stitch)
+    #     # stitch.lowerblob.updateStitches(stitch)
+    #     # stitch.upperblob.updateStitches(stitch)
+    #     print(str(stitch.lowerblob))
+    #     print(str(stitch.upperblob))
+    #     # print(str(stitch.lowerblob.stitches))
 
     # TODO now take the stitches in stitchlist, and sort them based on their lowest slide_num
     # Note that each blob can belong to MORE than 2 stitches
 
     stitchlist.sort(key = lambda x: x.lowerslidenum) # Sort slides by lowest to highest lowerslideid
+
+
+
     # for stitch in stitchlist:
     #     print(stitch)
     stitchstacks = [] # A list of lists of connected stitches, with each sublist eventually being used to form a blob3d
@@ -1178,6 +1204,12 @@ def main():
     blob3dlist = []
     for blob2dlist in list3ds:
         blob3dlist.append(Blob3d(blob2dlist))
+
+    print('DEBUG printing all indeces')
+    for stitch in stitchlist:
+        print(stitch)
+        print(stitch.indeces)
+
 
     plotBlod3ds(blob3dlist, len(all_slides))
 

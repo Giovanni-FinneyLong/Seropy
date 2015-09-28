@@ -125,6 +125,11 @@ def plotBlod3ds(blob3dlist, total_slides, **kwargs):
             for pixel in blob3d.edge_pixels:
                 edge_pixel_array[index] = [pixel.x / xdim, pixel.y / ydim, pixel.z / (z_compression * total_slides)]
             for stitch in blob3d.stitches:
+                print('DB stitch:' + str(stitch))
+                print('DB stitch upper:' + str(stitch.upperblob))
+                print('DB stitch lower:' + str(stitch.lowerblob))
+                # print('DB cont: ' + str(stitch.indeces))
+
                 lineendpoints += (2 * len(stitch.indeces)) # 2 as each line has 2 endpoints
 
         markers = visuals.Markers()
