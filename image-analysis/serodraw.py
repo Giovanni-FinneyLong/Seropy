@@ -84,9 +84,11 @@ view = None
 def setMasterStartTime():
     master_start_time = time.time() # FIXME!
 
-def plotBlod3ds(blob3dlist, total_slides):
+def plotBlod3ds(blob3dlist, total_slides, **kwargs):
     global canvas
     global view
+
+    canvas_size = kwargs.get('canvas_size', (800,800))
 
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size)
     view = canvas.central_widget.add_view()
@@ -117,22 +119,35 @@ def plotBlod3ds(blob3dlist, total_slides):
     upper_markers_locations = np.zeros([lineendpoints / 2, 3])
     line_locations = np.zeros([lineendpoints, 3])
 
+    for blob3d in blob3dlist:
+        for stitch in blob3d:
+            for lowerpnum, upperpnum in stitch.indeces:
+                lowerpixel = stitch.lowerpixels[lowerpnum]
+                upperpixel = stitch.upperpixels[upperpnum]
+                lower_markers_locations[lower_index] = [lowerpixel.x / xdim, lowerpixel.y / ydim, (stitch.lowerslidenum ) / ( z_compression * len(slide_stack))]
+                upper_markers_locations[upper_index] = [upperpixel.x / xdim, upperpixel.y / ydim, (stitch.upperslidenum ) / ( z_compression * len(slide_stack))]
+                line_locations[line_index] = lower_markers_locations[lower_index]
+                line_locations[line_index + 1] = upper_markers_locations[upper_index]
 
-    for stitch in blob3d.:
-        for lowerpnum, upperpnum in stitch.indeces:
-            lowerpixel = stitch.lowerpixels[lowerpnum]
-            upperpixel = stitch.upperpixels[upperpnum]
-            lower_markers_locations[lower_index] = [lowerpixel.x / xdim, lowerpixel.y / ydim, (stitch.lowerslidenum ) / ( z_compression * len(slide_stack))]
-            upper_markers_locations[upper_index] = [upperpixel.x / xdim, upperpixel.y / ydim, (stitch.upperslidenum ) / ( z_compression * len(slide_stack))]
-            line_locations[line_index] = lower_markers_locations[lower_index]
-            line_locations[line_index + 1] = upper_markers_locations[upper_index]
+                lower_index += 1
+                upper_index += 1
+                line_index += 2
+    lower_markers = visuals.Markers()
+    upper_markers = visuals.Markers()
+    stitch_lines = visuals.Line(method=linemethod)
 
-            lower_index += 1
-            upper_index += 1
-            line_index += 2
-        lower_markers = visuals.Markers()
-        upper_markers = visuals.Markers()
-        stitch_lines = visuals.Line(method=linemethod)
+
+    lower_markers.set_data(lower_markers_locations, edge_color=None, face_color='yellow', size=10)
+    upper_markers.set_data(upper_markers_locations, edge_color=None, face_color='green', size=7)
+    stitch_lines.set_data(pos=line_locations, connect='segments')
+    lower_markers.symbol = 'ring'
+    upper_markers.symbol = '+'
+    view.add(lower_markers)
+    view.add(upper_markers)
+    view.add(stitch_lines)
+
+
+
 
 
 
@@ -271,7 +286,7 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
         for (a_num, arr) in enumerate(array_list):
             print('Array_num:' + str(a_num) + ' is colored:' + str(colors[a_num % len(colors)]))
             scatter_list.append(visuals.Markers())
-            scatter_list[-1].set_data(arr, edge_color=None, face_color=colors[a_num % len(colors)], size=55) # HACK TO 55 instead of 5 fixme
+            scatter_list[-1].set_data(arr, edge_color=None, face_color=colors[a_num % len(colors)], size=8)
             # print('DEBUG array data:' + str(arr))
             view.add(scatter_list[-1])
 
@@ -665,23 +680,7 @@ def plotSlidesVC(slide_stack, stitchlist, **kwargs):
 
         # Note elevation is RESTRICTED to the range (-90, 90) = Rotate camera over
         # Note  azimuth ROUND (0, 180/-179, -1) (loops at end of range) = Rotate camera around
-    # FIXME DEBUG
-    n = 500
-    pos = np.zeros((n, 3))
-    colors = np.ones((n, 4), dtype=np.float32)
-    radius, theta, dtheta = 1.0, 0.0, 5.5 / 180.0 * np.pi
-    for i in range(500):
-        theta += dtheta
-        x = i / 500
-        y = i / 500
-        r = 10.1 - i * 0.02
-        radius -= 0.45
-        pos[i] = x, y, .5
-    debugmarkers = visuals.Markers()
-    debugmarkers.set_data(pos, face_color=(1, 0, 1, .5), size=5)
-    print(pos)
-    view.add(debugmarkers)
-    debugmarkers.update()
+
 
 
 

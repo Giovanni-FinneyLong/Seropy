@@ -1133,6 +1133,10 @@ def main():
     blobstacks = [] # A list of lists of blob2ds. Each sublist belongs to a blob3ds
     index = 0
 
+    plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
+
+
+
 
     # NOTE temp: in the original 20 swellshark scans, there are ~ 11K blobs, ~9K stitches
 
@@ -1179,7 +1183,7 @@ def main():
     #             if blob2d
 
 
-    # plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
+    plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
 
 
     # NOTE temp: as pickle doesnt have each blob2d already complete with the stitches that it belongs to, manually completing here.
