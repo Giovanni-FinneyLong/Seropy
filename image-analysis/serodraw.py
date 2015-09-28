@@ -42,7 +42,7 @@ import pdb
 import os
 from mpl_toolkits.mplot3d import Axes3D
 
-from config import *
+from myconfig import *
 from vispy import plot as vp
 
 import vispy.io
@@ -84,7 +84,7 @@ view = None
 def setMasterStartTime():
     master_start_time = time.time() # FIXME!
 
-def plotBlod3ds(blob3dlist, total_slides, **kwargs):
+def plotBlod3ds(blob3dlist, **kwargs):
     global canvas
     global view
 
@@ -93,7 +93,12 @@ def plotBlod3ds(blob3dlist, total_slides, **kwargs):
 
     coloring = kwargs.get('color', None)
 
-
+    # Finding the maximal slide, so that the vertical dimension of the plot can be evenly divided
+    total_slides = 0
+    for blob3d in blob3dlist:
+        if blob3d.highslide > total_slides:
+            total_slides = blob3d.highslide
+    total_slides += 1 # Note this is b/c numbering starts at 0
 
     view = canvas.central_widget.add_view()
     view.camera = 'turntable'  # or try 'arcball'
@@ -111,7 +116,7 @@ def plotBlod3ds(blob3dlist, total_slides, **kwargs):
             for (p_num, pixel) in enumerate(blob3d.edge_pixels):
                 edge_pixel_arrays[-1][p_num] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * total_slides)]
             markerlist.append(visuals.Markers())
-            markerlist[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[blob_num % len(colors)], size=12)
+            markerlist[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[blob_num % len(colors)], size=8)
             view.add(markerlist[-1])
             for stitch in blob3d.stitches:
                 lineendpoints += (2 * len(stitch.indeces)) # 2 as each line has 2 endpoints
@@ -124,16 +129,12 @@ def plotBlod3ds(blob3dlist, total_slides, **kwargs):
         for blob3d in blob3dlist:
             for pixel in blob3d.edge_pixels:
                 edge_pixel_array[index] = [pixel.x / xdim, pixel.y / ydim, pixel.z / (z_compression * total_slides)]
+                index += 1
             for stitch in blob3d.stitches:
-                print('DB stitch:' + str(stitch))
-                print('DB stitch upper:' + str(stitch.upperblob))
-                print('DB stitch lower:' + str(stitch.lowerblob))
-                # print('DB cont: ' + str(stitch.indeces))
-
                 lineendpoints += (2 * len(stitch.indeces)) # 2 as each line has 2 endpoints
 
         markers = visuals.Markers()
-        markers.set_data(edge_pixel_array, edge_color=None, face_color=colors[0], size=12) # TODO change color
+        markers.set_data(edge_pixel_array, edge_color=None, face_color=colors[0], size=8) # TODO change color
         view.add(markers)
 
 
@@ -163,14 +164,18 @@ def plotBlod3ds(blob3dlist, total_slides, **kwargs):
     upper_markers = visuals.Markers()
     stitch_lines = visuals.Line(method=linemethod)
 
-
-    lower_markers.set_data(lower_markers_locations, edge_color=None, face_color='yellow', size=10)
-    upper_markers.set_data(upper_markers_locations, edge_color=None, face_color='green', size=7)
+    # if coloring == 'blob': # TODO optimize the above as these are not used
+        # lower_markers.set_data(lower_markers_locations, edge_color=None, size=10)
+        # upper_markers.set_data(upper_markers_locations, edge_color=None, size=7)
+    if coloring != 'blob':
+        lower_markers.set_data(lower_markers_locations, edge_color=None, face_color='yellow', size=11)
+        upper_markers.set_data(upper_markers_locations, edge_color=None, face_color='green', size=11)
+        lower_markers.symbol = 'ring'
+        upper_markers.symbol = '+'
+        view.add(lower_markers)
+        view.add(upper_markers)
     stitch_lines.set_data(pos=line_locations, connect='segments')
-    lower_markers.symbol = 'ring'
-    upper_markers.symbol = '+'
-    view.add(lower_markers)
-    view.add(upper_markers)
+
     view.add(stitch_lines)
     vispy.app.run()
 

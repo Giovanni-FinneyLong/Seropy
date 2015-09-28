@@ -1,5 +1,6 @@
 __author__ = 'gio'
 
+#RENAME THIS FILE 'myconfig.py'; this file is a template
 
   ### Switches ###
 debug_blob_ids = False
@@ -7,7 +8,7 @@ debug_pixel_ops = False
 debug_set_merge = False
 remap_ids_by_group_size = True
 test_instead_of_data = False
-dePickle = True
+dePickle = False
 OpenGLLinesInsteadOfAgg = True
 
 
@@ -20,17 +21,19 @@ max_val_step = 5 # The maximum amount that two neighboring pixels can differ in 
     # Recommended = 5
 minimal_nonzero_neighbors = 2 # The minimal amount of nzn a pixel must have to avoid being filtered; 0 = no filter
     # Recommended = 2
-z_compression = 10
+z_compression = 1
     # A value in the range of (0, oo), which multiplies the spacing between the slides.
     # A value of 2, double the separation between slides when plotted, .5 halves it
-
-
+slide_portion = .5
+    # (0,1]: The proportion of each slide to operate over, used to speed up test processing
 
   ### Folders ###
-FIGURES_DIR = 'H:/Dropbox/Serotonin/generated_figures/'
-DATA_DIR =  'H:/Dropbox/Serotonin/data/'
-TEST_DIR = 'C:/Users/gio/Documents/Programming/serotonin/image-analysis/tests/'
-IMAGEMAGICK_CONVERT_EXEC = 'C:/Program Files/ImageMagick-6.9.1-Q8/convert.exe'
+FIGURES_DIR = ''
+DATA_DIR =  ''
+TEST_DIR = ''
+IMAGEMAGICK_CONVERT_EXEC = ''
+
+
 
 if OpenGLLinesInsteadOfAgg:
   linemethod = 'gl'

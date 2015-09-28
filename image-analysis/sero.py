@@ -231,13 +231,10 @@ class Blob2d:
         return Blob2d.total_blobs
 
     def updateStitches(self, stitches):
-        # HACK FIXME added hasattr because pickled blobs dont have a stitches list
-        if not hasattr(self, 'stitches'):
-            self.stitches = []
-
-        # print('DB: IN addtostitches. Before:' + str(self.stitches))
+        # # HACK FIXME added hasattr because pickled blobs dont have a stitches list
+        # if not hasattr(self, 'stitches'):
+        #     self.stitches = []
         self.stitches.append(stitches)
-        # print('DB: After:' + str(self.stitches))
 
 
 
@@ -258,16 +255,12 @@ class Blob2d:
             :param: blob2dlist: The accumulated list of a blob2ds which are connected directly or indirectly to the inital seed blob
             '''
 
-            # print('DB: enter follow stitches')
-            # if hasattr(cursorblob, 'stitches'):
-            #     print('   DB: len of stitches:' + str(len(cursorblob.stitches)))
             if hasattr(cursorblob, 'stitches') and len(cursorblob.stitches) != 0:
                 if cursorblob not in blob2dlist:
                     if hasattr(cursorblob, 'assignedto3d') and cursorblob.assignedto3d:
                         print('====> DB Warning, adding a blob to list that has already been assigned: ' + str(cursorblob))
                     cursorblob.assignedto3d = True
                     blob2dlist.append(cursorblob)
-                    # print('DB updated blob2d list to:' + str(blob2dlist))
                     for stitch in cursorblob.stitches:
                         for blob in (stitch.lowerblob, stitch.upperblob):
                             followstitches(blob, blob2dlist)
@@ -285,7 +278,7 @@ class Blob2d:
             return []
         blob2dlist = []
         followstitches(self, blob2dlist)
-        return  blob2dlist
+        return blob2dlist
 
 
 
@@ -455,13 +448,8 @@ class Stitches:
 
         makeCostArray()
         munk = Munkres()
-        # print('Upper blob:' + str(self.upperblob) + ' lowerblob:' + str(self.lowerblob))
-        # print('Lower pix:' + str(self.lowerpixels) + ' upper pix:' + str(self.upperpixels))
-        # print('Lower slide:' + str(self.lowerslidenum) + ' ' + ' upper slide' + str(self.upperslidenum))
-        # print('About to find indeces for cost array:' + str(self.cost_array))
         self.indeces = munk.compute(np.copy(self.cost_array))
 
-        print('DB found indeces = ' + str(self.indeces))
 
 
         self.cost = 0
@@ -469,7 +457,7 @@ class Stitches:
             self.cost += self.cost_array[row][col]
 
     def __str__(self):
-        return str('Stitch with slides:(' + str(self.lowerslidenum) + ',' + str(self.upperslidenum) + ') with blobs (' +
+        return str('Stitch between slides:(' + str(self.lowerslidenum) + ',' + str(self.upperslidenum) + ') with blobs (' +
                    str(self.lowerblob.id) + ',' + str(self.upperblob.id) + '). Chose:' + str(len(self.lowerpixels)) +
                    '/' + str(len(self.lowerblob.edge_pixels)) + ' lower blob pixels and ' + str(len(self.upperpixels)) +
                    '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels. ' + 'Cost:' + str(self.cost))
@@ -483,14 +471,11 @@ class Stitches:
         self.lowerblob = lowerblob
         self.upperblob = upperblob
 
-        print('DB set stitch upperblob:' + str(self.upperblob) + ' and lowerblob:' + str(self.lowerblob))
 
-        self.upperpixels = None
+        self.upperpixels = self.edgepixelsinbounds(upperblob, lowerblob)
         self.lowerpixels = self.edgepixelsinbounds(lowerblob, upperblob) # TODO psoe on the order of lower and upper
         self.cost = -1
         self.isReduced = False # True when have chosen a subset of the edge pixels to reduce computation
-        lowerblob.updateStitches(self)
-        upperblob.updateStitches(self)
 
 
         if len(self.lowerpixels) != 0: # Optimization
@@ -516,12 +501,22 @@ class Stitches:
 
             self.isConnected = True
             self.setShapeContexts(num_bins) # Set lower and upper context bins
-            print('   ', end='') # Fo
+            print('   ', end='') # Formatting
             print(self)
             self.munkresCost() # Now have set self.cost and self.indeces and self.connect
             # TODO grade the stitching based on the cost and num of pixels, and then set isPartners
+
+            lowerblob.updateStitches(self)
+            upperblob.updateStitches(self)
+
+
         else:
             self.isConnected = False
+
+
+
+
+
 
 class Pixel:
     '''
@@ -875,9 +870,18 @@ class Blob3d:
         self.stitches = []
         self.edge_pixels = []
         self.pixels = []
+        self.lowslide = self.blob2ds[0].slide.id_num
+        self.highslide = self.blob2ds[0].slide.id_num
+
         for blob in self.blob2ds:
             self.edge_pixels += blob.edge_pixels
             self.pixels += blob.pixels
+            if blob.slide.id_num < self.lowslide:
+                self.lowslide = blob.slide.id_num
+            if blob.slide.id_num > self.highslide:
+                self.highslide = blob.slide.id_num
+
+
             for stitch in blob.stitches:
                 if stitch not in self.stitches:
                     self.stitches.append(stitch)
@@ -995,15 +999,10 @@ def munkresCompare(blob1, blob2):
         return cost_array
 
     # TODO run this on some simple examples provided online to confirm it is accurate.
-    print('DB starting munkres compare')
     cost_array = makeCostArray(blob1, blob2)
-    # print('Result from makeCostArray:' + str(cost_array))
-    print('DB done making cost array')
     munk = Munkres()
-    # print('Working on cost_array:' + str(np.copy(cost_array).tolist()))
-
     indeces = munk.compute(np.copy(cost_array).tolist())
-    print('Done computing indeces')
+    # print('Done computing indeces')
     total_cost = 0
     # print(cost_array)
     for row, col in indeces:
@@ -1015,10 +1014,11 @@ def munkresCompare(blob1, blob2):
     return total_cost, indeces
 
 
-def doPickle(slidelist, stitchlist, filename):
+# def doPickle(slidelist, stitchlist, filename):
+def doPickle(blob3dlist, filename):
     pickledict = dict()
-    pickledict['slides'] = slidelist
-    pickledict['stitches'] = stitchlist
+    pickledict['blob3ds'] = blob3dlist
+    # pickledict['stitches'] = stitchlist
     pickledict['xdim'] = xdim
     pickledict['ydim'] = ydim
     pickledict['zdim'] = zdim
@@ -1028,13 +1028,15 @@ def doPickle(slidelist, stitchlist, filename):
 def unPickle(filename):
         print('Loading from pickle')
         pickledict = pickle.load(open(filename, "rb"))
-        slidelist = pickledict['slides']
-        stitchlist = pickledict['stitches']
+        # slidelist = pickledict['slides']
+        # stitchlist = pickledict['stitches']
+        blob3dlist = pickledict['blob3ds']
         xdim = pickledict['xdim']
         ydim = pickledict['ydim']
         zdim = pickledict['zdim']
         setglobaldims(xdim, ydim, zdim)
-        return slidelist, stitchlist
+        # return slidelist, stitchlist
+        return blob3dlist
 
 
 def setAllPossiblePartners(slidelist):
@@ -1055,7 +1057,7 @@ def stitchAllBlobs(slidelist):
     stitchlist = []
     print('Beginning to stitch together blobs')
     for slide_num, slide in enumerate(slidelist):
-        print('Starting slide #' + str(slide_num) + ', len(blob2dlist)=' + str(len(slide.blob2dlist)))
+        print('Starting slide #' + str(slide_num) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds')
         for blob1 in slide.blob2dlist:
             if len(blob1.possible_partners) > 0:
                 print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
@@ -1102,9 +1104,9 @@ def main():
             extension = 'Swell*.tif'
         all_images = glob.glob(dir + extension)
 
-        # HACK
-        if not test_instead_of_data:
-            all_images = all_images[:2]
+        # # HACK
+        # if not test_instead_of_data:
+        #     all_images = all_images[:2]
 
         print(all_images)
         all_slides = []
@@ -1119,121 +1121,40 @@ def main():
         t_finish_munkres = time.time()
         print('Done stitching together blobs, total time for all: ', end='')
         printElapsedTime(t_start_munkres, t_finish_munkres)
+
+        print('About to merge 2d blobs into 3d')
+        list3ds = []
+        for slide_num, slide in enumerate(all_slides):
+            for blob in slide.blob2dlist:
+                buf = blob.getconnectedblob2ds()
+                if len(buf) != 0:
+                    list3ds.append(buf)
+        blob3dlist = []
+        for blob2dlist in list3ds:
+            blob3dlist.append(Blob3d(blob2dlist))
+
+        doPickle(blob3dlist, picklefile)
+
     else:
-        all_slides, stitchlist = unPickle(picklefile)
-
-
-
-    # print('DEBUG printing ALLLLLL stitches!!!! AGAIN!!!!')
-    # for stitch in stitchlist:
-    #     print(stitch)
-    #     print(stitch.indeces)
+        blob3dlist = unPickle(picklefile)
 
 
     anim_orders = [
     ('y+', 90+360, 60+360),
     ('x+', 360, 90+360) ]
 
-    # plotSlidesVC(all_slides, stitchlist, stitches=True, edges=True, color='slides', subpixels=False, midpoints=True, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
-    if not dePickle:
-        doPickle(all_slides, stitchlist, picklefile)
-
-    # for stitch in stitchlist:
-    #     print(stitch)
-    #     # stitch.lowerblob.updateStitches(stitch)
-    #     # stitch.upperblob.updateStitches(stitch)
-    #     print(str(stitch.lowerblob))
-    #     print(str(stitch.upperblob))
-    #     # print(str(stitch.lowerblob.stitches))
-
-    # TODO now take the stitches in stitchlist, and sort them based on their lowest slide_num
-    # Note that each blob can belong to MORE than 2 stitches
-
-    stitchlist.sort(key = lambda x: x.lowerslidenum) # Sort slides by lowest to highest lowerslideid
-
-
-
-    # for stitch in stitchlist:
-    #     print(stitch)
-    stitchstacks = [] # A list of lists of connected stitches, with each sublist eventually being used to form a blob3d
-    blobstacks = [] # A list of lists of blob2ds. Each sublist belongs to a blob3ds
-    index = 0
-
-
-
-
 
     # plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
-
-
-
 
     # NOTE temp: in the original 20 swellshark scans, there are ~ 11K blobs, ~9K stitches
 
 
-    # NOTE TEST:
-
-    print('About to merge 2d blobs into 3d')
-    list3ds = []
-    for slide_num, slide in enumerate(all_slides):
-        for blob in slide.blob2dlist:
-
-            # HACK FIXME This is cleaning up after dirty pickle file, remove on regen. Testing only.
-            for pixel in blob.edge_pixels:
-                pixel.z = slide_num
-
-            buf = blob.getconnectedblob2ds()
-            if len(buf) != 0:
-                list3ds.append(buf)
-
-    # Note that currently Blob2d.total_blobs is unset in the pickle file, however it will be updated and included in the next pickle file
-    # Temp: HACK
-    slide_blobs = 0
-    if Blob2d.total_blobs == 0:
-
-        for slide in all_slides:
-            slide_blobs += len(slide.blob2dlist)
-
-    # for num, threed in enumerate(list3ds):
-    #     print(str(num) + ':' + str(threed))
-    print('Number of 3d blobs: ' + str(len(list3ds)))
-    print('Number of 2d blobs without stitching:' + str(Blob2d.blobswithoutstitches) + '/' + str(max(Blob2d.total_blobs, slide_blobs)))
-
-    # TIme to convert to 3d blobs
-
-    blob3dlist = []
-    for blob2dlist in list3ds:
-        blob3dlist.append(Blob3d(blob2dlist))
-
-    print('DEBUG printing all indeces')
-    for stitch in stitchlist:
-        print(stitch)
-        print(stitch.indeces)
-
-
-    plotBlod3ds(blob3dlist, len(all_slides))
-
-
-
-
-
-    # for stitch in stitchlist:
-    #     for blob2d in (stitch.lowerblob, stitch.upperblob):
-    #         found = False
-    #         for stack in blobstacks:
-    #             if blob2d
+    plotBlod3ds(blob3dlist)
+    plotBlod3ds(blob3dlist, color='blob')
 
 
     # plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
 
-
-    # NOTE temp: as pickle doesnt have each blob2d already complete with the stitches that it belongs to, manually completing here.
-    # Note 3this can be removed once the pickle is regen, added: 9/16/15
-
-    # plotSlidesVC(all_slides, edges=True, color='slides', midpoints=True, possible=True, context=True, canvas_size=(1000, 1000))#, color=None)
-    # TODO had a memory error adding to view when midpoints = True
-
-    runShell()
     debug()
 
     # Note took 10 mins 19 seconds for [:3] with ::2 opt
