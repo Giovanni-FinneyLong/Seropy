@@ -89,8 +89,12 @@ def plotBlod3ds(blob3dlist, total_slides, **kwargs):
     global view
 
     canvas_size = kwargs.get('canvas_size', (800,800))
-
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size)
+
+    coloring = kwargs.get('color', None)
+
+
+
     view = canvas.central_widget.add_view()
     view.camera = 'turntable'  # or try 'arcball'
     view.camera.elevation = -75
@@ -99,15 +103,33 @@ def plotBlod3ds(blob3dlist, total_slides, **kwargs):
     markerlist = []
     colors = vispy.color.get_color_names() # ALl possible colors
     lineendpoints = 0
-    for blob_num, blob3d in enumerate(blob3dlist):
-        edge_pixel_arrays.append(np.zeros([len(blob3d.edge_pixels), 3]))
-        for (p_num, pix) in enumerate(blob3d.edge_pixels):
-            edge_pixel_arrays[-1][p_num] = [pix.x / xdim, pix.y / ydim, pix.z / ( z_compression * total_slides)]
-        markerlist.append(visuals.Markers())
-        markerlist[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[blob_num % len(colors)], size=55)
-        view.add(markerlist[-1])
-        for stitch in blob3d.stitches:
-            lineendpoints += (2 * stitch.indeces) # 2 as each line has 2 endpoints
+
+    if coloring == 'blob': # Note: This is very graphics intensive.
+
+        for blob_num, blob3d in enumerate(blob3dlist):
+            edge_pixel_arrays.append(np.zeros([len(blob3d.edge_pixels), 3]))
+            for (p_num, pixel) in enumerate(blob3d.edge_pixels):
+                edge_pixel_arrays[-1][p_num] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * total_slides)]
+            markerlist.append(visuals.Markers())
+            markerlist[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[blob_num % len(colors)], size=12)
+            view.add(markerlist[-1])
+            for stitch in blob3d.stitches:
+                lineendpoints += (2 * len(stitch.indeces)) # 2 as each line has 2 endpoints
+    else: # All colored the same
+        total_points = 0
+        for blob_num, blob3d in enumerate(blob3dlist):
+            total_points += len(blob3d.edge_pixels)
+        edge_pixel_array = np.zeros([total_points, 3])
+        index = 0
+        for blob3d in blob3dlist:
+            for pixel in blob3d.edge_pixels:
+                edge_pixel_array[index] = [pixel.x / xdim, pixel.y / ydim, pixel.z / (z_compression * total_slides)]
+            for stitch in blob3d.stitches:
+                lineendpoints += (2 * len(stitch.indeces)) # 2 as each line has 2 endpoints
+
+        markers = visuals.Markers()
+        markers.set_data(edge_pixel_array, edge_color=None, face_color=colors[0], size=12) # TODO change color
+        view.add(markers)
 
 
 
@@ -120,12 +142,12 @@ def plotBlod3ds(blob3dlist, total_slides, **kwargs):
     line_locations = np.zeros([lineendpoints, 3])
 
     for blob3d in blob3dlist:
-        for stitch in blob3d:
+        for stitch in blob3d.stitches:
             for lowerpnum, upperpnum in stitch.indeces:
                 lowerpixel = stitch.lowerpixels[lowerpnum]
                 upperpixel = stitch.upperpixels[upperpnum]
-                lower_markers_locations[lower_index] = [lowerpixel.x / xdim, lowerpixel.y / ydim, (stitch.lowerslidenum ) / ( z_compression * len(slide_stack))]
-                upper_markers_locations[upper_index] = [upperpixel.x / xdim, upperpixel.y / ydim, (stitch.upperslidenum ) / ( z_compression * len(slide_stack))]
+                lower_markers_locations[lower_index] = [lowerpixel.x / xdim, lowerpixel.y / ydim, (stitch.lowerslidenum ) / ( z_compression * total_slides)]
+                upper_markers_locations[upper_index] = [upperpixel.x / xdim, upperpixel.y / ydim, (stitch.upperslidenum ) / ( z_compression * total_slides)]
                 line_locations[line_index] = lower_markers_locations[lower_index]
                 line_locations[line_index + 1] = upper_markers_locations[upper_index]
 
@@ -145,7 +167,7 @@ def plotBlod3ds(blob3dlist, total_slides, **kwargs):
     view.add(lower_markers)
     view.add(upper_markers)
     view.add(stitch_lines)
-
+    vispy.app.run()
 
 
 

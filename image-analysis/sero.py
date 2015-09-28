@@ -1133,7 +1133,11 @@ def main():
     blobstacks = [] # A list of lists of blob2ds. Each sublist belongs to a blob3ds
     index = 0
 
-    plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
+
+
+
+
+    # plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
 
 
 
@@ -1145,8 +1149,13 @@ def main():
 
     print('About to merge 2d blobs into 3d')
     list3ds = []
-    for slide in all_slides:
+    for slide_num, slide in enumerate(all_slides):
         for blob in slide.blob2dlist:
+
+            # HACK FIXME This is cleaning up after dirty pickle file, remove on regen. Testing only.
+            for pixel in blob.edge_pixels:
+                pixel.z = slide_num
+
             buf = blob.getconnectedblob2ds()
             if len(buf) != 0:
                 list3ds.append(buf)
@@ -1159,8 +1168,8 @@ def main():
         for slide in all_slides:
             slide_blobs += len(slide.blob2dlist)
 
-    for num, threed in enumerate(list3ds):
-        print(str(num) + ':' + str(threed))
+    # for num, threed in enumerate(list3ds):
+    #     print(str(num) + ':' + str(threed))
     print('Number of 3d blobs: ' + str(len(list3ds)))
     print('Number of 2d blobs without stitching:' + str(Blob2d.blobswithoutstitches) + '/' + str(max(Blob2d.total_blobs, slide_blobs)))
 
@@ -1170,7 +1179,7 @@ def main():
     for blob2dlist in list3ds:
         blob3dlist.append(Blob3d(blob2dlist))
 
-
+    plotBlod3ds(blob3dlist, len(all_slides))
 
 
 
@@ -1183,7 +1192,7 @@ def main():
     #             if blob2d
 
 
-    plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
+    # plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
 
 
     # NOTE temp: as pickle doesnt have each blob2d already complete with the stitches that it belongs to, manually completing here.
@@ -1191,6 +1200,8 @@ def main():
 
     # plotSlidesVC(all_slides, edges=True, color='slides', midpoints=True, possible=True, context=True, canvas_size=(1000, 1000))#, color=None)
     # TODO had a memory error adding to view when midpoints = True
+
+    runShell()
     debug()
 
     # Note took 10 mins 19 seconds for [:3] with ::2 opt
