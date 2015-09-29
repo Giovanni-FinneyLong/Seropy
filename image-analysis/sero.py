@@ -225,7 +225,6 @@ class Blob2d:
 
     def totalBlobs(self):
         '''
-        TODO depreciated, need to updated blob2d.total_blobs as merging blobs
         This is currently being updated at the end of the slide_creation
         '''
         return Blob2d.total_blobs
@@ -281,10 +280,6 @@ class Blob2d:
         return blob2dlist
 
 
-
-
-
-
     @staticmethod
     def mergeblobs(bloblist):
         '''
@@ -335,8 +330,6 @@ class Blob2d:
         if debug_set_merge:
             print('Merge result' + str(newlist))
         return newlist
-
-
 
 
 class Stitches:
@@ -439,7 +432,6 @@ class Stitches:
             """
             # Setting up cost array with the costs between respective points
             ndim = min(len(self.lowerpixels), len(self.upperpixels)) # HACK HACK min for now, in the hopes that munkres can handle non-square matrices.
-            # cost_array = np.zeros([len(blob1.edge_pixels), len(blob2.edge_pixels)])
             self.cost_array = np.zeros([ndim, ndim])
             for i in range(ndim):
                 for j in range(ndim):
@@ -512,9 +504,6 @@ class Stitches:
 
         else:
             self.isConnected = False
-
-
-
 
 
 
@@ -683,20 +672,11 @@ class Slide:
         # Note that in python, sets are always unordered, and so a derivative list must be sorted.
         for (index,stl) in enumerate(equiv_sets):
             equiv_sets[index] = sorted(stl) # See note
-        # print('Equivalency Sets after turned to lists: ' + str(equiv_sets))
-
         for blob in self.blob2dlist: # NOTE Merging sets
             for equivlist in equiv_sets:
                 if blob.id != equivlist[0] and blob.id in equivlist: # Not the base and in the list
-                    # print('old:' + str(blob) + ':' + str(blob.pixels[0]))
-                    # print('  Found id:' + str(blob.id) + ' in eq:' + str(equivlist))
                     blob.updateid(equivlist[0])
-                    # print('new:' + str(blob) + ':' + str(blob.pixels[0]))
-
-        # print('Before Merging: ' + str(self.blob2dlist))
-        # print('Equiv set:' + str(self.equivalency_set))
         self.blob2dlist = Blob2d.mergeblobs(self.blob2dlist) # NOTE, by assigning the returned Blob2d list to a new var, the results of merging can be demonstrated
-        # print('After Merging: ' + str(self.blob2dlist))
         self.edge_pixels = []
         edge_lists = []
         for (blobnum, blobslist) in enumerate(self.blob2dlist):
@@ -755,26 +735,13 @@ class Slide:
             if pixel.blob_id == -1: # Value not yet set
                 xpos = pixel.x
                 ypos = pixel.y
-                # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
-                #     print('New cursor pixel:' + str(pixel))
                 for (horizontal_offset, vertical_offset) in zip(horizontal_offsets, vertical_offsets):
-                    # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
-                    #     print(' Trying offsets:' + str(horizontal_offset) + ':' + str(vertical_offset))
                     if (ypos + vertical_offset < ydim and ypos + vertical_offset >= 0 and xpos + horizontal_offset < xdim and xpos + horizontal_offset >= 0):  # Boundary check.
                         neighbor = pixel_array[xpos + horizontal_offset][ypos + vertical_offset]
-                        # print('  Checking neigbor:' + str(neighbor) + 'at offsets:(' + str(horizontal_offset) + ',' + str(vertical_offset) +')')
                         if (neighbor != 0):
-                            # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
-                            #     print('   Pixel:' + str(pixel) + ' found a nzn:' + str(neighbor))
                             difference = abs(float(pixel.val) - float(neighbor.val)) # Note: Need to convert to floats, otherwise there's an overflow error due to the value range being int8 (0-255)
                             if difference <= max_val_step: # Within acceptrable bound to be grouped by id
-                                # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
-                                    # print('   DEBUG: Neighbor was within range.')
                                 if neighbor.blob_id != -1:
-                                    # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG
-                                    #     print('   DEBUG: Neighbor already has an id.')
-                                    #     print('   curpixel:' + str(pixel))
-                                    #     print('   neighbor:' + str(neighbor))
                                     if pixel.blob_id != -1 and pixel.blob_id != neighbor.blob_id:
                                         if debug_pixel_ops:
                                             print('\n*****Pixel:' + str(pixel) + ' conflicts on neighbor with non-zero blob_id:' + str(neighbor))
@@ -791,13 +758,10 @@ class Slide:
                                         equivalent_labels[pair[1]] = base # Remapped the larger value to the end of the chain of the smaller
 
                                     elif pixel.blob_id != neighbor.blob_id:
-                                        # if debug_pixel_ops and pixel.y < debug_pixel_ops_y_depth: # DEBUG:
-                                        #     print('**Assigning the derived id:' + str(neighbor.blob_id) + ' to pixel:' + str(pixel))
                                         pixel.blob_id = neighbor.blob_id
                                         derived_pixels.append(pixel)
                                         derived_ids.append(pixel.blob_id)
                                         derived_count += 1
-                                        # print('DEBUG adding to group:' + str(pixel.blob_id) + '/' + str(len(pixel_id_groups)))
                                         pixel_id_groups[pixel.blob_id].append(pixel)
 
             else:
@@ -816,7 +780,6 @@ class Slide:
             print('EQUIVALENT LABELS: ' + str(equivalent_labels))
         # Time to clean up the first member of each id group-as they are skipped from the remapping
 
-        #TODO TODO need to do more fixes to the equivalent labels; basically condense them, to remove the issue of a trailing larger number
         print('Number of initial pixel ids before deriving equivalencies:' + str(self.id_num))
         id_to_reuse = []
 
@@ -837,9 +800,6 @@ class Slide:
                     id_to_reuse.pop(0)
             if debug_blob_ids:
                 print('New equiv labels:' + str(equivalent_labels))
-        # DEBUG if debug_blob_ids:
-        #   print('**********Remaining id_to_reuse: ' + str(id_to_reuse))
-
 
         for pixel in pixel_list:
             pixel.blob_id = equivalent_labels[pixel.blob_id]
@@ -881,7 +841,6 @@ class Blob3d:
             if blob.slide.id_num > self.highslide:
                 self.highslide = blob.slide.id_num
 
-
             for stitch in blob.stitches:
                 if stitch not in self.stitches:
                     self.stitches.append(stitch)
@@ -918,8 +877,6 @@ def filterSparsePixelsFromList(listin):
                             if (cur_neighbor_val == 255):
                                 buf_maxn += 1
                             buf_sumn += cur_neighbor_val
-                            # if buf_nzn != 0:
-                            # print('Setting pixel vals to: nzn:' + str(buf_nzn) + ', maxn:' + str(buf_maxn) + ', sumn:' + str(buf_sumn))
         pixel.setNeighborValues(buf_nzn, buf_maxn, buf_sumn, neighbors_checked)
         if buf_nzn >= minimal_nonzero_neighbors:
             filtered_pixels.append(pixel)
@@ -945,9 +902,7 @@ def getIdLists(pixels, **kwargs):
     if kwargs_ok:
         id_lists = [[] for i in range(len(id_counts))]
         if do_remap:
-            # remap = [None] * len(id_counts)
             remap = dict()
-
             for id_index, id in enumerate(range(len(id_counts))): # Supposedly up to 2.5x faster than using numpy's .tolist()
                 # print(' id=' + str(id) + ' id_counts[id]=' + str(id_counts[id]) + ' id_counts[id][0]=' + str(id_counts[id][0]))
                 remap[id_counts[id][0]] = id
@@ -974,39 +929,26 @@ def munkresCompare(blob1, blob2):
         assert len(bins1) == len(bins2)
         cost = 0
         for i in range(len(bins1)):
-            debug_cost = cost
             if (bins1[i] + bins2[i]) != 0:
                 cost += math.pow(bins1[i] - bins2[i], 2) / (bins1[i] + bins2[i])
-            # if math.isnan(cost) and not math.isnan(debug_cost):
-            #     print('Became nan, old val=' + str(debug_cost) + ' Pow part:' + str(math.pow(bins1[i] - bins2[i], 2)) + ' denomerator:' + str(bins1[i] + bins2[i]))
-            #     print(' bins1:' + str(bins1[i]) + ' bins2:' + str(bins2[i]))
-            #     buf = bins1[i] - bins2[i]
-            #     print(' Buf=' + str(buf) + ' pow:' + str(math.pow(bins1[i] - bins2[i], 2)))
         return cost / 2
 
     def makeCostArray(blob1, blob2):
         # Setting up cost array with the costs between respective points
         ndim = max(len(blob1.edge_pixels), len(blob2.edge_pixels)) # HACK HACK min for now, in the hopes that munkres can handle non-square matrices.
-        # cost_array = np.zeros([len(blob1.edge_pixels), len(blob2.edge_pixels)])
         cost_array = np.zeros([len(blob1.edge_pixels), len(blob2.edge_pixels)])
 
         for i in range(len(blob1.edge_pixels)):
             for j in range(len(blob2.edge_pixels)):
                 cost_array[i][j] = costBetweenPoints(blob1.context_bins[i], blob2.context_bins[j])
-        i = len(blob1.context_bins)
-        j = len(blob2.context_bins)
-
         return cost_array
 
     # TODO run this on some simple examples provided online to confirm it is accurate.
     cost_array = makeCostArray(blob1, blob2)
     munk = Munkres()
     indeces = munk.compute(np.copy(cost_array).tolist())
-    # print('Done computing indeces')
     total_cost = 0
-    # print(cost_array)
     for row, col in indeces:
-        # print('Row=' + str(row) + ' Col=' + str(col))
         value = cost_array[row][col]
         total_cost += value
         # print ('(%d, %d) -> %d' % (row, col, value))
@@ -1014,11 +956,9 @@ def munkresCompare(blob1, blob2):
     return total_cost, indeces
 
 
-# def doPickle(slidelist, stitchlist, filename):
 def doPickle(blob3dlist, filename):
     pickledict = dict()
     pickledict['blob3ds'] = blob3dlist
-    # pickledict['stitches'] = stitchlist
     pickledict['xdim'] = xdim
     pickledict['ydim'] = ydim
     pickledict['zdim'] = zdim
@@ -1036,14 +976,11 @@ def doPickle(blob3dlist, filename):
 def unPickle(filename):
         print('Loading from pickle')
         pickledict = pickle.load(open(filename, "rb"))
-        # slidelist = pickledict['slides']
-        # stitchlist = pickledict['stitches']
         blob3dlist = pickledict['blob3ds']
         xdim = pickledict['xdim']
         ydim = pickledict['ydim']
         zdim = pickledict['zdim']
         setglobaldims(xdim, ydim, zdim)
-        # return slidelist, stitchlist
         return blob3dlist
 
 
@@ -1054,8 +991,8 @@ def setAllPossiblePartners(slidelist):
 
 
 def setAllShapeContexts(slidelist):
-    # Use the shape contexts approach from here: http://www.cs.berkeley.edu/~malik/papers/mori-belongie-malik-pami05.pdf
-    # The paper uses 'Representative Shape Contexts' to do inital matching; I will do away with this in favor of checking bounds for possible overlaps
+    # Note Use the shape contexts approach from here: http://www.cs.berkeley.edu/~malik/papers/mori-belongie-malik-pami05.pdf
+    # Note The paper uses 'Representative Shape Contexts' to do inital matching; I will do away with this in favor of checking bounds for possible overlaps
     for slide in slidelist:
         for blob in slide.blob2dlist:
             blob.setShapeContexts(36)
@@ -1080,16 +1017,6 @@ def stitchAllBlobs(slidelist):
                     tf = time.time()
                     print('    ', end='') # Formatting output
                     printElapsedTime(t0, tf)
-                    ''' # Code normally used to generate munkres costs for entire blob edge_pixels instead of subset
-                    t0 = time.time()
-                    total_cost, indeces = munkresCompare(blob1, blob2)
-                    tf = time.time()
-                    printElapsedTime(t0, tf)
-                    print('Total_cost=' + str(total_cost))
-                    blob1.partner_costs[b2_num] = total_cost
-                    print('Indeces=' + str(indeces))
-                    blob1.partner_indeces.append(indeces)
-                    '''
     return stitchlist
 
 
@@ -1141,8 +1068,6 @@ def main():
         for blob2dlist in list3ds:
             blob3dlist.append(Blob3d(blob2dlist))
 
-        print('>>>>>>NEED TO PICKLE!!!!!!!')
-        debug()
         doPickle(blob3dlist, picklefile)
 
     else:
@@ -1162,14 +1087,9 @@ def main():
     plotBlod3ds(blob3dlist)
     plotBlod3ds(blob3dlist, color='blob')
 
-
-    # plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
-
     debug()
 
     # Note took 10 mins 19 seconds for [:3] with ::2 opt
-
-
 
 '''
     TODO: https://books.google.com/books?id=ROHaCQAAQBAJ&pg=PA287&lpg=PA287&dq=python+group+neighborhoods&source=bl&ots=f7Vuu9CQdg&sig=l6ASHdi27nvqbkyO_VvztpO9bRI&hl=en&sa=X&ei=4COgVbGFD8H1-QGTl7aABQ&ved=0CCUQ6AEwAQ#v=onepage&q=python%20group%20neighborhoods&f=false
