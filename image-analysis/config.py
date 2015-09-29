@@ -24,8 +24,12 @@ minimal_nonzero_neighbors = 2 # The minimal amount of nzn a pixel must have to a
 z_compression = 1
     # A value in the range of (0, oo), which multiplies the spacing between the slides.
     # A value of 2, double the separation between slides when plotted, .5 halves it
-slide_portion = .5
+slide_portion = 1
     # (0,1]: The proportion of each slide to operate over, used to speed up test processing
+
+assert 0 < z_compression <= 1
+assert 0 < slide_portion <= 1
+
 
   ### Folders ###
 FIGURES_DIR = ''
