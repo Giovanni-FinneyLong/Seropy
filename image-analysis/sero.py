@@ -3,7 +3,7 @@ __author__ = 'gio'
 import sys
 import collections
 from serodraw import *
-from config import *
+from myconfig import *
 
 from PIL import ImageFilter
 from collections import OrderedDict
