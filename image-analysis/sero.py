@@ -1022,7 +1022,15 @@ def doPickle(blob3dlist, filename):
     pickledict['xdim'] = xdim
     pickledict['ydim'] = ydim
     pickledict['zdim'] = zdim
-    pickle.dump(pickledict, open(filename, "wb"))
+
+    try:
+        pickle.dump(pickledict, open(filename, "wb"))
+    except RuntimeError:
+        print('If recursion depth has been exceeded, you may increase the maximal depth with: sys.setrecursionlimit(<newdepth>)')
+        print('The current max recursion depth is: ' + str(sys.getrecursionlimit()))
+        print('Opening up an interactive console, press \'n\' then \'enter\' to load variables before interacting, and enter \'exit\' to resume execution')
+        debug()
+        pass
 
 
 def unPickle(filename):
@@ -1103,10 +1111,10 @@ def main():
             dir = DATA_DIR
             extension = 'Swell*.tif'
         all_images = glob.glob(dir + extension)
-
+        #
         # # HACK
         # if not test_instead_of_data:
-        #     all_images = all_images[:2]
+        #     all_images = all_images[:3]
 
         print(all_images)
         all_slides = []
@@ -1133,6 +1141,8 @@ def main():
         for blob2dlist in list3ds:
             blob3dlist.append(Blob3d(blob2dlist))
 
+        print('>>>>>>NEED TO PICKLE!!!!!!!')
+        debug()
         doPickle(blob3dlist, picklefile)
 
     else:
