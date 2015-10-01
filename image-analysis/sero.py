@@ -1085,7 +1085,7 @@ def main():
 
 
     plotBlod3ds(blob3dlist)
-    plotBlod3ds(blob3dlist, color='blob')
+    # plotBlod3ds(blob3dlist, color='blob')
 
     debug()
 
