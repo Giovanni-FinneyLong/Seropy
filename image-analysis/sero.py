@@ -1084,8 +1084,36 @@ def main():
     # NOTE temp: in the original 20 swellshark scans, there are ~ 11K blobs, ~9K stitches
 
 
-    plotBlod3ds(blob3dlist)
+    # plotBlod3ds(blob3dlist)
     # plotBlod3ds(blob3dlist, color='blob')
+
+    # Note, current plan is to find all blob3d's that exists with singular stitches between each 2d blob
+    # These blobs should be 'known' to be singular blobs.
+    # An additional heuristic may be necessary, potentially using the cost from Munkres()
+    # Or computing a new cost based on the displacements between stitched pixelsS
+
+    singular_count = 0
+    non_singular_count = 0
+    for blob3d in blob3dlist:
+        singular = True
+        for blob2d in blob3d.blob2ds:
+            if len(blob3d.stitches) > 2:
+                singular = False
+                break
+        blob3d.isSingular = singular
+        # Temp:
+        if singular:
+            singular_count += 1
+        else:
+            non_singular_count += 1
+    print('There are ' + str(singular_count) + ' singular 3d-blobs and ' + str(non_singular_count) + ' non-singular 3d-blobs')
+
+
+
+
+
+
+
 
     debug()
 
