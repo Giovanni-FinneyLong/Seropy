@@ -91,6 +91,7 @@ def plotBlod3ds(blob3dlist, **kwargs):
     canvas_size = kwargs.get('canvas_size', (800,800))
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size)
 
+
     coloring = kwargs.get('color', None)
 
     # Finding the maximal slide, so that the vertical dimension of the plot can be evenly divided
@@ -104,10 +105,16 @@ def plotBlod3ds(blob3dlist, **kwargs):
     view.camera = 'turntable'  # or try 'arcball'
     view.camera.elevation = -75
     view.camera.azimuth = 1
+
+    axis = visuals.XYZAxis(parent=view.scene)
     edge_pixel_arrays = [] # One array per 3d blob
     markerlist = []
     colors = vispy.color.get_color_names() # ALl possible colors
+
+    print('The available colors are: ' + str(colors))
+
     lineendpoints = 0
+
 
     if coloring == 'blob': # Note: This is very graphics intensive.
 
@@ -120,7 +127,41 @@ def plotBlod3ds(blob3dlist, **kwargs):
             view.add(markerlist[-1])
             for stitch in blob3d.stitches:
                 lineendpoints += (2 * len(stitch.indeces)) # 2 as each line has 2 endpoints
+    elif coloring == 'singular':
+        total_singular_points = 0
+        total_multi_points = 0 # Points from blob3ds that may be part of strands
+        for blob3d in blob3dlist:
+            if blob3d.isSingular:
+                total_singular_points += len(blob3d.edge_pixels)
+            else:
+                total_multi_points += len(blob3d.edge_pixels)
+        singular_edge_array = np.zeros([total_singular_points, 3])
+        multi_edge_array = np.zeros([total_multi_points, 3])
+        singular_index = 0
+        multi_index = 0
+        for blob_num, blob3d in enumerate(blob3dlist):
+            # print('DB processing blob:' + str(blob_num) + ' / ' + str(len(blob3dlist)))
+            if blob3d.isSingular:
+                for pixel in blob3d.edge_pixels:
+                    singular_edge_array[singular_index] = [pixel.x / xdim, pixel.y / ydim, pixel.z / (z_compression * total_slides)]
+                    singular_index += 1
+            else:
+                for pixel in blob3d.edge_pixels:
+                    multi_edge_array[multi_index] = [pixel.x / xdim, pixel.y / ydim, pixel.z / (z_compression * total_slides)]
+                    multi_index += 1
+            for stitch in blob3d.stitches:
+                lineendpoints += (2 * len(stitch.indeces))
+        singular_markers = visuals.Markers()
+        multi_markers = visuals.Markers()
+        singular_markers.set_data(singular_edge_array, edge_color=None, face_color='green', size=8)
+        multi_markers.set_data(multi_edge_array, edge_color=None, face_color='red', size=8)
+        view.add(singular_markers)
+        view.add(multi_markers)
+        print('DB WOO')
+
+
     else: # All colored the same
+        print('DB ELSE BLOCK')
         total_points = 0
         for blob_num, blob3d in enumerate(blob3dlist):
             total_points += len(blob3d.edge_pixels)
@@ -167,7 +208,7 @@ def plotBlod3ds(blob3dlist, **kwargs):
     # if coloring == 'blob': # TODO optimize the above as these are not used
         # lower_markers.set_data(lower_markers_locations, edge_color=None, size=10)
         # upper_markers.set_data(upper_markers_locations, edge_color=None, size=7)
-    if coloring != 'blob':
+    if coloring != 'blob' and coloring != 'singular':
         lower_markers.set_data(lower_markers_locations, edge_color=None, face_color='yellow', size=11)
         upper_markers.set_data(upper_markers_locations, edge_color=None, face_color='green', size=11)
         lower_markers.symbol = 'ring'
