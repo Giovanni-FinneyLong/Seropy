@@ -4,6 +4,10 @@ import sys
 import collections
 from serodraw import *
 from myconfig import *
+from segment import *
+
+from skimage import filters
+from skimage import segmentation
 
 from PIL import ImageFilter
 from collections import OrderedDict
@@ -13,6 +17,7 @@ import rlcompleter
 # from pympler import asizeof
 from munkres import Munkres
 import pickle # Note uses cPickle automatically ONLY IF python 3
+
 
 
 def setglobaldims(x, y, z):
@@ -235,8 +240,6 @@ class Blob2d:
         #     self.stitches = []
         self.stitches.append(stitches)
 
-
-
     def getconnectedblob2ds(self):
         '''
         Recursively finds all blobs that are directly or indirectly connected to this blob via stitching
@@ -278,7 +281,6 @@ class Blob2d:
         blob2dlist = []
         followstitches(self, blob2dlist)
         return blob2dlist
-
 
     @staticmethod
     def mergeblobs(bloblist):
@@ -330,6 +332,39 @@ class Blob2d:
         if debug_set_merge:
             print('Merge result' + str(newlist))
         return newlist
+
+    def toArray(self):
+        '''
+        Converts a blob2d to an array (including its inner pixels)
+        :return: (numpy_array, (x_offset, y_offset))
+        '''
+        # Note self already has minx, miny
+        width = self.maxx - self.minx + 1 # HACK + 1
+        height = self.maxy - self.miny + 1  # HACK + 1
+        arr = np.zeros((width, height))
+        for pixel in self.pixels:
+            arr[pixel.x - self.minx][pixel.y - self.miny] = pixel.val
+        return (arr, (self.minx, self.miny))
+
+    def edgeToXY(self, **kwargs):
+        '''
+        Converts blob2d's edge pixels to two 1d-arrays, one each for the x & y coordinates
+        :return: (Numpy-1D array of X-coordinates, Numpy-1D array of Y-coordinates)
+        '''
+        compensate_for_offset = kwargs.get('offset', False)
+        if compensate_for_offset:
+            offsetx = self.minx
+            offsety = self.miny
+        else:
+            offsetx = 0
+            offsety = 0
+
+        x = np.zeros(len(self.edge_pixels))
+        y = np.zeros(len(self.edge_pixels))
+        for pix_num, pixel in enumerate(self.edge_pixels):
+            x[pix_num] = pixel.x - offsetx
+            y[pix_num] = pixel.y - offsety
+        return (x,y)
 
 
 class Stitches:
@@ -583,8 +618,6 @@ class Slide:
 
         self.id_num = Slide.total_slides
         Slide.total_slides += 1
-
-
         self.t0 = time.time()
         self.filename = filename
         self.equivalency_set = set() # Used to keep track of touching blobs, which can then be merged. # NOTE, moving from blob2d
@@ -847,12 +880,6 @@ class Blob3d:
 
 
 
-
-
-
-
-
-
 def filterSparsePixelsFromList(listin):
     max_float_array = zeros([xdim, ydim])
     for pixel in listin:
@@ -1020,6 +1047,12 @@ def stitchAllBlobs(slidelist):
     return stitchlist
 
 
+def segment(blob3d):
+    chosenb2d = blob3d.blob2ds[0]
+
+
+
+
 def main():
 
     stitchlist = []
@@ -1085,6 +1118,62 @@ def main():
 
 
 
+    # plotBlod3ds(blob3dlist, color='blob')
+
+    # for blob3d_num, blob3 in enumerate(blob3dlist):
+    #     print('Blob3d num: ' + str(blob3d_num))
+    #     (arr, (offsetx, offsety)) = blob3.blob2ds[0].toArray()
+    #     region_map = filters.sobel(arr)
+    #     plt.matshow(region_map, cmap='jet')
+    #     plt.show()
+
+    # Note: Blob2ds to experiment with:
+    # (blob3d, blob2d)
+    # (2,0)
+    (x,y) = blob3dlist[2].blob2ds[0].edgeToXY(offset=True)
+    from scipy import stats
+    slope, intercept, r_value, p_value, std_err = stats.linregress(y,x) # FIXME x,y => y,x
+    print('Slope: ' + str(slope))
+    print('Intercept: ' + str(intercept))
+
+    (arr, (offsetx, offsety)) = blob3dlist[2].blob2ds[0].toArray()
+    region_map = filters.sobel(arr)
+    plt.matshow(region_map, cmap='jet')
+    plt.show()
+
+    # (arr, (offx, offy)) = blob3dlist[2].blob2ds[0].toArray()
+    # from scipy import ndimage
+    # from skimage.feature import peak_local_max
+    # from skimage import morphology
+    # distance = ndimage.distance_transform_edt(arr)
+    # local_maxi = peak_local_max(distance, indices=False ,labels=arr )#, footprint=np.ones((3, 3)) )
+    # markers = morphology.label(local_maxi)
+    # labels = morphology.watershed(-distance, markers, mask=arr)
+    #
+    # fig, axes = plt.subplots(ncols=3, figsize=(8, 2.7))
+    # ax0, ax1, ax2 = axes
+    #
+    # ax0.imshow(arr, cmap=plt.cm.gray, interpolation='nearest')
+    # ax0.set_title('Overlapping objects')
+    # ax1.imshow(-distance, cmap=plt.cm.jet, interpolation='nearest')
+    # ax1.set_title('Distances')
+    # ax2.imshow(labels, cmap=plt.cm.jet, interpolation='nearest')
+    # ax2.set_title('Separated objects')
+    # for ax in axes:
+    #     ax.axis('off')
+    # fig.subplots_adjust(hspace=0.01, wspace=0.01, top=0.9, bottom=0, left=0,
+    #                     right=1)
+    # plt.show()
+    # debug()
+    #
+    #
+    # test = segmentation.find_boundaries(arr)
+    # plt.matshow(test, cmap='jet')
+    # plt.show()
+
+
+
+
 
     # Note, current plan is to find all blob3d's that exists with singular stitches between each 2d blob
     # These blobs should be 'known' to be singular blobs.
@@ -1120,10 +1209,9 @@ def main():
     plotBlod3ds(blob3dlist, color='singular')
 
 
-
-
-
     debug()
+
+
 
     # Note took 10 mins 19 seconds for [:3] with ::2 opt
 
