@@ -4,7 +4,6 @@ import sys
 import collections
 from serodraw import *
 from myconfig import *
-from segment import *
 
 from skimage import filters
 from skimage import segmentation
@@ -865,6 +864,10 @@ class Blob3d:
         self.pixels = []
         self.lowslide = self.blob2ds[0].slide.id_num
         self.highslide = self.blob2ds[0].slide.id_num
+        self.minx = self.blob2ds[0].minx
+        self.miny = self.blob2ds[0].miny
+        self.maxx = self.blob2ds[0].maxx
+        self.maxy = self.blob2ds[0].maxy
 
         for blob in self.blob2ds:
             self.edge_pixels += blob.edge_pixels
@@ -873,6 +876,10 @@ class Blob3d:
                 self.lowslide = blob.slide.id_num
             if blob.slide.id_num > self.highslide:
                 self.highslide = blob.slide.id_num
+            self.minx = min(blob.minx, self.minx)
+            self.miny = min(blob.miny, self.miny)
+            self.maxx = max(blob.maxx, self.maxx)
+            self.maxy = max(blob.maxy, self.maxy)
 
             for stitch in blob.stitches:
                 if stitch not in self.stitches:
@@ -1117,6 +1124,8 @@ def main():
     # NOTE temp: in the original 20 swellshark scans, there are ~ 11K blobs, ~9K stitches
 
 
+    plotBlob3d(blob3dlist[0])
+    debug()
 
     # plotBlod3ds(blob3dlist, color='blob')
 
@@ -1130,16 +1139,18 @@ def main():
     # Note: Blob2ds to experiment with:
     # (blob3d, blob2d)
     # (2,0)
-    (x,y) = blob3dlist[2].blob2ds[0].edgeToXY(offset=True)
-    from scipy import stats
-    slope, intercept, r_value, p_value, std_err = stats.linregress(y,x) # FIXME x,y => y,x
-    print('Slope: ' + str(slope))
-    print('Intercept: ' + str(intercept))
 
-    (arr, (offsetx, offsety)) = blob3dlist[2].blob2ds[0].toArray()
-    region_map = filters.sobel(arr)
-    plt.matshow(region_map, cmap='jet')
-    plt.show()
+
+    # (x,y) = blob3dlist[2].blob2ds[0].edgeToXY(offset=True)
+    # from scipy import stats
+    # slope, intercept, r_value, p_value, std_err = stats.linregress(y,x) # FIXME x,y => y,x
+    # print('Slope: ' + str(slope))
+    # print('Intercept: ' + str(intercept))
+    #
+    # (arr, (offsetx, offsety)) = blob3dlist[2].blob2ds[0].toArray()
+    # region_map = filters.sobel(arr)
+    # plt.matshow(region_map, cmap='jet')
+    # plt.show()
 
     # (arr, (offx, offy)) = blob3dlist[2].blob2ds[0].toArray()
     # from scipy import ndimage

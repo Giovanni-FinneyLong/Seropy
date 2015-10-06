@@ -84,6 +84,78 @@ view = None
 def setMasterStartTime():
     master_start_time = time.time() # FIXME!
 
+def plotBlob3d(blob3d, **kwargs):
+    global canvas
+    global view
+    # FIXME TODO can remove this once repickled
+
+
+    blob3d.minx = blob3d.blob2ds[0].minx
+    blob3d.miny = blob3d.blob2ds[0].miny
+    blob3d.maxx = blob3d.blob2ds[0].maxx
+    blob3d.maxy = blob3d.blob2ds[0].maxy
+
+    for blob in blob3d.blob2ds:
+        blob3d.minx = min(blob.minx, blob3d.minx)
+        blob3d.miny = min(blob.miny, blob3d.miny)
+        blob3d.maxx = max(blob.maxx, blob3d.maxx)
+        blob3d.maxy = max(blob.maxy, blob3d.maxy)
+
+    maxwidth = blob3d.maxx - blob3d.minx
+    maxheight = blob3d.maxy - blob3d.miny
+    # /TODO
+    canvas_size = kwargs.get('canvas_size', (800,800))
+    translate = kwargs.get('translate', True) # Offset the blob towards the origin along the x,y axis
+
+    if translate:
+        offsetx = blob3d.minx
+        offsety = blob3d.miny
+    else:
+        offsetx = 0
+        offsety = 0
+
+
+
+    canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size)
+    view = canvas.central_widget.add_view()
+    view.camera = 'turntable'  # or try 'arcball'
+    view.camera.elevation = -75
+    view.camera.azimuth = 1
+
+    axis = visuals.XYZAxis(parent=view.scene)
+    edge_pixel_array = np.zeros([len(blob3d.edge_pixels), 3])
+    markers = []
+    colors = vispy.color.get_color_names() # ALl possible colors
+    for (p_num, pixel) in enumerate(blob3d.edge_pixels):
+            edge_pixel_array[p_num] = [(pixel.x - offsetx) / xdim, (pixel.y - offsety) / ydim, pixel.z / ( z_compression * len(blob3d.blob2ds))]
+    markers = visuals.Markers()
+    markers.set_data(edge_pixel_array, edge_color=None, face_color='green', size=8)
+    view.add(markers)
+    lineendpoints = 0
+    for stitch in blob3d.stitches:
+        lineendpoints += (2 * len(stitch.indeces))
+
+
+    line_index = 0
+
+    line_locations = np.zeros([lineendpoints, 3])
+
+
+    for stitch in blob3d.stitches:
+        for lowerpnum, upperpnum in stitch.indeces:
+            lowerpixel = stitch.lowerpixels[lowerpnum]
+            upperpixel = stitch.upperpixels[upperpnum]
+            line_locations[line_index] = [(lowerpixel.x - offsetx) / xdim, (lowerpixel.y - offsety) / ydim, (stitch.lowerslidenum) / ( z_compression * len(blob3d.blob2ds))]
+            line_locations[line_index + 1] = [(upperpixel.x - offsetx) / xdim, (upperpixel.y - offsety) / ydim, (stitch.upperslidenum) / ( z_compression * len(blob3d.blob2ds))]
+            line_index += 2
+    lower_markers = visuals.Markers()
+    upper_markers = visuals.Markers()
+    stitch_lines = visuals.Line(method=linemethod)
+    stitch_lines.set_data(pos=line_locations, connect='segments')
+    view.add(stitch_lines)
+    vispy.app.run()
+
+
 def plotBlod3ds(blob3dlist, **kwargs):
     global canvas
     global view
@@ -219,9 +291,6 @@ def plotBlod3ds(blob3dlist, **kwargs):
 
     view.add(stitch_lines)
     vispy.app.run()
-
-
-
 
 
 def plotSlidesVC(slide_stack, stitchlist, **kwargs):
