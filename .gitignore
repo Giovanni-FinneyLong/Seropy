@@ -1,7 +1,8 @@
-/source/
-/python-scripts/
+source/
+python-scripts/
 *.gif
 *.mp4
 *.pickle
-/build/
-/dist/
+build/
+dist/
+.idea/
