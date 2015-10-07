@@ -95,17 +95,30 @@ def plotBlob3d(blob3d, **kwargs):
     blob3d.maxx = blob3d.blob2ds[0].maxx
     blob3d.maxy = blob3d.blob2ds[0].maxy
 
+    # NOTE TODO add this to blob3d
+    midx = 0
+    midy = 0
+
     for blob in blob3d.blob2ds:
         blob3d.minx = min(blob.minx, blob3d.minx)
         blob3d.miny = min(blob.miny, blob3d.miny)
         blob3d.maxx = max(blob.maxx, blob3d.maxx)
         blob3d.maxy = max(blob.maxy, blob3d.maxy)
+        midx += blob.avgx
+        midy += blob.avgy
+    midx /= len(blob3d.blob2ds)
+    midy /= len(blob3d.blob2ds)
+    midz = (blob3d.highslide + blob3d.lowslide) / 2
+
+
 
     maxwidth = blob3d.maxx - blob3d.minx
     maxheight = blob3d.maxy - blob3d.miny
     # /TODO
     canvas_size = kwargs.get('canvas_size', (800,800))
     translate = kwargs.get('translate', True) # Offset the blob towards the origin along the x,y axis
+    display_costs = kwargs.get('costs', False)
+
 
     if translate:
         offsetx = blob3d.minx
@@ -122,6 +135,11 @@ def plotBlob3d(blob3d, **kwargs):
     view.camera.elevation = -75
     view.camera.azimuth = 1
 
+    #     view.add(visuals.Text(str(blob.id) + ':' + str(index), pos=avg_list[index], color='white'))
+
+
+
+
     axis = visuals.XYZAxis(parent=view.scene)
     edge_pixel_array = np.zeros([len(blob3d.edge_pixels), 3])
     markers = []
@@ -134,6 +152,8 @@ def plotBlob3d(blob3d, **kwargs):
     lineendpoints = 0
     for stitch in blob3d.stitches:
         lineendpoints += (2 * len(stitch.indeces))
+
+
 
 
     line_index = 0
