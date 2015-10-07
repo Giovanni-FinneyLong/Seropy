@@ -1054,8 +1054,24 @@ def stitchAllBlobs(slidelist):
     return stitchlist
 
 
-def segment(blob3d):
-    chosenb2d = blob3d.blob2ds[0]
+def segment_horizontal(blob3d):
+    splitblobs2dpairs = [] # Store as tuples
+    for blob2d_num,blob2d in enumerate(blob3d.blob2ds):
+        upward_stitch = 0
+        downward_stitch = 0
+        display = False
+        for stitch in blob2d.stitches:
+            if blob2d == stitch.lowerblob:
+                upward_stitch += 1
+            if blob2d == stitch.upperblob:
+                downward_stitch += 1
+        if upward_stitch > 1 or downward_stitch > 1:
+            print('Found instance of multiple stitching on b2d:' + str(blob2d_num) + ' which has ' + str(downward_stitch)
+                  + ' downward and ' + str(upward_stitch) + ' upward stitches')
+            display = True
+        if display:
+            plotBlob3d(blob3d)
+
 
 
 
@@ -1122,9 +1138,13 @@ def main():
     # plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
 
     # NOTE temp: in the original 20 swellshark scans, there are ~ 11K blobs, ~9K stitches
+    for blob3d in blob3dlist:
+        segment_horizontal(blob3d)
 
 
-    plotBlob3d(blob3dlist[0])
+
+
+    # plotBlob3d(blob3dlist[2])
     debug()
 
     # plotBlod3ds(blob3dlist, color='blob')
