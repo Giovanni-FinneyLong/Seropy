@@ -1153,6 +1153,7 @@ def main():
 
 
     # plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
+
     # NOTE temp: in the original 20 swellshark scans, there are ~ 11K blobs, ~9K stitches
     blob3dlist[2].blob2ds[0].saveImage('test2.jpg')
     # img = scipy_misc.toimage(array_rep, cmin=0.0, cmax=255.0)
@@ -1165,7 +1166,9 @@ def main():
 
 
 
-    # plotBlob3d(blob3dlist[2])
+
+
+    plotBlob3d(blob3dlist[2])
     debug()
 
     # plotBlod3ds(blob3dlist, color='blob')
