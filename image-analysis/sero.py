@@ -16,7 +16,7 @@ import rlcompleter
 # from pympler import asizeof
 from munkres import Munkres
 import pickle # Note uses cPickle automatically ONLY IF python 3
-
+from scipy import misc as scipy_misc
 
 
 def setglobaldims(x, y, z):
@@ -365,6 +365,25 @@ class Blob2d:
             y[pix_num] = pixel.y - offsety
         return (x,y)
 
+    def edgeToArray(self, **kwargs):
+        compensate_for_offset = kwargs.get('offset', True) # Will almost always want to do this, to avoid a huge array
+        if compensate_for_offset:
+            offsetx = self.minx + 1 # HACK + 1 FIXME
+            offsety = self.miny + 1 # HACK + 1 FIXME
+        else:
+            offsetx = 0
+            offsety = 0
+        arr = np.zeros((self.max_width, self.max_height))
+        for pixel in self.edge_pixels:
+            arr[pixel.x - offsetx][pixel.y - offsety] = pixel.val
+        return arr
+
+    def saveImage(self, filename, **kwargs):
+        array_rep = self.edgeToArray()
+        img = scipy_misc.toimage(array_rep, cmin=0.0, cmax=255.0)
+        savename = FIGURES_DIR + filename
+        print('Saving Image of Blob2d as: ' + str(savename))
+        img.save(savename)
 
 class Stitches:
     """
@@ -538,8 +557,6 @@ class Stitches:
 
         else:
             self.isConnected = False
-
-
 
 class Pixel:
     '''
@@ -1136,8 +1153,12 @@ def main():
 
 
     # plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
-
     # NOTE temp: in the original 20 swellshark scans, there are ~ 11K blobs, ~9K stitches
+    blob3dlist[2].blob2ds[0].saveImage('test2.jpg')
+    # img = scipy_misc.toimage(array_rep, cmin=0.0, cmax=255.0)
+    debug()
+
+
     for blob3d in blob3dlist:
         segment_horizontal(blob3d)
 

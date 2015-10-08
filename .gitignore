@@ -6,3 +6,4 @@ python-scripts/
 build/
 dist/
 .idea/
+/.eggs/
