@@ -12,6 +12,7 @@ dePickle = False
 OpenGLLinesInsteadOfAgg = True
 
 
+
   ### Variables ###
 debug_pixel_ops_y_depth = 500
 overscan_coefficient = 1.1 # A number >= 1, which is the scaling for selecting edge pixels
@@ -26,6 +27,7 @@ z_compression = 1
     # A value of 2, double the separation between slides when plotted, .5 halves it
 slide_portion = 1
     # (0,1]: The proportion of each slide to operate over, used to speed up test processing
+hard_max_pixel_value = 255
 
 assert 0 < z_compression <= 1
 assert 0 < slide_portion <= 1

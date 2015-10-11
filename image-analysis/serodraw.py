@@ -132,8 +132,18 @@ def plotBlob3d(blob3d, **kwargs):
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size)
     view = canvas.central_widget.add_view()
     view.camera = 'turntable'  # or try 'arcball'
-    view.camera.elevation = -75
+    view.camera.elevation = -55
     view.camera.azimuth = 1
+    view.camera.distance = .5
+
+    # #DEBUG
+    # camera_attr = dir(view.camera)
+    # print('All camera attr: ' + str(camera_attr))
+
+    # TODO: timer = vispy.app.Timer(interval=0, connect=update_camera, start=True, iterations=frames+1)
+
+
+    print('Camera currently at distance:' + str(view.camera.distance))
 
     #     view.add(visuals.Text(str(blob.id) + ':' + str(index), pos=avg_list[index], color='white'))
 

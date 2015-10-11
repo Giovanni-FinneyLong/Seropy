@@ -17,7 +17,7 @@ import rlcompleter
 from munkres import Munkres
 import pickle # Note uses cPickle automatically ONLY IF python 3
 from scipy import misc as scipy_misc
-
+from sklearn.preprocessing import normalize
 
 def setglobaldims(x, y, z):
     def setserodims(x, y, z):
@@ -85,9 +85,9 @@ class Blob2d:
         self.setEdge()
         self.setTouchingBlobs()
         self.center = (self.avgx, self.avgy) # TODO
-        self.max_width = self.maxx-self.minx # TODO
+        self.max_width = self.maxx-self.minx + 1 # Note +1 to include both endcaps
         # self.min_width = -1 # TODO
-        self.max_height = self.maxy-self.miny # TODO
+        self.max_height = self.maxy-self.miny + 1 # Note +1 to include both endcaps
         # self.min_height = -1 # TODO
         self.edge_radius = 0
         for pixel in self.edge_pixels:
@@ -367,23 +367,70 @@ class Blob2d:
 
     def edgeToArray(self, **kwargs):
         compensate_for_offset = kwargs.get('offset', True) # Will almost always want to do this, to avoid a huge array
+        buffer = kwargs.get('buffer', 0) # Number of pixels to leave around the outside, good when operating on image
+
         if compensate_for_offset:
-            offsetx = self.minx + 1 # HACK + 1 FIXME
-            offsety = self.miny + 1 # HACK + 1 FIXME
+            offsetx = self.minx - buffer # HACK + 1 FIXME
+            offsety = self.miny - buffer# HACK + 1 FIXME
         else:
             offsetx = 0
             offsety = 0
-        arr = np.zeros((self.max_width, self.max_height))
+        # print('DB: ' + str(self.edge_pixels))
+        # print('DB max_width: ' + str(self.max_width) + ' max_height: ' + str(self.max_height))
+        # print('DB maxx-minx: ' + str(self.maxx - self.minx) + ' maxy-miny: ' + str(self.maxy - self.miny))
+        # print('DB Offset(x,y): ' + str(offsetx) + ' ' + str(offsety))
+
+        # TODO FIXME PICKLE!!!! This below +1 has been fixed on 10/8, but the pickle files needs to be regen.
+
+        arr = np.zeros((self.max_width + buffer + 1, self.max_height + buffer + 1))
         for pixel in self.edge_pixels:
             arr[pixel.x - offsetx][pixel.y - offsety] = pixel.val
         return arr
 
+    def bodyToArray(self, **kwargs):
+        compensate_for_offset = kwargs.get('offset', True) # Will almost always want to do this, to avoid a huge array
+        buffer = kwargs.get('buffer', 0) # Number of pixels to leave around the outside, good when operating on image
+
+        if compensate_for_offset:
+            offsetx = self.minx - buffer # HACK + 1 FIXME
+            offsety = self.miny - buffer# HACK + 1 FIXME
+        else:
+            offsetx = 0
+            offsety = 0
+
+        # TODO FIXME PICKLE!!!! This below +1 has been fixed on 10/8, but the pickle files needs to be regen.
+
+        arr = np.zeros((self.max_width + buffer + 1, self.max_height + buffer + 1))
+        for pixel in self.pixels:
+            arr[pixel.x - offsetx][pixel.y - offsety] = pixel.val
+        return arr
+
     def saveImage(self, filename, **kwargs):
-        array_rep = self.edgeToArray()
+        array_rep = self.edgeToArray(buffer=0)
         img = scipy_misc.toimage(array_rep, cmin=0.0, cmax=255.0)
         savename = FIGURES_DIR + filename
         print('Saving Image of Blob2d as: ' + str(savename))
         img.save(savename)
+
+    def create_saturated_array(self):
+        body_arr = self.bodyToArray()
+        height, width = body_arr.shape
+        x_sat = [] # X coordinates of pixels to saturate from the array
+        y_sat = []
+        for y in range(height):
+            for x in range(width):
+                if body_arr[y][x] == 0:
+                    x_sat.append(x)
+                    y_sat.append(y)
+        # Note: DEBUG working to here, now use these found x,y coordinates to fill in an edgearray
+        saturated = self.edgeToArray()
+        for x,y in zip(x_sat,y_sat):
+            saturated[y][x] = hard_max_pixel_value
+        return saturated
+
+
+
+
 
 class Stitches:
     """
@@ -1090,7 +1137,31 @@ def segment_horizontal(blob3d):
             plotBlob3d(blob3d)
 
 
+def experiment():
+    from skimage import measure
 
+
+    # Construct some test data
+    x, y = np.ogrid[-np.pi:np.pi:100j, -np.pi:np.pi:100j]
+    # print('x:' + str(x))
+    # print('y:' + str(y))
+    rr = np.sin(np.exp((np.sin(x)**3 + np.cos(y)**2))) # Has shape (100,100)
+    print('r:' + str(rr))
+    debug()
+    # Find contours at a constant value of 0.8
+    contours = measure.find_contours(rr, 0.8)
+
+    # Display the image and plot all contours found
+    fig, ax = plt.subplots()
+    ax.imshow(r, interpolation='nearest', cmap=plt.cm.gray)
+
+    for n, contour in enumerate(contours):
+        ax.plot(contour[:, 1], contour[:, 0], linewidth=2)
+
+    ax.axis('image')
+    ax.set_xticks([])
+    ax.set_yticks([])
+    plt.show()
 
 
 def main():
@@ -1151,24 +1222,63 @@ def main():
     ('y+', 90+360, 60+360),
     ('x+', 360, 90+360) ]
 
-
     # plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
+    # NOTE: Interesting blob3ds:
+    # 3: Very complex, mix of blobs
+
+    # for blob_num, blob3d in enumerate(blob3dlist):
+    #     print('3d blob: ' + str(blob_num) + ' / ' + str(len(blob3dlist)))
+    #     plotBlob3d(blob3d, canvas_size=(1400,1400))
+
+    # blob3d = blob3dlist[3]
+    for blob3d in blob3dlist:
+        for b2d_num, blob2d in enumerate(blob3d.blob2ds):
+            print('Start on blob2d: ' + str(b2d_num) + ' / ' + str(len(blob3d.blob2ds)) + ' which has ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
+
+
+            ############################################################
+            if len(blob2d.edge_pixels) > 350: # HACK FIXME, using edge to emphasize skinny or spotty blob2d's
+                before = blob2d.edgeToArray()
+                saturated = blob2d.create_saturated_array()
+                normal_before = normalize(before)
+                normal_saturated = normalize(saturated)
+
+                xx, yy = saturated.shape
+                print(' array dim xx,yy: ' + str(xx) + ',' + str(yy))
+
+                fig, axes = plt.subplots(2,2, figsize=(12,12))
+
+                for img_num, ax in enumerate(axes.flat):
+
+                    # ax.axis('image')
+                    ax.set_xticks([])
+                    ax.set_yticks([])
+                    if img_num == 0:
+                        ax.imshow(before, interpolation='nearest', cmap=plt.cm.jet)
+                    elif img_num == 1:
+                        ax.imshow(saturated, interpolation='nearest', cmap=plt.cm.jet)
+                    elif img_num == 2:
+                        ax.imshow(normal_before, interpolation='nearest', cmap=plt.cm.jet)
+                    elif img_num == 3:
+                        ax.imshow(normal_saturated, interpolation='nearest', cmap=plt.cm.jet)
+                    # for n, contour in enumerate(saturated):
+                    #     ax.plot(contour[:, 0], contour[0, :], linewidth=2)
+
+
+
+                        plt.show()
+            else:
+                print('Skipping, as blob2d had only: ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
+
+
+    # NOTE TODO! Before using the reversal technique to extract blobs from within edge pixels,
+
+
+
 
     # NOTE temp: in the original 20 swellshark scans, there are ~ 11K blobs, ~9K stitches
-    blob3dlist[2].blob2ds[0].saveImage('test2.jpg')
-    # img = scipy_misc.toimage(array_rep, cmin=0.0, cmax=255.0)
-    debug()
+    # blob3dlist[2].blob2ds[0].saveImage('test2.jpg')
 
-
-    for blob3d in blob3dlist:
-        segment_horizontal(blob3d)
-
-
-
-
-
-
-    plotBlob3d(blob3dlist[2])
     debug()
 
     # plotBlod3ds(blob3dlist, color='blob')
@@ -1262,6 +1372,13 @@ def main():
 
     # plotBlod3ds(blob3dlist)
     plotBlod3ds(blob3dlist, color='singular')
+
+
+    #TODO TODO TODO idea:
+    # Find 'negative' blobs inside of each set of edge pixels of each blob2d
+    # Use a similar technique as above(maybe even the same?)
+    # Making sure to remove really small seeds/ones that result in less than n pixels (n=4 or so?)
+
 
 
     debug()
