@@ -676,21 +676,36 @@ class Slide:
 
     total_slides = 0
 
-    def __init__(self, filename):
+    def __init__(self, filename=None, matrix=None):
+        # Note: Must include either filename or matrix
+        # When given a matrix instead of a filename of an image, the assumption is that
+        # We are computing over blob2ds from within a blob3d
+        assert not (matrix is None and filename is None)
+
+        if matrix == None:
+            self.id_num = Slide.total_slides
+            Slide.total_slides += 1
+            self.t0 = time.time()
+            self.filename = filename
 
 
-        self.id_num = Slide.total_slides
-        Slide.total_slides += 1
-        self.t0 = time.time()
-        self.filename = filename
+            imagein = Image.open(filename)
+            print('Starting on image: ' + filename)
+            imarray = np.array(imagein)
+            (im_xdim, im_ydim, im_zdim) = imarray.shape
+            setglobaldims(im_xdim * slide_portion, im_ydim * slide_portion, im_zdim * slide_portion) # TODO FIXME
+            print('The are ' + str(zdim) + ' channels')
+            image_channels = imagein.split()
+
+
+        else:
+            imarray = matrix
+            local_xdim, local_ydim = imarray.shape
+            # TODO set up a local_x_dim
+
+
         self.equivalency_set = set() # Used to keep track of touching blobs, which can then be merged. # NOTE, moving from blob2d
-        imagein = Image.open(filename)
-        print('Starting on image: ' + filename)
-        imarray = np.array(imagein)
-        (im_xdim, im_ydim, im_zdim) = imarray.shape
-        setglobaldims(im_xdim * slide_portion, im_ydim * slide_portion, im_zdim * slide_portion) # TODO FIXME
-        print('The are ' + str(zdim) + ' channels')
-        image_channels = imagein.split()
+
         slices = []
         pixels = []
         self.sum_pixels = 0
@@ -699,13 +714,13 @@ class Slide:
             slices.append(buf)
             if np.amax(slices[s]) == 0:
                 print('Channel #' + str(s) + ' is empty')
-        for curx in range(xdim):
-            for cury in range(ydim):
+        for curx in range(local_xdim):
+            for cury in range(local_ydim):
                 pixel_value = slices[0][curx][cury] # CHANGED back,  FIXME # reversed so that orientation is the same as the original when plotted with a reversed y.
                 if (pixel_value != 0):  # Can use alternate min threshold and <=
                     pixels.append(Pixel(pixel_value, curx, cury, self.id_num))
                     self.sum_pixels += pixel_value
-        print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(xdim * ydim) + ' pixels')
+        print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(local_xdim * local_ydim) + ' pixels')
         pixels.sort(key=lambda pix: pix.val, reverse=True)# Note that sorting is being done like so to sort based on value not position as is normal with pixels. Sorting is better as no new list
 
         # Lets go further and grab the maximal pixels, which are at the front
@@ -718,7 +733,7 @@ class Slide:
         self.alive_pixels = filterSparsePixelsFromList(pixels[0:endmax])
         self.alive_pixels.sort() # Sorted here so that in y,x order instead of value order
 
-        alive_pixel_array = zeros([xdim, ydim], dtype=object)
+        alive_pixel_array = zeros([local_xdim, local_ydim], dtype=object)
         for pixel in self.alive_pixels:
             alive_pixel_array[pixel.x][pixel.y] = pixel
 
@@ -1136,6 +1151,30 @@ def segment_horizontal(blob3d):
         if display:
             plotBlob3d(blob3d)
 
+def tagBlobsSingular(blob3dlist):
+    singular_count = 0
+    non_singular_count = 0
+
+    for blob3d in blob3dlist:
+        singular = True
+        for blob2d_num, blob2d in enumerate(blob3d.blob2ds):
+            if blob2d_num == 0 or blob2d_num == len(blob3d.blob2ds): # Endcap exceptions due to texture
+                if len(blob3d.stitches) > 99: # TODO why doesn't this have any effect? FIXME
+                    singular = False
+                    break
+            else:
+                if len(blob3d.stitches) > 3: # Note ideally if > 2
+                    singular = False
+                    break
+        blob3d.isSingular = singular
+        # Temp:
+        if singular:
+            singular_count += 1
+        else:
+            non_singular_count += 1
+    print('There are ' + str(singular_count) + ' singular 3d-blobs and ' + str(non_singular_count) + ' non-singular 3d-blobs')
+
+
 
 def experiment():
     from skimage import measure
@@ -1221,121 +1260,43 @@ def main():
     anim_orders = [
     ('y+', 90+360, 60+360),
     ('x+', 360, 90+360) ]
+    tagBlobsSingular(blob3dlist) # TODO this should be incorporated into
+
 
     # plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
     # NOTE: Interesting blob3ds:
     # 3: Very complex, mix of blobs
 
-    # for blob_num, blob3d in enumerate(blob3dlist):
-    #     print('3d blob: ' + str(blob_num) + ' / ' + str(len(blob3dlist)))
-    #     plotBlob3d(blob3d, canvas_size=(1400,1400))
-
-    # blob3d = blob3dlist[3]
-    for blob3d in blob3dlist:
-        for b2d_num, blob2d in enumerate(blob3d.blob2ds):
-            print('Start on blob2d: ' + str(b2d_num) + ' / ' + str(len(blob3d.blob2ds)) + ' which has ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
-
-
-            ############################################################
-            if len(blob2d.edge_pixels) > 350: # HACK FIXME, using edge to emphasize skinny or spotty blob2d's
-                before = blob2d.edgeToArray()
-                saturated = blob2d.create_saturated_array()
-                normal_before = normalize(before)
-                normal_saturated = normalize(saturated)
-
-                xx, yy = saturated.shape
-                print(' array dim xx,yy: ' + str(xx) + ',' + str(yy))
-
-                fig, axes = plt.subplots(2,2, figsize=(12,12))
-
-                for img_num, ax in enumerate(axes.flat):
-
-                    # ax.axis('image')
-                    ax.set_xticks([])
-                    ax.set_yticks([])
-                    if img_num == 0:
-                        ax.imshow(before, interpolation='nearest', cmap=plt.cm.jet)
-                    elif img_num == 1:
-                        ax.imshow(saturated, interpolation='nearest', cmap=plt.cm.jet)
-                    elif img_num == 2:
-                        ax.imshow(normal_before, interpolation='nearest', cmap=plt.cm.jet)
-                    elif img_num == 3:
-                        ax.imshow(normal_saturated, interpolation='nearest', cmap=plt.cm.jet)
-                    # for n, contour in enumerate(saturated):
-                    #     ax.plot(contour[:, 0], contour[0, :], linewidth=2)
-
-
-
-                        plt.show()
-            else:
-                print('Skipping, as blob2d had only: ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
-
-
-    # NOTE TODO! Before using the reversal technique to extract blobs from within edge pixels,
-
-
-
+    # for blob3d in blob3dlist:
+    #     plotBlob3d(blob3d)
+    #     for b2d_num, blob2d in enumerate(blob3d.blob2ds):
+    #         print('Start on blob2d: ' + str(b2d_num) + ' / ' + str(len(blob3d.blob2ds)) + ' which has ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
+    #         ############################################################
+    #         if len(blob2d.edge_pixels) > 350: # HACK FIXME, using edge to emphasize skinny or spotty blob2d's
+    #             before = blob2d.edgeToArray()
+    #             saturated = blob2d.create_saturated_array()
+    #             normal_before = normalize(before)
+    #             normal_saturated = normalize(saturated)
+    #             xx, yy = saturated.shape
+    #             print(' array dim xx,yy: ' + str(xx) + ',' + str(yy))
+    #             fig, axes = plt.subplots(2,2, figsize=(12,12))
+    #             for img_num, ax in enumerate(axes.flat):
+    #                 ax.set_xticks([])
+    #                 ax.set_yticks([])
+    #                 if img_num == 0:
+    #                     ax.imshow(before, interpolation='nearest', cmap=plt.cm.jet)
+    #                 elif img_num == 1:
+    #                     ax.imshow(saturated, interpolation='nearest', cmap=plt.cm.jet)
+    #                 elif img_num == 2:
+    #                     ax.imshow(normal_before, interpolation='nearest', cmap=plt.cm.jet)
+    #                 elif img_num == 3:
+    #                     ax.imshow(normal_saturated, interpolation='nearest', cmap=plt.cm.jet)
+    #                 plt.show()
+    #         else:
+    #             print('Skipping, as blob2d had only: ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
 
     # NOTE temp: in the original 20 swellshark scans, there are ~ 11K blobs, ~9K stitches
     # blob3dlist[2].blob2ds[0].saveImage('test2.jpg')
-
-    debug()
-
-    # plotBlod3ds(blob3dlist, color='blob')
-
-    # for blob3d_num, blob3 in enumerate(blob3dlist):
-    #     print('Blob3d num: ' + str(blob3d_num))
-    #     (arr, (offsetx, offsety)) = blob3.blob2ds[0].toArray()
-    #     region_map = filters.sobel(arr)
-    #     plt.matshow(region_map, cmap='jet')
-    #     plt.show()
-
-    # Note: Blob2ds to experiment with:
-    # (blob3d, blob2d)
-    # (2,0)
-
-
-    # (x,y) = blob3dlist[2].blob2ds[0].edgeToXY(offset=True)
-    # from scipy import stats
-    # slope, intercept, r_value, p_value, std_err = stats.linregress(y,x) # FIXME x,y => y,x
-    # print('Slope: ' + str(slope))
-    # print('Intercept: ' + str(intercept))
-    #
-    # (arr, (offsetx, offsety)) = blob3dlist[2].blob2ds[0].toArray()
-    # region_map = filters.sobel(arr)
-    # plt.matshow(region_map, cmap='jet')
-    # plt.show()
-
-    # (arr, (offx, offy)) = blob3dlist[2].blob2ds[0].toArray()
-    # from scipy import ndimage
-    # from skimage.feature import peak_local_max
-    # from skimage import morphology
-    # distance = ndimage.distance_transform_edt(arr)
-    # local_maxi = peak_local_max(distance, indices=False ,labels=arr )#, footprint=np.ones((3, 3)) )
-    # markers = morphology.label(local_maxi)
-    # labels = morphology.watershed(-distance, markers, mask=arr)
-    #
-    # fig, axes = plt.subplots(ncols=3, figsize=(8, 2.7))
-    # ax0, ax1, ax2 = axes
-    #
-    # ax0.imshow(arr, cmap=plt.cm.gray, interpolation='nearest')
-    # ax0.set_title('Overlapping objects')
-    # ax1.imshow(-distance, cmap=plt.cm.jet, interpolation='nearest')
-    # ax1.set_title('Distances')
-    # ax2.imshow(labels, cmap=plt.cm.jet, interpolation='nearest')
-    # ax2.set_title('Separated objects')
-    # for ax in axes:
-    #     ax.axis('off')
-    # fig.subplots_adjust(hspace=0.01, wspace=0.01, top=0.9, bottom=0, left=0,
-    #                     right=1)
-    # plt.show()
-    # debug()
-    #
-    #
-    # test = segmentation.find_boundaries(arr)
-    # plt.matshow(test, cmap='jet')
-    # plt.show()
-
 
 
 
@@ -1347,28 +1308,6 @@ def main():
 
     # Note: Without endcap mod (3 instead of 2), had 549 singular blobs, 900 non-singular
     # Note: Ignoring endcaps, and setting general threshold to 3 instead of 2, get 768 songular, and 681 non-singular
-    singular_count = 0
-    non_singular_count = 0
-
-    for blob3d in blob3dlist:
-        singular = True
-        for blob2d_num, blob2d in enumerate(blob3d.blob2ds):
-            if blob2d_num == 0 or blob2d_num == len(blob3d.blob2ds): # Endcap exceptions due to texture
-                if len(blob3d.stitches) > 99: # TODO why doesn't this have any effect? FIXME
-                    singular = False
-                    break
-            else:
-                if len(blob3d.stitches) > 3: # Note ideally if > 2
-                    singular = False
-                    break
-        blob3d.isSingular = singular
-        # Temp:
-        if singular:
-            singular_count += 1
-        else:
-            non_singular_count += 1
-    print('There are ' + str(singular_count) + ' singular 3d-blobs and ' + str(non_singular_count) + ' non-singular 3d-blobs')
-
 
     # plotBlod3ds(blob3dlist)
     plotBlod3ds(blob3dlist, color='singular')
