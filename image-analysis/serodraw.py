@@ -33,6 +33,7 @@ from numpy import zeros
 # from visvis.vvmovie.images2gif import writeGif
 # from Scripts.images2gif import writeGif
 from scipy.cluster.vq import vq, kmeans, whiten, kmeans2
+from sklearn.preprocessing import normalize
 
 import subprocess
 import readline
@@ -185,6 +186,49 @@ def plotBlob3d(blob3d, **kwargs):
     view.add(stitch_lines)
     vispy.app.run()
 
+# def plotSlide():
+#     '''
+#     Plots a single slide, with each blob2d shown as a different color
+#     :return:
+#     '''
+#
+
+
+def contrastSaturatedBlob2ds(blob2ds, minimal_edge_pixels=350):
+    '''
+    Used to view each blob2d with a threshold number of edge_pixels of a blob3d,
+    before and after saturating the outside, with and without normalization.
+    :param blob2ds: A list of blob2ds, normally from a single blob3d, which will be experimentally saturated and normalized.
+    :param minimal_edge_pixels:
+    :return:
+    '''
+    for b2d_num, blob2d in enumerate(blob2ds):
+        print('Start on blob2d: ' + str(b2d_num) + ' / ' + str(len(blob2ds)) + ' which has ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
+        if len(blob2d.edge_pixels) > minimal_edge_pixels: # HACK FIXME, using edge to emphasize skinny or spotty blob2d's
+            before = blob2d.edgeToArray()
+            saturated = blob2d.create_saturated_array()
+            normal_before = normalize(before)
+            normal_saturated = normalize(saturated)
+            xx, yy = saturated.shape
+            print(' array dim xx,yy: ' + str(xx) + ',' + str(yy))
+            fig, axes = plt.subplots(2,2, figsize=(12,12))
+            for img_num, ax in enumerate(axes.flat):
+                print('>>DB img_num:' + str(img_num))
+                ax.set_xticks([])
+                ax.set_yticks([])
+                if img_num == 0:
+                    ax.imshow(before, interpolation='nearest', cmap=plt.cm.jet)
+                elif img_num == 1:
+                    ax.imshow(saturated, interpolation='nearest', cmap=plt.cm.jet)
+                elif img_num == 2:
+                    ax.imshow(normal_before, interpolation='nearest', cmap=plt.cm.jet)
+                elif img_num == 3:
+                    ax.imshow(normal_saturated, interpolation='nearest', cmap=plt.cm.jet)
+            plt.show()
+        else:
+            print('Skipping, as blob2d had only: ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
+
+
 
 def plotBlod3ds(blob3dlist, **kwargs):
     global canvas
@@ -322,7 +366,7 @@ def plotBlod3ds(blob3dlist, **kwargs):
     vispy.app.run()
 
 
-def plotSlidesVC(slide_stack, stitchlist, **kwargs):
+def plotSlidesVC(slide_stack, stitchlist=[], **kwargs):
     '''
     For now, using V as a suffix to indicate that the plotting is being done via vispy, C for colored
     '''

@@ -17,7 +17,6 @@ import rlcompleter
 from munkres import Munkres
 import pickle # Note uses cPickle automatically ONLY IF python 3
 from scipy import misc as scipy_misc
-from sklearn.preprocessing import normalize
 
 def setglobaldims(x, y, z):
     def setserodims(x, y, z):
@@ -29,6 +28,7 @@ def setglobaldims(x, y, z):
         zdim = int(z)
     setserodims(x, y, z) # Need both calls, one to set the global vars in each file, otherwise they don't carry
     setseerodrawdims(x, y, z) # Even when using 'global'; one method needs to be in each file
+
 
 class Blob2d:
     '''
@@ -267,7 +267,6 @@ class Blob2d:
                             followstitches(blob, blob2dlist)
             else:
                  Blob2d.blobswithoutstitches += 1
-
             #     print('Skipping blob: ' + str(cursorblob) + ' because it has no stitching')
 
 
@@ -426,10 +425,9 @@ class Blob2d:
         saturated = self.edgeToArray()
         for x,y in zip(x_sat,y_sat):
             saturated[y][x] = hard_max_pixel_value
+        # At this stage, the entire array is reversed, so will invert the value (not an array inv)
+        saturated = abs(saturated - hard_max_pixel_value)
         return saturated
-
-
-
 
 
 class Stitches:
@@ -605,6 +603,7 @@ class Stitches:
         else:
             self.isConnected = False
 
+
 class Pixel:
     '''
     This class is being used to hold the coordinates, base info and derived info of a pixel of a single image\'s layer
@@ -697,7 +696,7 @@ class Slide:
             imagein = Image.open(filename)
             print('Starting on image: ' + filename)
             imarray = np.array(imagein)
-            (local_xdim, local_ydim, local_zdim) =  (im_xdim, im_ydim, im_zdim) = imarray.shape
+            (self.local_xdim, self.local_ydim, self.local_zdim) =  (im_xdim, im_ydim, im_zdim) = imarray.shape
             setglobaldims(im_xdim * slide_portion, im_ydim * slide_portion, im_zdim * slide_portion) # TODO FIXME
             print('The are ' + str(zdim) + ' channels')
             image_channels = imagein.split()
@@ -709,7 +708,7 @@ class Slide:
 
         else:
             slices = [matrix]
-            local_xdim, local_ydim = slices[0].shape
+            self.local_xdim, self.local_ydim = slices[0].shape
             self.id_num = Slide.sub_slides
             Slide.sub_slides += 1
             self.primary_slide = False
@@ -721,13 +720,13 @@ class Slide:
         pixels = []
         self.sum_pixels = 0
 
-        for curx in range(local_xdim):
-            for cury in range(local_ydim):
+        for curx in range(self.local_xdim):
+            for cury in range(self.local_ydim):
                 pixel_value = slices[0][curx][cury] # CHANGED back,  FIXME # reversed so that orientation is the same as the original when plotted with a reversed y.
                 if (pixel_value != 0):  # Can use alternate min threshold and <=
                     pixels.append(Pixel(pixel_value, curx, cury, self.id_num))
                     self.sum_pixels += pixel_value
-        print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(local_xdim * local_ydim) + ' pixels')
+        print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(self.local_xdim * self.local_ydim) + ' pixels')
         pixels.sort(key=lambda pix: pix.val, reverse=True)# Note that sorting is being done like so to sort based on value not position as is normal with pixels. Sorting is better as no new list
 
         # Lets go further and grab the maximal pixels, which are at the front
@@ -737,15 +736,15 @@ class Slide:
         print('There are ' + str(endmax) + ' maximal pixels')
 
         # Time to pre-process the maximal pixels; try and create groups/clusters
-        self.alive_pixels = filterSparsePixelsFromList(pixels[0:endmax], (local_xdim, local_ydim))
+        self.alive_pixels = filterSparsePixelsFromList(pixels[0:endmax], (self.local_xdim, self.local_ydim))
         self.alive_pixels.sort() # Sorted here so that in y,x order instead of value order
 
-        alive_pixel_array = zeros([local_xdim, local_ydim], dtype=object)
+        alive_pixel_array = zeros([self.local_xdim, self.local_ydim], dtype=object)
         for pixel in self.alive_pixels:
             alive_pixel_array[pixel.x][pixel.y] = pixel
 
 
-        (derived_ids, derived_count, num_ids_equiv) = self.firstPass(self.alive_pixels, (local_xdim, local_ydim))
+        (derived_ids, derived_count, num_ids_equiv) = self.firstPass(self.alive_pixels, (self.local_xdim, self.local_ydim))
         counter = collections.Counter(derived_ids)
         total_ids = len(counter.items())
         print('There were: ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(total_ids) + ' blobs')
@@ -807,17 +806,18 @@ class Slide:
         printElapsedTime(self.t0, self.tf)
         print('')
 
-    def getNextBlobId(self): # Starts at 0
+    def getNextBlobId(self):
+        # Starts at 0
         self.id_num += 1
         return self.id_num - 1 # this -1 is so that id's start at zero
 
     def totalBlobs(self):
         ''' Allows access to class vars without class declaration'''
         return Blob2d.total_blobs
+
     def totalSlides(self):
         ''' Allows access to class vars without class declaration'''
         return Slide.total_slides
-
 
     def firstPass(self, pixel_list, local_dim_tuple):
 
@@ -936,6 +936,7 @@ class Slide:
         # TODO: See if we can reverse the adjusting of the actual pixel ids until after the equivalent labels are cleaned up, to reflect the merged labels
 
         return (derived_ids, derived_count, removed_id_count)
+
 
 class Blob3d:
     '''
@@ -1268,12 +1269,25 @@ def main():
         blob3dlist = unPickle(picklefile)
 
 
+
+    # #NOTE Blob3dlist[3].blob2ds[6] should be divided into subblobs
+    # NOTE [3][1] is also good
+    # for blob_num, blob3d in enumerate(blob3dlist):
+    #     print('Working on blob3d: ' + str(blob_num))
+    #     contrastSaturatedBlob2ds(blob3d.blob2ds, minimal_edge_pixels=50)
+    # contrastSaturatedBlob2ds(blob3dlist[3].blob2ds, minimal_edge_pixels=5)
+
+    print('Displaying the blob3d that will be tested')
+    plotBlob3d(blob3dlist[3])
+    print("Now making test slide..")
+    test_slide = Slide(matrix=blob3dlist[3].blob2ds[1].create_saturated_array())
+    contrastSaturatedBlob2ds(test_slide.blob2dlist, minimal_edge_pixels=5)
+    plotSlidesVC([test_slide], [], color='blobs')
     anim_orders = [
     ('y+', 90+360, 60+360),
     ('x+', 360, 90+360) ]
-    tagBlobsSingular(blob3dlist) # TODO this should be incorporated into
-    print("Now making test slide..")
-    test_slide = Slide(matrix=blob3dlist[0].blob2ds[0].create_saturated_array())
+    tagBlobsSingular(blob3dlist) # TODO this should be incorporated into blob3d
+
 
     # plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
     # NOTE: Interesting blob3ds:
@@ -1281,31 +1295,6 @@ def main():
 
     # for blob3d in blob3dlist:
     #     plotBlob3d(blob3d)
-    #     for b2d_num, blob2d in enumerate(blob3d.blob2ds):
-    #         print('Start on blob2d: ' + str(b2d_num) + ' / ' + str(len(blob3d.blob2ds)) + ' which has ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
-    #         ############################################################
-    #         if len(blob2d.edge_pixels) > 350: # HACK FIXME, using edge to emphasize skinny or spotty blob2d's
-    #             before = blob2d.edgeToArray()
-    #             saturated = blob2d.create_saturated_array()
-    #             normal_before = normalize(before)
-    #             normal_saturated = normalize(saturated)
-    #             xx, yy = saturated.shape
-    #             print(' array dim xx,yy: ' + str(xx) + ',' + str(yy))
-    #             fig, axes = plt.subplots(2,2, figsize=(12,12))
-    #             for img_num, ax in enumerate(axes.flat):
-    #                 ax.set_xticks([])
-    #                 ax.set_yticks([])
-    #                 if img_num == 0:
-    #                     ax.imshow(before, interpolation='nearest', cmap=plt.cm.jet)
-    #                 elif img_num == 1:
-    #                     ax.imshow(saturated, interpolation='nearest', cmap=plt.cm.jet)
-    #                 elif img_num == 2:
-    #                     ax.imshow(normal_before, interpolation='nearest', cmap=plt.cm.jet)
-    #                 elif img_num == 3:
-    #                     ax.imshow(normal_saturated, interpolation='nearest', cmap=plt.cm.jet)
-    #                 plt.show()
-    #         else:
-    #             print('Skipping, as blob2d had only: ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
 
     # NOTE temp: in the original 20 swellshark scans, there are ~ 11K blobs, ~9K stitches
     # blob3dlist[2].blob2ds[0].saveImage('test2.jpg')
