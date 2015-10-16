@@ -661,10 +661,12 @@ class Pixel:
         neighbors = []
         xpos = self.x
         ypos = self.y
+        local_xdim, local_ydim = master_array.shape
+
         for horizontal_offset in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
             for vertical_offset in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
                 if (vertical_offset != 0 or horizontal_offset != 0):  # Don't measure the current pixel
-                    if (xpos + horizontal_offset < xdim and xpos + horizontal_offset >= 0 and ypos + vertical_offset < ydim and ypos + vertical_offset >= 0):  # Boundary check.
+                    if (xpos + horizontal_offset < local_xdim and xpos + horizontal_offset >= 0 and ypos + vertical_offset < local_ydim and ypos + vertical_offset >= 0):  # Boundary check.
                         neighbors.append(master_array[xpos + horizontal_offset][ypos + vertical_offset])
         return neighbors
 
@@ -675,45 +677,50 @@ class Slide:
     '''
 
     total_slides = 0
+    sub_slides = 0
 
     def __init__(self, filename=None, matrix=None):
         # Note: Must include either filename or matrix
         # When given a matrix instead of a filename of an image, the assumption is that
-        # We are computing over blob2ds from within a blob3d
+        # We are computing over blob2ds from within a blob3d,ie experimenting with a subslide
         assert not (matrix is None and filename is None)
-
-        if matrix == None:
+        slices = []
+        self.t0 = time.time()
+        if matrix is None:
             self.id_num = Slide.total_slides
             Slide.total_slides += 1
-            self.t0 = time.time()
+
             self.filename = filename
+            self.primary_slide = True
 
 
             imagein = Image.open(filename)
             print('Starting on image: ' + filename)
             imarray = np.array(imagein)
-            (im_xdim, im_ydim, im_zdim) = imarray.shape
+            (local_xdim, local_ydim, local_zdim) =  (im_xdim, im_ydim, im_zdim) = imarray.shape
             setglobaldims(im_xdim * slide_portion, im_ydim * slide_portion, im_zdim * slide_portion) # TODO FIXME
             print('The are ' + str(zdim) + ' channels')
             image_channels = imagein.split()
-
+            for s in range(len(image_channels)):  # Better to split image and use splits for arrays than to split an array
+                buf = np.array(image_channels[s])
+                slices.append(buf)
+                if np.amax(slices[s]) == 0:
+                    print('Channel #' + str(s) + ' is empty')
 
         else:
-            imarray = matrix
-            local_xdim, local_ydim = imarray.shape
-            # TODO set up a local_x_dim
+            slices = [matrix]
+            local_xdim, local_ydim = slices[0].shape
+            self.id_num = Slide.sub_slides
+            Slide.sub_slides += 1
+            self.primary_slide = False
 
 
         self.equivalency_set = set() # Used to keep track of touching blobs, which can then be merged. # NOTE, moving from blob2d
 
-        slices = []
+
         pixels = []
         self.sum_pixels = 0
-        for s in range(len(image_channels)):  # Better to split image and use splits for arrays than to split an array
-            buf = np.array(image_channels[s])
-            slices.append(buf)
-            if np.amax(slices[s]) == 0:
-                print('Channel #' + str(s) + ' is empty')
+
         for curx in range(local_xdim):
             for cury in range(local_ydim):
                 pixel_value = slices[0][curx][cury] # CHANGED back,  FIXME # reversed so that orientation is the same as the original when plotted with a reversed y.
@@ -730,7 +737,7 @@ class Slide:
         print('There are ' + str(endmax) + ' maximal pixels')
 
         # Time to pre-process the maximal pixels; try and create groups/clusters
-        self.alive_pixels = filterSparsePixelsFromList(pixels[0:endmax])
+        self.alive_pixels = filterSparsePixelsFromList(pixels[0:endmax], (local_xdim, local_ydim))
         self.alive_pixels.sort() # Sorted here so that in y,x order instead of value order
 
         alive_pixel_array = zeros([local_xdim, local_ydim], dtype=object)
@@ -738,7 +745,7 @@ class Slide:
             alive_pixel_array[pixel.x][pixel.y] = pixel
 
 
-        (derived_ids, derived_count, num_ids_equiv) = self.firstPass(self.alive_pixels)
+        (derived_ids, derived_count, num_ids_equiv) = self.firstPass(self.alive_pixels, (local_xdim, local_ydim))
         counter = collections.Counter(derived_ids)
         total_ids = len(counter.items())
         print('There were: ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(total_ids) + ' blobs')
@@ -793,7 +800,9 @@ class Slide:
         for (blobnum, blobslist) in enumerate(self.blob2dlist):
             edge_lists.append(self.blob2dlist[blobnum].edge_pixels)
             self.edge_pixels.extend(self.blob2dlist[blobnum].edge_pixels)
-        Blob2d.total_blobs += len(self.blob2dlist)
+        if matrix is not None:
+            Blob2d.total_blobs += len(self.blob2dlist)
+
         self.tf = time.time()
         printElapsedTime(self.t0, self.tf)
         print('')
@@ -810,7 +819,7 @@ class Slide:
         return Slide.total_slides
 
 
-    def firstPass(self, pixel_list):
+    def firstPass(self, pixel_list, local_dim_tuple):
 
         # NOTE Vertical increases downwards, horizontal increases to the right. (Origin top left)
         # Order of neighboring pixels visitation:
@@ -827,6 +836,7 @@ class Slide:
         # 5 = (-1, 1)
         # 1 = (0, -1
 
+        local_xdim, local_ydim = local_dim_tuple
 
         vertical_offsets  = [-1, -1, -1, 0]#[1, 0, -1, -1]#,  0,   1, -1] #, 1, -1, 0, 1]
         horizontal_offsets = [-1, 0, 1, -1]#[-1, -1, -1, 0]#, 1, 1,  0] #, 0, 1, 1, 1]
@@ -839,7 +849,7 @@ class Slide:
 
         equivalent_labels = []
 
-        pixel_array = np.zeros([xdim, ydim], dtype=object) # Can use zeros instead of empty; moderately slower, but better to have non-empty entries incase of issues
+        pixel_array = np.zeros([local_xdim, local_ydim], dtype=object) # Can use zeros instead of empty; moderately slower, but better to have non-empty entries incase of issues
         for pixel in pixel_list:
             pixel_array[pixel.x][pixel.y] = pixel # Pointer :) Modifications to the pixels in the list affect the array
         for pixel in pixel_list: # Need second iteration so that all of the pixels of the array have been set
@@ -847,7 +857,7 @@ class Slide:
                 xpos = pixel.x
                 ypos = pixel.y
                 for (horizontal_offset, vertical_offset) in zip(horizontal_offsets, vertical_offsets):
-                    if (ypos + vertical_offset < ydim and ypos + vertical_offset >= 0 and xpos + horizontal_offset < xdim and xpos + horizontal_offset >= 0):  # Boundary check.
+                    if (ypos + vertical_offset < local_ydim and ypos + vertical_offset >= 0 and xpos + horizontal_offset < local_xdim and xpos + horizontal_offset >= 0):  # Boundary check.
                         neighbor = pixel_array[xpos + horizontal_offset][ypos + vertical_offset]
                         if (neighbor != 0):
                             difference = abs(float(pixel.val) - float(neighbor.val)) # Note: Need to convert to floats, otherwise there's an overflow error due to the value range being int8 (0-255)
@@ -966,8 +976,9 @@ class Blob3d:
 
 
 
-def filterSparsePixelsFromList(listin):
-    max_float_array = zeros([xdim, ydim])
+def filterSparsePixelsFromList(listin, local_dim_tuple):
+    local_xdim, local_ydim = local_dim_tuple
+    max_float_array = zeros([local_xdim, local_ydim])
     for pixel in listin:
         max_float_array[pixel.x][pixel.y] = pixel.val  # Note Remember that these are pointers!
     filtered_pixels = []
@@ -982,7 +993,7 @@ def filterSparsePixelsFromList(listin):
         for horizontal_offset in range(-1, 2, 1):  # NOTE CURRENTLY 1x1 # TODO rteplace with getneighbors
             for vertical_offset in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
                 if (vertical_offset != 0 or horizontal_offset != 0):  # Don't measure the current pixel
-                    if (xpos + horizontal_offset < xdim and xpos + horizontal_offset >= 0 and ypos + vertical_offset < ydim and ypos + vertical_offset >= 0):  # Boundary check.
+                    if (xpos + horizontal_offset < local_xdim and xpos + horizontal_offset >= 0 and ypos + vertical_offset < local_ydim and ypos + vertical_offset >= 0):  # Boundary check.
                         neighbors_checked += 1
                         cur_neighbor_val = max_float_array[xpos + horizontal_offset][ypos + vertical_offset]
                         if (cur_neighbor_val > 0):
@@ -1261,7 +1272,8 @@ def main():
     ('y+', 90+360, 60+360),
     ('x+', 360, 90+360) ]
     tagBlobsSingular(blob3dlist) # TODO this should be incorporated into
-
+    print("Now making test slide..")
+    test_slide = Slide(matrix=blob3dlist[0].blob2ds[0].create_saturated_array())
 
     # plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
     # NOTE: Interesting blob3ds:

@@ -259,7 +259,6 @@ def plotBlod3ds(blob3dlist, **kwargs):
         multi_markers.set_data(multi_edge_array, edge_color=None, face_color='red', size=8)
         view.add(singular_markers)
         view.add(multi_markers)
-        print('DB WOO')
 
 
     else: # All colored the same
