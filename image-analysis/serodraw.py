@@ -206,7 +206,7 @@ def contrastSaturatedBlob2ds(blob2ds, minimal_edge_pixels=350):
         print('Start on blob2d: ' + str(b2d_num) + ' / ' + str(len(blob2ds)) + ' which has ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
         if len(blob2d.edge_pixels) > minimal_edge_pixels: # HACK FIXME, using edge to emphasize skinny or spotty blob2d's
             before = blob2d.edgeToArray()
-            saturated = blob2d.create_saturated_array()
+            saturated = blob2d.gen_saturated_array()
             normal_before = normalize(before)
             normal_saturated = normalize(saturated)
             xx, yy = saturated.shape

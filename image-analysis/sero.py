@@ -411,7 +411,7 @@ class Blob2d:
         print('Saving Image of Blob2d as: ' + str(savename))
         img.save(savename)
 
-    def create_saturated_array(self):
+    def gen_saturated_array(self):
         body_arr = self.bodyToArray()
         height, width = body_arr.shape
         x_sat = [] # X coordinates of pixels to saturate from the array
@@ -688,11 +688,8 @@ class Slide:
         if matrix is None:
             self.id_num = Slide.total_slides
             Slide.total_slides += 1
-
             self.filename = filename
             self.primary_slide = True
-
-
             imagein = Image.open(filename)
             print('Starting on image: ' + filename)
             imarray = np.array(imagein)
@@ -705,7 +702,6 @@ class Slide:
                 slices.append(buf)
                 if np.amax(slices[s]) == 0:
                     print('Channel #' + str(s) + ' is empty')
-
         else:
             slices = [matrix]
             self.local_xdim, self.local_ydim = slices[0].shape
@@ -713,13 +709,9 @@ class Slide:
             Slide.sub_slides += 1
             self.primary_slide = False
 
-
         self.equivalency_set = set() # Used to keep track of touching blobs, which can then be merged. # NOTE, moving from blob2d
-
-
         pixels = []
         self.sum_pixels = 0
-
         for curx in range(self.local_xdim):
             for cury in range(self.local_ydim):
                 pixel_value = slices[0][curx][cury] # CHANGED back,  FIXME # reversed so that orientation is the same as the original when plotted with a reversed y.
@@ -734,16 +726,12 @@ class Slide:
         while (endmax < len(pixels) and pixels[endmax].val >= min_val_threshold ):
             endmax += 1
         print('There are ' + str(endmax) + ' maximal pixels')
-
         # Time to pre-process the maximal pixels; try and create groups/clusters
         self.alive_pixels = filterSparsePixelsFromList(pixels[0:endmax], (self.local_xdim, self.local_ydim))
         self.alive_pixels.sort() # Sorted here so that in y,x order instead of value order
-
         alive_pixel_array = zeros([self.local_xdim, self.local_ydim], dtype=object)
         for pixel in self.alive_pixels:
             alive_pixel_array[pixel.x][pixel.y] = pixel
-
-
         (derived_ids, derived_count, num_ids_equiv) = self.firstPass(self.alive_pixels, (self.local_xdim, self.local_ydim))
         counter = collections.Counter(derived_ids)
         total_ids = len(counter.items())
@@ -1127,7 +1115,7 @@ def stitchAllBlobs(slidelist):
     stitchlist = []
     print('Beginning to stitch together blobs')
     for slide_num, slide in enumerate(slidelist):
-        print('Starting slide #' + str(slide_num) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds')
+        print('Starting slide #' + str(slide_num) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds', end='')
         for blob1 in slide.blob2dlist:
             if len(blob1.possible_partners) > 0:
                 print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
@@ -1262,7 +1250,7 @@ def main():
         blob3dlist = []
         for blob2dlist in list3ds:
             blob3dlist.append(Blob3d(blob2dlist))
-
+        tagBlobsSingular(blob3dlist) # TODO improve the simple classification
         doPickle(blob3dlist, picklefile)
 
     else:
@@ -1277,16 +1265,38 @@ def main():
     #     contrastSaturatedBlob2ds(blob3d.blob2ds, minimal_edge_pixels=50)
     # contrastSaturatedBlob2ds(blob3dlist[3].blob2ds, minimal_edge_pixels=5)
 
-    print('Displaying the blob3d that will be tested')
-    plotBlob3d(blob3dlist[3])
-    print("Now making test slide..")
-    test_slide = Slide(matrix=blob3dlist[3].blob2ds[1].create_saturated_array())
-    contrastSaturatedBlob2ds(test_slide.blob2dlist, minimal_edge_pixels=5)
-    plotSlidesVC([test_slide], [], color='blobs')
+    # print('Displaying the blob3d that will be tested')
+    # plotBlob3d(blob3dlist[3])
+    # print("Now making test slide..")
+    # test_slide = Slide(matrix=blob3dlist[3].blob2ds[1].gen_saturated_array())
+    # contrastSaturatedBlob2ds(test_slide.blob2dlist, minimal_edge_pixels=5)
+    # plotSlidesVC([test_slide], [], color='blobs')
+
+    test_slides = []
+    for blob2d in blob3dlist[3].blob2ds:
+        test_slides.append(Slide(matrix=blob2d.gen_saturated_array()))
+    setAllPossiblePartners(test_slides)
+    setAllShapeContexts(test_slides)
+    test_stitches = stitchAllBlobs(test_slides)
+
+    list3ds = []
+    for slide_num, slide in enumerate(test_slides):
+        for blob in slide.blob2dlist:
+            buf = blob.getconnectedblob2ds()
+            if len(buf) != 0:
+                list3ds.append(buf)
+    test_b3ds = []
+    for blob2dlist in list3ds:
+        test_b3ds.append(Blob3d(blob2dlist))
+    print('Plotting all blob3ds that are re-stitched')
+    for blob3d in list3ds:
+        plotBlob3d(blob3d)
+
+    # TODO Need to record offsets and originating slide numbers, so that blob2ds can be correctly projected
+
     anim_orders = [
     ('y+', 90+360, 60+360),
     ('x+', 360, 90+360) ]
-    tagBlobsSingular(blob3dlist) # TODO this should be incorporated into blob3d
 
 
     # plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
@@ -1299,9 +1309,6 @@ def main():
     # NOTE temp: in the original 20 swellshark scans, there are ~ 11K blobs, ~9K stitches
     # blob3dlist[2].blob2ds[0].saveImage('test2.jpg')
 
-
-
-
     # Note, current plan is to find all blob3d's that exists with singular stitches between each 2d blob
     # These blobs should be 'known' to be singular blobs.
     # An additional heuristic may be necessary, potentially using the cost from Munkres()
@@ -1311,28 +1318,9 @@ def main():
     # Note: Ignoring endcaps, and setting general threshold to 3 instead of 2, get 768 songular, and 681 non-singular
 
     # plotBlod3ds(blob3dlist)
-    plotBlod3ds(blob3dlist, color='singular')
-
-
-    #TODO TODO TODO idea:
-    # Find 'negative' blobs inside of each set of edge pixels of each blob2d
-    # Use a similar technique as above(maybe even the same?)
-    # Making sure to remove really small seeds/ones that result in less than n pixels (n=4 or so?)
-
-
-
+    # plotBlod3ds(blob3dlist, color='singular')
+    plotBlod3ds(test_b3ds, color='singular')
     debug()
-
-
-
-    # Note took 10 mins 19 seconds for [:3] with ::2 opt
-
-'''
-    TODO: https://books.google.com/books?id=ROHaCQAAQBAJ&pg=PA287&lpg=PA287&dq=python+group+neighborhoods&source=bl&ots=f7Vuu9CQdg&sig=l6ASHdi27nvqbkyO_VvztpO9bRI&hl=en&sa=X&ei=4COgVbGFD8H1-QGTl7aABQ&ved=0CCUQ6AEwAQ#v=onepage&q=python%20group%20neighborhoods&f=false
-        Info on neighborhoods
-'''
-
-
 
 if __name__ == '__main__':
     main()  # Run the main function
