@@ -932,11 +932,12 @@ class Blob3d:
     '''
     total_blobs = 0
 
-    def __init__(self, blob2dlist):
+    def __init__(self, blob2dlist, subblob=False):
         self.id = Blob3d.total_blobs
         Blob3d.total_blobs += 1
         self.blob2ds = blob2dlist          # List of the blob 2ds used to create this blob3d
         # Now find my stitches
+        self.subblob = subblob
         self.stitches = []
         self.edge_pixels = []
         self.pixels = []
@@ -1290,7 +1291,8 @@ def main():
         test_b3ds.append(Blob3d(blob2dlist))
     print('Plotting all blob3ds that are re-stitched')
     for blob3d in list3ds:
-        plotBlob3d(blob3d)
+
+        plotBlob3d(blob3d, subblob=True)
 
     # TODO Need to record offsets and originating slide numbers, so that blob2ds can be correctly projected
 
