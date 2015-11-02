@@ -17,6 +17,7 @@ import rlcompleter
 from munkres import Munkres
 import pickle # Note uses cPickle automatically ONLY IF python 3
 from scipy import misc as scipy_misc
+import threading
 
 def setglobaldims(x, y, z):
     def setserodims(x, y, z):
@@ -34,66 +35,43 @@ class Blob2d:
     '''
     This class contains a list of pixels, which comprise a 2d blob on a single image
     '''
-
     # equivalency_set = set() # Used to keep track of touching blobs, which can then be merged.
     total_blobs = 0 # Note that this is set AFTER merging is done, and so is not modified by blobs
     blobswithoutstitches = 0
 
     def __init__(self, idnum, list_of_pixels, master_array, slide):
         self.id = idnum
-        # TODO may want to sort list here...
         self.pixels = list_of_pixels
         self.num_pixels = len(list_of_pixels)
-        sum_vals = 0
         self.assignedto3d = False # Set to true once a blod2d has been added to a list that will be used to construct a blob3d
-        self.avgx = 0
-        self.avgy = 0
+
         self.sum_vals = 0
         self.master_array = master_array
         self.slide = slide
         self.possible_partners = [] # A list of blobs which MAY be part of the same blob3d as this blob2d
         self.partner_costs = [] # The minimal cost for the corresponding blob2d in possible_partners
         self.partner_indeces = [] # A list of indeces (row, column) for each
-
         self.partner_subpixels = [] # Each element is a list of pixels, corresponding to a subset of the edge pixels from the partner blob
                                     # The value of each element in the sublist for each partner is the index of the pixel from the corresponding partner
         self.my_subpixels = []      # Set of own subpixels, with each list corresponding to a list from partner_subpixels
         self.stitches = [] # A list of stitches that this blob belongs to
-        # TODO make sure the list is sorted
-        self.minx = list_of_pixels[0].x
-        self.miny = list_of_pixels[0].y
-        self.maxx = self.minx
-        self.maxy = self.miny
-        min_nzn_pixel = list_of_pixels[0]
-        for pixel in list_of_pixels:
-            self.sum_vals += pixel.val
-            self.avgx += pixel.x
-            self.avgy += pixel.y
-            if pixel.x < self.minx:
-                self.minx = pixel.x
-            if pixel.y <= self.miny:
-                self.miny = pixel.y
-            if pixel.x > self.maxx:
-                self.maxx = pixel.x
-            if pixel.y > self.maxy:
-                self.maxy = pixel.y
-            if pixel.nz_neighbors < min_nzn_pixel.nz_neighbors:
-                self.min_nzn_pixel = pixel
+
+        self.minx = min(pixel.x for pixel in self.pixels)
+        self.maxx = max(pixel.x for pixel in self.pixels)
+        self.miny = min(pixel.y for pixel in self.pixels)
+        self.maxy = max(pixel.y for pixel in self.pixels)
+        self.avgx = sum(pixel.x for pixel in self.pixels) / len(self.pixels)
+        self.avgy = sum(pixel.y for pixel in self.pixels) / len(self.pixels)
+        self.min_nzn_pixel = min(pixel.nz_neighbors for pixel in self.pixels)
+
         # Note for now, will use the highest non-zero-neighbor count pixel
-        self.avgx /= self.num_pixels
-        self.avgy /= self.num_pixels
         self.setEdge()
         self.setTouchingBlobs()
-        self.center = (self.avgx, self.avgy) # TODO
         self.max_width = self.maxx-self.minx + 1 # Note +1 to include both endcaps
-        # self.min_width = -1 # TODO
         self.max_height = self.maxy-self.miny + 1 # Note +1 to include both endcaps
-        # self.min_height = -1 # TODO
-        self.edge_radius = 0
-        for pixel in self.edge_pixels:
-            self.edge_radius += math.sqrt(math.pow(pixel.x - self.avgx, 2) + math.pow(pixel.y - self.avgy, 2))
+        # self.edge_radius = sum(math.sqrt(math.pow(pixel.x - self.avgx, 2) + math.pow(pixel.y - self.avgy, 2))
+        #                        for pixel in self.pixels)
 
-         # TODO, derive from the edge pixels, using center from all pixels in blob
 
     def setEdge(self):
         self.edge_pixels = [pixel for pixel in self.pixels if pixel.nz_neighbors < 8]
@@ -177,10 +155,10 @@ class Blob2d:
                     up_bound = midy + ((self.maxy - self.avgy) * overscan_coefficient)
                 partner_subpixel_indeces = []
                 my_subpixel_indeces = []
-                for p_num, pixel in enumerate(blob.edge_pixels): # TODO TODO TODO IMPORTANT, need two way setup, for blob and self. FIXME
+                for p_num, pixel in enumerate(blob.edge_pixels):
                     if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
                         partner_subpixel_indeces.append(p_num)
-                for p_num, pixel in enumerate(self.edge_pixels): # TODO TODO TODO IMPORTANT, need two way setup, for blob and self. FIXME
+                for p_num, pixel in enumerate(self.edge_pixels):
                     if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
                         my_subpixel_indeces.append(p_num)
                 self.partner_subpixels.append(partner_subpixel_indeces)
@@ -223,7 +201,7 @@ class Blob2d:
 
 
     def __str__(self):
-        return str('B{id:' + str(self.id) + ', #P:' + str(self.num_pixels)) + ', #EP:' + str(len(self.edge_pixels)) + '}'
+        return str('B{id:' + str(self.id) + ', #P:' + str(self.num_pixels)) + ', #EP:' + str(len(self.edge_pixels)) + ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) +')}'
 
     __repr__ = __str__
 
@@ -310,7 +288,6 @@ class Blob2d:
             else:
                 if debug_set_merge:
                     print(' Merging, newlist-pre:' + str(newlist))
-                if debug_set_merge:
                     print(' Merging, copylist-pre:' + str(copylist))
                 index = 0
                 while index < len(copylist):
@@ -325,7 +302,6 @@ class Blob2d:
                 newlist.append(Blob2d(blob1.id, blob1.pixels + newpixels, blob1.master_array, blob1.slide))
                 if debug_set_merge:
                     print(' Merging, newlist-post:' + str(newlist))
-                if debug_set_merge:
                     print(' Merging, copylist-post:' + str(copylist))
         if debug_set_merge:
             print('Merge result' + str(newlist))
@@ -412,18 +388,17 @@ class Blob2d:
         img.save(savename)
 
     def gen_saturated_array(self):
+        '''
+        :return: Tuple(Array with all pixels outside of this blob2d's edge_pixels saturated, xoffset, yoffset)
+        '''
         body_arr = self.bodyToArray()
         height, width = body_arr.shape
-        x_sat = [] # X coordinates of pixels to saturate from the array
-        y_sat = []
-        for y in range(height):
-            for x in range(width):
-                if body_arr[y][x] == 0:
-                    x_sat.append(x)
-                    y_sat.append(y)
+
+        xy_sat = [(x, y) for x in range(width) for y in range(height)
+                  if body_arr[y][x] == 0] # HACK TODO
         # Note: DEBUG working to here, now use these found x,y coordinates to fill in an edgearray
         saturated = self.edgeToArray()
-        for x,y in zip(x_sat,y_sat):
+        for x,y in xy_sat:
             saturated[y][x] = hard_max_pixel_value
         # At this stage, the entire array is reversed, so will invert the value (not an array inv)
         saturated = abs(saturated - hard_max_pixel_value)
@@ -539,9 +514,6 @@ class Stitches:
         makeCostArray()
         munk = Munkres()
         self.indeces = munk.compute(np.copy(self.cost_array))
-
-
-
         self.cost = 0
         for row, col in self.indeces:
             self.cost += self.cost_array[row][col]
@@ -685,8 +657,8 @@ class Slide:
         assert not (matrix is None and filename is None)
         slices = []
         self.t0 = time.time()
-        if matrix is None:
-            self.id_num = Slide.total_slides
+        if matrix is None: # Only done if this is a primary slide
+            self.id_num = self.height = Slide.total_slides
             Slide.total_slides += 1
             self.filename = filename
             self.primary_slide = True
@@ -704,7 +676,7 @@ class Slide:
                     print('Channel #' + str(s) + ' is empty')
         else:
             slices = [matrix]
-            self.local_xdim, self.local_ydim = slices[0].shape
+            self.local_xdim, self.local_ydim = matrix.shape
             self.id_num = Slide.sub_slides
             Slide.sub_slides += 1
             self.primary_slide = False
@@ -925,10 +897,30 @@ class Slide:
 
         return (derived_ids, derived_count, removed_id_count)
 
+class SubSlide(Slide):
+    '''
+    A slide that is created from a portion of a blob3d (one of its blob2ds)
+    '''
+
+    def __init__(self, sourceBlob2d, sourceBlob3d):
+        super().__init__(matrix=sourceBlob2d.gen_saturated_array())
+
+        assert(isinstance(sourceBlob2d, Blob2d))
+        self.parentB3d = sourceBlob3d
+        self.parentB2d = sourceBlob2d
+        self.offsetx = sourceBlob2d.minx
+        self.offsety = sourceBlob2d.miny
+        self.height = sourceBlob2d.slide.id_num
+        for pixel in self.alive_pixels:
+            pixel.x += self.offsetx
+            pixel.y += self.offsety
+
+
 
 class Blob3d:
     '''
     A group of blob2ds that chain together with stitches into a 3d shape
+    Setting subblob=True indicates that this is a blob created from a pre-existing blob3d.
     '''
     total_blobs = 0
 
@@ -939,31 +931,58 @@ class Blob3d:
         # Now find my stitches
         self.subblob = subblob
         self.stitches = []
-        self.edge_pixels = []
-        self.pixels = []
-        self.lowslide = self.blob2ds[0].slide.id_num
-        self.highslide = self.blob2ds[0].slide.id_num
-        self.minx = self.blob2ds[0].minx
-        self.miny = self.blob2ds[0].miny
-        self.maxx = self.blob2ds[0].maxx
-        self.maxy = self.blob2ds[0].maxy
+        # self.edge_pixels = []
+        # self.pixels = []
+        # self.lowslide = self.blob2ds[0].slide.id_num
+        # self.highslide = self.blob2ds[0].slide.id_num
+        self.lowslide = min(blob.slide.id_num for blob in self.blob2ds)
+        self.highslide = max(blob.slide.id_num for blob in self.blob2ds)
+        self.edge_pixels = list(blob.edge_pixels for blob in self.blob2ds)
+        self.pixels = list(blob.pixel for blob in self.blob2ds)
 
         for blob in self.blob2ds:
-            self.edge_pixels += blob.edge_pixels
-            self.pixels += blob.pixels
-            if blob.slide.id_num < self.lowslide:
-                self.lowslide = blob.slide.id_num
-            if blob.slide.id_num > self.highslide:
-                self.highslide = blob.slide.id_num
-            self.minx = min(blob.minx, self.minx)
-            self.miny = min(blob.miny, self.miny)
-            self.maxx = max(blob.maxx, self.maxx)
-            self.maxy = max(blob.maxy, self.maxy)
-
+            # self.edge_pixels += blob.edge_pixels
+            # self.pixels += blob.pixels
+            # if blob.slide.id_num < self.lowslide:
+            #     self.lowslide = blob.slide.id_num
+            # if blob.slide.id_num > self.highslide:
+            #     self.highslide = blob.slide.id_num
             for stitch in blob.stitches:
-                if stitch not in self.stitches:
+                if stitch not in self.stitches: # TODO set will be faster
                     self.stitches.append(stitch)
+        self.maxx = max(blob.maxx for blob in self.blob2ds)
+        self.maxy = max(blob.maxy for blob in self.blob2ds)
+        self.miny = min(blob.miny for blob in self.blob2ds)
+        self.minx = min(blob.minx for blob in self.blob2ds)
 
+
+    def __str__(self):
+        if self.subblob is True:
+            sb = 'sub'
+        else:
+            sb = ''
+        return str('B3D(' + str(sb) + '): lowslide=' + str(self.lowslide) + ' highslide=' + str(self.highslide) + ' #edgepixels=' + str(len(self.edge_pixels)) + ' #pixels=' + str(len(self.pixels)) + ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) +')')
+
+class SubBlob3d(Blob3d):
+    '''
+
+    '''
+    def __init(self, blob2dlist, parentB3d):
+        super().__init__(self, blob2dlist, True)
+        self.parent = parentB3d
+        # These subblobs need to have offsets, so that they can be correctly placed within their corresponding b3ds when plotting
+        # NOTE minx,miny,maxx,maxy are all set in Blob3d.__init__
+        self.offsetx = self.minx
+        self.offsety = self.miny
+        self.width = self.maxx - self.minx
+        self.height = self.maxy - self.miny
+
+
+        #
+        # print('DB creating a new subblob3d')
+        # for blob_num, b2d in enumerate(blob2dlist):
+        #     print('  B2d: ' + str(blob_num) + ' / ' + str(len(blob2dlist)) + ' = ' + str(b2d))
+        #     print("  Minx:" + str(b2d.minx) + ' Maxx:' + str(b2d.maxx) + ' Miny:' + str(b2d.miny) + ' Maxy:' + str(b2d.maxy))
 
 
 def filterSparsePixelsFromList(listin, local_dim_tuple):
@@ -1080,7 +1099,7 @@ def doPickle(blob3dlist, filename):
     try:
         pickle.dump(pickledict, open(filename, "wb"))
     except RuntimeError:
-        print('If recursion depth has been exceeded, you may increase the maximal depth with: sys.setrecursionlimit(<newdepth>)')
+        print('\nIf recursion depth has been exceeded, you may increase the maximal depth with: sys.setrecursionlimit(<newdepth>)')
         print('The current max recursion depth is: ' + str(sys.getrecursionlimit()))
         print('Opening up an interactive console, press \'n\' then \'enter\' to load variables before interacting, and enter \'exit\' to resume execution')
         debug()
@@ -1259,70 +1278,78 @@ def main():
 
 
 
-    # #NOTE Blob3dlist[3].blob2ds[6] should be divided into subblobs
+    # NOTE Blob3dlist[3].blob2ds[6] should be divided into subblobs
     # NOTE [3][1] is also good
-    # for blob_num, blob3d in enumerate(blob3dlist):
-    #     print('Working on blob3d: ' + str(blob_num))
-    #     contrastSaturatedBlob2ds(blob3d.blob2ds, minimal_edge_pixels=50)
-    # contrastSaturatedBlob2ds(blob3dlist[3].blob2ds, minimal_edge_pixels=5)
 
-    # print('Displaying the blob3d that will be tested')
-    # plotBlob3d(blob3dlist[3])
-    # print("Now making test slide..")
-    # test_slide = Slide(matrix=blob3dlist[3].blob2ds[1].gen_saturated_array())
-    # contrastSaturatedBlob2ds(test_slide.blob2dlist, minimal_edge_pixels=5)
-    # plotSlidesVC([test_slide], [], color='blobs')
+    sys.setrecursionlimit(3000) # HACK
+    unpickle_exp = False
+    pickle_exp = True # Only done if not unpickling
+    exp_pickle = 'experiment4.pickle' # 2,3 working #4 NOT working(yet)
+    if unpickle_exp:
+        test_b3ds = unPickle(exp_pickle)
+    else:
+        test_slides = []
+        # for blob3d in blob3dlist:
+        for blob2d in blob3dlist[3].blob2ds:
+            currentBlob3d = blob3dlist[3]
+            test_slides.append(SubSlide(blob2d, currentBlob3d))
+        setAllPossiblePartners(test_slides)
+        #DEBUG removed for speed
+        #setAllShapeContexts(test_slides)
+        # test_stitches = stitchAllBlobs(test_slides)
 
-    test_slides = []
-    for blob2d in blob3dlist[3].blob2ds:
-        test_slides.append(Slide(matrix=blob2d.gen_saturated_array()))
-    setAllPossiblePartners(test_slides)
-    setAllShapeContexts(test_slides)
-    test_stitches = stitchAllBlobs(test_slides)
+        list3ds = []
+        for slide_num, slide in enumerate(test_slides):
+            # print('\nDEBUG Slide num:' + str(slide_num) + ' has ' + str(len(slide.blob2dlist)) + ' blob2ds')
 
-    list3ds = []
-    for slide_num, slide in enumerate(test_slides):
-        for blob in slide.blob2dlist:
-            buf = blob.getconnectedblob2ds()
-            if len(buf) != 0:
-                list3ds.append(buf)
-    test_b3ds = []
-    for blob2dlist in list3ds:
-        test_b3ds.append(Blob3d(blob2dlist))
-    print('Plotting all blob3ds that are re-stitched')
-    for blob3d in list3ds:
+            for blob in slide.blob2dlist:
+                # TODO
+                buf = blob.getconnectedblob2ds() # TODO this needs to be changed, to search across sorted range of combined list
+                # TODO
+                if len(buf) != 0:
+                    list3ds.append((buf, slide))
+        #DEBUG
+        print('\n\nDEBUG There is a total of ' + str(len(list3ds)) + ' 3d blobs components')
+        debug()
 
-        plotBlob3d(blob3d, subblob=True)
+        test_b3ds = []
+        for (blob2dlist, sourceSubSlide) in list3ds:
+            test_b3ds.append(SubBlob3d(blob2dlist, sourceSubSlide))
+        if pickle_exp:
+            doPickle(test_b3ds, exp_pickle)
 
-    # TODO Need to record offsets and originating slide numbers, so that blob2ds can be correctly projected
+    for blob3d in test_b3ds:
+        print(str(blob3d))
+        for blob_num, b2d in enumerate(blob3d.blob2ds):
+            print(' B2d: ' + str(blob_num) + ' / ' + str(len(blob3d.blob2ds)) + ' = ' + str(b2d))
+            # print('  Derived from blob3d: ' + str(blob3d))
+            print("  Minx:" + str(b2d.minx) + ' Maxx:' + str(b2d.maxx) + ' Miny:' + str(b2d.miny) + ' Maxy:' + str(b2d.maxy))
 
-    anim_orders = [
-    ('y+', 90+360, 60+360),
-    ('x+', 360, 90+360) ]
+    tagBlobsSingular(blob3dlist)
+
+
+    # plotBlod3ds(blob3dlist + test_b3ds)
+    plotBlod3ds(test_b3ds, color='singular')
+
+
+    debug()
+
+
+
 
 
     # plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
     # NOTE: Interesting blob3ds:
     # 3: Very complex, mix of blobs
-
-    # for blob3d in blob3dlist:
-    #     plotBlob3d(blob3d)
-
     # NOTE temp: in the original 20 swellshark scans, there are ~ 11K blobs, ~9K stitches
     # blob3dlist[2].blob2ds[0].saveImage('test2.jpg')
-
     # Note, current plan is to find all blob3d's that exists with singular stitches between each 2d blob
     # These blobs should be 'known' to be singular blobs.
     # An additional heuristic may be necessary, potentially using the cost from Munkres()
     # Or computing a new cost based on the displacements between stitched pixelsS
-
     # Note: Without endcap mod (3 instead of 2), had 549 singular blobs, 900 non-singular
     # Note: Ignoring endcaps, and setting general threshold to 3 instead of 2, get 768 songular, and 681 non-singular
 
-    # plotBlod3ds(blob3dlist)
-    # plotBlod3ds(blob3dlist, color='singular')
-    plotBlod3ds(test_b3ds, color='singular')
-    debug()
 
 if __name__ == '__main__':
     main()  # Run the main function

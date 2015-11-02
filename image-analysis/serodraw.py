@@ -10,11 +10,9 @@ import matplotlib
 import tkinter
 # HACK HACK
 # matplotlib.use('GTK3Agg')
-# HACK HACK http://www.swharden.com/blog/2013-04-15-fixing-slow-matplotlib-in-pythonxy/
+# http://www.swharden.com/blog/2013-04-15-fixing-slow-matplotlib-in-pythonxy/
 # http://matplotlib.org/faq/usage_faq.html#what-is-a-backend
 import glob
-# import wand
-# import cv2 # OpenCV version 2
 
 import matplotlib.colors as colortools
 from matplotlib import animation
@@ -257,7 +255,7 @@ def plotBlod3ds(blob3dlist, **kwargs):
     markerlist = []
     colors = vispy.color.get_color_names() # ALl possible colors
 
-    print('The available colors are: ' + str(colors))
+    # print('The available colors are: ' + str(colors))
 
     lineendpoints = 0
 
