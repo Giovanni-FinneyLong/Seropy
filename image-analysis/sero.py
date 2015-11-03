@@ -48,6 +48,7 @@ class Blob2d:
         self.sum_vals = 0
         self.master_array = master_array
         self.slide = slide
+        self.height = slide.height
         self.possible_partners = [] # A list of blobs which MAY be part of the same blob3d as this blob2d
         self.partner_costs = [] # The minimal cost for the corresponding blob2d in possible_partners
         self.partner_indeces = [] # A list of indeces (row, column) for each
@@ -548,8 +549,8 @@ class Stitches:
     def __init__(self, lowerblob, upperblob, overscan_scale, num_bins):
         self.overscan_scale = overscan_scale
         self.num_bins = num_bins
-        self.lowerslidenum = lowerblob.slide.id_num
-        self.upperslidenum = upperblob.slide.id_num
+        self.lowerslidenum = lowerblob.slide.height # CHANGED
+        self.upperslidenum = upperblob.slide.height # CHANGED
         self.lowerblob = lowerblob
         self.upperblob = upperblob
 
@@ -597,10 +598,10 @@ class Pixel:
     '''
 
     id_num = 0
-    def __init__(self, value, xin, yin, slideid):
+    def __init__(self, value, xin, yin, zin):
         self.x = xin  # The x coordinate, int
         self.y = yin  # The y coordinate, int
-        self.z = slideid
+        self.z = zin
         self.val = value  # float
         self.nz_neighbors = 0
         self.maximal_neighbors = 0
@@ -665,7 +666,7 @@ class Slide:
     total_slides = 0
     sub_slides = 0
 
-    def __init__(self, filename=None, matrix=None):
+    def __init__(self, filename=None, matrix=None, height=None):
         # Note: Must include either filename or matrix
         # When given a matrix instead of a filename of an image, the assumption is that
         # We are computing over blob2ds from within a blob3d,ie experimenting with a subslide
@@ -673,7 +674,8 @@ class Slide:
         slices = []
         self.t0 = time.time()
         if matrix is None: # Only done if this is a primary slide
-            self.id_num = self.height = Slide.total_slides
+            self.id_num = Slide.total_slides
+            self.height = Slide.total_slides
             Slide.total_slides += 1
             self.filename = filename
             self.primary_slide = True
@@ -693,6 +695,7 @@ class Slide:
             slices = [matrix]
             self.local_xdim, self.local_ydim = matrix.shape
             self.id_num = Slide.sub_slides
+            self.height = height
             Slide.sub_slides += 1
             self.primary_slide = False
 
@@ -921,17 +924,18 @@ class SubSlide(Slide):
     '''
 
     def __init__(self, sourceBlob2d, sourceBlob3d):
-        super().__init__(matrix=sourceBlob2d.gen_saturated_array())
+        super().__init__(matrix=sourceBlob2d.gen_saturated_array(), height=sourceBlob2d.slide.id_num)
 
         assert(isinstance(sourceBlob2d, Blob2d))
         self.parentB3d = sourceBlob3d
         self.parentB2d = sourceBlob2d
         self.offsetx = sourceBlob2d.minx
         self.offsety = sourceBlob2d.miny
-        self.height = sourceBlob2d.slide.id_num
+        # self.height = sourceBlob2d.slide.id_num
         for pixel in self.alive_pixels: # TODO this is part of the source of error, need to update offsets
             pixel.x += self.offsetx
             pixel.y += self.offsety
+            pixel.z = self.height
         for blob2d in self.blob2dlist:
             blob2d.avgx += self.offsetx
             blob2d.avgy += self.offsety
@@ -1303,9 +1307,9 @@ def main():
     # NOTE [3][1] is also good
 
     sys.setrecursionlimit(3000) # HACK
-    unpickle_exp = True
+    unpickle_exp = False
     pickle_exp = True # Only done if not unpickling
-    exp_pickle = 'experiment6.pickle' # 2,3 working #4 NOT working(yet)
+    exp_pickle = 'experiment8.pickle' # 2,3 working #6 working except height, 7 working except stitch height, 8 works!!!
     if unpickle_exp:
         test_b3ds = unPickle(exp_pickle)
     else:
@@ -1361,6 +1365,15 @@ def main():
     #     plotBlob3d(blob3d)
 
     # plotBlod3ds(blob3dlist + test_b3ds)
+    print('Blob2d heights of source blob3d:')
+    for ep in blob3dlist[3].edge_pixels:
+        print(ep.z)
+    print('----------------------')
+    for blob3d in test_b3ds:
+        print('-')
+        for ep in blob3d.edge_pixels:
+            print(ep.z)
+
     plotBlod3ds(test_b3ds + [blob3dlist[3]], color='singular')
 
 
