@@ -201,7 +201,7 @@ class Blob2d:
 
 
     def __str__(self):
-        return str('B{id:' + str(self.id) + ', #P:' + str(self.num_pixels)) + ', #EP:' + str(len(self.edge_pixels)) + ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) +')}'
+        return str('B{id:' + str(self.id) + ', #P:' + str(self.num_pixels)) + ', #EP:' + str(len(self.edge_pixels)) + ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) +') Avg(X,Y):(' + str(self.avgx) + ',' + str(self.avgy) + ')}'
 
     __repr__ = __str__
 
@@ -404,6 +404,26 @@ class Blob2d:
         saturated = abs(saturated - hard_max_pixel_value)
         return saturated
 
+    def gen_saturated_arrayOLD(self): # TODO remove this, just for testing
+        body_arr = self.bodyToArray()
+        height, width = body_arr.shape
+        x_sat = [] # X coordinates of pixels to saturate from the array
+        y_sat = []
+        for y in range(height):
+            for x in range(width):
+                if body_arr[y][x] == 0:
+                    x_sat.append(x)
+                    y_sat.append(y)
+        # Note: DEBUG working to here, now use these found x,y coordinates to fill in an edgearray
+        saturated = self.edgeToArray()
+        for x,y in zip(x_sat,y_sat):
+            saturated[y][x] = hard_max_pixel_value
+        # At this stage, the entire array is reversed, so will invert the value (not an array inv)
+        saturated = abs(saturated - hard_max_pixel_value)
+        return saturated
+
+
+
 
 class Stitches:
     """
@@ -542,6 +562,7 @@ class Stitches:
 
         if len(self.lowerpixels) != 0: # Optimization
             self.upperpixels = self.edgepixelsinbounds(upperblob, lowerblob)
+
         if self.upperpixels is not None and len(self.upperpixels) != 0 and len(self.lowerpixels) != 0:
             # HACK
             # NOTE planning to reduce to a subset
@@ -560,18 +581,12 @@ class Stitches:
                 self.upperpixels = self.upperpixels[::pickoneover] # Every pickoneover'th element
                 self.lowerpixels = self.lowerpixels[::pickoneover] # HACK this is a crude way of reducing the number of pixels
 
-
             self.isConnected = True
             self.setShapeContexts(num_bins) # Set lower and upper context bins
-            print('   ', end='') # Formatting
-            print(self)
+            print('   ' + str(self))
             self.munkresCost() # Now have set self.cost and self.indeces and self.connect
-            # TODO grade the stitching based on the cost and num of pixels, and then set isPartners
-
             lowerblob.updateStitches(self)
             upperblob.updateStitches(self)
-
-
         else:
             self.isConnected = False
 
@@ -897,6 +912,9 @@ class Slide:
 
         return (derived_ids, derived_count, removed_id_count)
 
+    def __str__(self):
+        return str('Slide <Id:' + str(self.id_num) + 'Num of Blob2ds:' + str(len(self.blob2dlist)) + '>')
+
 class SubSlide(Slide):
     '''
     A slide that is created from a portion of a blob3d (one of its blob2ds)
@@ -911,9 +929,21 @@ class SubSlide(Slide):
         self.offsetx = sourceBlob2d.minx
         self.offsety = sourceBlob2d.miny
         self.height = sourceBlob2d.slide.id_num
-        for pixel in self.alive_pixels:
+        for pixel in self.alive_pixels: # TODO this is part of the source of error, need to update offsets
             pixel.x += self.offsetx
             pixel.y += self.offsety
+        for blob2d in self.blob2dlist:
+            blob2d.avgx += self.offsetx
+            blob2d.avgy += self.offsety
+            blob2d.minx += self.offsetx
+            blob2d.miny += self.offsety
+            blob2d.maxx += self.offsetx
+            blob2d.maxy += self.offsety
+
+
+    def __str__(self):
+        return super().__str__() + ' <subslide>: Offset(x,y):(' + str(self.offsetx) + ',' + str(self.offsety) + ')' + ' height:' + str(self.height)
+
 
 
 
@@ -931,22 +961,17 @@ class Blob3d:
         # Now find my stitches
         self.subblob = subblob
         self.stitches = []
-        # self.edge_pixels = []
-        # self.pixels = []
-        # self.lowslide = self.blob2ds[0].slide.id_num
-        # self.highslide = self.blob2ds[0].slide.id_num
         self.lowslide = min(blob.slide.id_num for blob in self.blob2ds)
         self.highslide = max(blob.slide.id_num for blob in self.blob2ds)
-        self.edge_pixels = list(blob.edge_pixels for blob in self.blob2ds)
-        self.pixels = list(blob.pixel for blob in self.blob2ds)
-
+        # self.edge_pixels = [pixel for pixels in self.blob2ds for pixel in pixels]
+        # blob.edge_pixels for blob in self.blob2ds
+        # self.pixels = [pixel for pixels in blob.pixels for pixel in pixels]
+        # blob.pixels for blob in self.blob2ds
+        self.pixels = []
+        self.edge_pixels = []
         for blob in self.blob2ds:
-            # self.edge_pixels += blob.edge_pixels
-            # self.pixels += blob.pixels
-            # if blob.slide.id_num < self.lowslide:
-            #     self.lowslide = blob.slide.id_num
-            # if blob.slide.id_num > self.highslide:
-            #     self.highslide = blob.slide.id_num
+            self.pixels += blob.pixels
+            self.edge_pixels += blob.edge_pixels
             for stitch in blob.stitches:
                 if stitch not in self.stitches: # TODO set will be faster
                     self.stitches.append(stitch)
@@ -976,9 +1001,6 @@ class SubBlob3d(Blob3d):
         self.offsety = self.miny
         self.width = self.maxx - self.minx
         self.height = self.maxy - self.miny
-
-
-        #
         # print('DB creating a new subblob3d')
         # for blob_num, b2d in enumerate(blob2dlist):
         #     print('  B2d: ' + str(blob_num) + ' / ' + str(len(blob2dlist)) + ' = ' + str(b2d))
@@ -1135,7 +1157,7 @@ def stitchAllBlobs(slidelist):
     stitchlist = []
     print('Beginning to stitch together blobs')
     for slide_num, slide in enumerate(slidelist):
-        print('Starting slide #' + str(slide_num) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds', end='')
+        print('Starting slide #' + str(slide_num) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds')
         for blob1 in slide.blob2dlist:
             if len(blob1.possible_partners) > 0:
                 print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
@@ -1148,8 +1170,7 @@ def stitchAllBlobs(slidelist):
                 if bufStitch.isConnected:
                     stitchlist.append(bufStitch)
                     tf = time.time()
-                    print('    ', end='') # Formatting output
-                    printElapsedTime(t0, tf)
+                    printElapsedTime(t0, tf, pad='    ')
     return stitchlist
 
 
@@ -1282,9 +1303,9 @@ def main():
     # NOTE [3][1] is also good
 
     sys.setrecursionlimit(3000) # HACK
-    unpickle_exp = False
+    unpickle_exp = True
     pickle_exp = True # Only done if not unpickling
-    exp_pickle = 'experiment4.pickle' # 2,3 working #4 NOT working(yet)
+    exp_pickle = 'experiment6.pickle' # 2,3 working #4 NOT working(yet)
     if unpickle_exp:
         test_b3ds = unPickle(exp_pickle)
     else:
@@ -1293,24 +1314,21 @@ def main():
         for blob2d in blob3dlist[3].blob2ds:
             currentBlob3d = blob3dlist[3]
             test_slides.append(SubSlide(blob2d, currentBlob3d))
+
         setAllPossiblePartners(test_slides)
-        #DEBUG removed for speed
-        #setAllShapeContexts(test_slides)
-        # test_stitches = stitchAllBlobs(test_slides)
+        setAllShapeContexts(test_slides)
+        test_stitches = stitchAllBlobs(test_slides)
 
         list3ds = []
+
+        # debug()
         for slide_num, slide in enumerate(test_slides):
             # print('\nDEBUG Slide num:' + str(slide_num) + ' has ' + str(len(slide.blob2dlist)) + ' blob2ds')
 
             for blob in slide.blob2dlist:
-                # TODO
-                buf = blob.getconnectedblob2ds() # TODO this needs to be changed, to search across sorted range of combined list
-                # TODO
+                buf = blob.getconnectedblob2ds()
                 if len(buf) != 0:
                     list3ds.append((buf, slide))
-        #DEBUG
-        print('\n\nDEBUG There is a total of ' + str(len(list3ds)) + ' 3d blobs components')
-        debug()
 
         test_b3ds = []
         for (blob2dlist, sourceSubSlide) in list3ds:
@@ -1318,18 +1336,32 @@ def main():
         if pickle_exp:
             doPickle(test_b3ds, exp_pickle)
 
-    for blob3d in test_b3ds:
-        print(str(blob3d))
-        for blob_num, b2d in enumerate(blob3d.blob2ds):
-            print(' B2d: ' + str(blob_num) + ' / ' + str(len(blob3d.blob2ds)) + ' = ' + str(b2d))
-            # print('  Derived from blob3d: ' + str(blob3d))
-            print("  Minx:" + str(b2d.minx) + ' Maxx:' + str(b2d.maxx) + ' Miny:' + str(b2d.miny) + ' Maxy:' + str(b2d.maxy))
+    # print('Derived a total of ' + str(len(list3ds)) + ' 3d blob components')
+    print('Derived a total of ' + str(len(test_b3ds)) + ' 3d blobs')
 
-    tagBlobsSingular(blob3dlist)
 
+    # for blob3d in test_b3ds:
+    #     print(str(blob3d))
+    #     for blob_num, b2d in enumerate(blob3d.blob2ds):
+    #         print(' B2d: ' + str(blob_num) + ' / ' + str(len(blob3d.blob2ds)) + ' = ' + str(b2d))
+    #         # print('  Derived from blob3d: ' + str(blob3d))
+    #         print("  Minx:" + str(b2d.minx) + ' Maxx:' + str(b2d.maxx) + ' Miny:' + str(b2d.miny) + ' Maxy:' + str(b2d.maxy))
+
+    # tagBlobsSingular(blob3dlist)
+    # tagBlobsSingular(test_b3ds)
+    for blob3d in test_b3ds: # HACK
+        blob3d.isSingular = True
+    for blob3d in blob3dlist:
+        blob3d.isSingular = False
+
+
+    # debug()
+    # for blob_num, blob3d in enumerate(test_b3ds):
+    #     print('Plotting blob #' + str(blob_num) + ' = ' + str(blob3d))
+    #     plotBlob3d(blob3d)
 
     # plotBlod3ds(blob3dlist + test_b3ds)
-    plotBlod3ds(test_b3ds, color='singular')
+    plotBlod3ds(test_b3ds + [blob3dlist[3]], color='singular')
 
 
     debug()

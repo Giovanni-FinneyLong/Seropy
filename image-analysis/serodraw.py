@@ -910,10 +910,10 @@ def plotSlidesVC(slide_stack, stitchlist=[], **kwargs):
     vispy.app.run()
 
 
-def printElapsedTime(t0, tf):
+def printElapsedTime(t0, tf, pad=''):
     temp = tf - t0
     m = math.floor(temp / 60)
-    print('Elapsed Time: ' + str(m) + ' minutes & %.0f seconds' % (temp % 60))
+    print(pad + 'Elapsed Time: ' + str(m) + ' minutes & %.0f seconds' % (temp % 60))
 
 
 def setseerodrawdims(x,y,z):
