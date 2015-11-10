@@ -56,7 +56,6 @@ class Blob2d:
                                     # The value of each element in the sublist for each partner is the index of the pixel from the corresponding partner
         self.my_subpixels = []      # Set of own subpixels, with each list corresponding to a list from partner_subpixels
         self.stitches = [] # A list of stitches that this blob belongs to
-
         self.minx = min(pixel.x for pixel in self.pixels)
         self.maxx = max(pixel.x for pixel in self.pixels)
         self.miny = min(pixel.y for pixel in self.pixels)
@@ -64,7 +63,6 @@ class Blob2d:
         self.avgx = sum(pixel.x for pixel in self.pixels) / len(self.pixels)
         self.avgy = sum(pixel.y for pixel in self.pixels) / len(self.pixels)
         self.min_nzn_pixel = min(pixel.nz_neighbors for pixel in self.pixels)
-
         # Note for now, will use the highest non-zero-neighbor count pixel
         self.setEdge()
         self.setTouchingBlobs()
@@ -405,23 +403,6 @@ class Blob2d:
         saturated = abs(saturated - hard_max_pixel_value)
         return saturated
 
-    def gen_saturated_arrayOLD(self): # TODO remove this, just for testing
-        body_arr = self.bodyToArray()
-        height, width = body_arr.shape
-        x_sat = [] # X coordinates of pixels to saturate from the array
-        y_sat = []
-        for y in range(height):
-            for x in range(width):
-                if body_arr[y][x] == 0:
-                    x_sat.append(x)
-                    y_sat.append(y)
-        # Note: DEBUG working to here, now use these found x,y coordinates to fill in an edgearray
-        saturated = self.edgeToArray()
-        for x,y in zip(x_sat,y_sat):
-            saturated[y][x] = hard_max_pixel_value
-        # At this stage, the entire array is reversed, so will invert the value (not an array inv)
-        saturated = abs(saturated - hard_max_pixel_value)
-        return saturated
 
 
 
@@ -963,7 +944,7 @@ class Blob3d:
         Blob3d.total_blobs += 1
         self.blob2ds = blob2dlist          # List of the blob 2ds used to create this blob3d
         # Now find my stitches
-        self.subblob = subblob
+        self.isSubblob = subblob # T/F
         self.stitches = []
         self.lowslide = min(blob.slide.id_num for blob in self.blob2ds)
         self.highslide = max(blob.slide.id_num for blob in self.blob2ds)
@@ -983,14 +964,41 @@ class Blob3d:
         self.maxy = max(blob.maxy for blob in self.blob2ds)
         self.miny = min(blob.miny for blob in self.blob2ds)
         self.minx = min(blob.minx for blob in self.blob2ds)
+        self.isSingular = False
+        self.subblobs = []
 
 
     def __str__(self):
-        if self.subblob is True:
+        if hasattr(self, 'subblob') and self.subblob is True:
             sb = 'sub'
         else:
             sb = ''
         return str('B3D(' + str(sb) + '): lowslide=' + str(self.lowslide) + ' highslide=' + str(self.highslide) + ' #edgepixels=' + str(len(self.edge_pixels)) + ' #pixels=' + str(len(self.pixels)) + ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) +')')
+
+    def gen_subblob3ds(self, save=False, filename=''):
+        test_slides = []
+        # for blob3d in blob3dlist:
+        for blob2d in self.blob2ds:
+            test_slides.append(SubSlide(blob2d, self))
+        setAllPossiblePartners(test_slides)
+        setAllShapeContexts(test_slides)
+        test_stitches = stitchAllBlobs(test_slides)
+        list3ds = []
+        for slide_num, slide in enumerate(test_slides):
+            for blob in slide.blob2dlist:
+                buf = blob.getconnectedblob2ds()
+                if len(buf) != 0:
+                    list3ds.append((buf, slide))
+        b3ds = []
+        for (blob2dlist, sourceSubSlide) in list3ds:
+            b3ds.append(SubBlob3d(blob2dlist, sourceSubSlide))
+        if save:
+            doPickle(b3ds, filename)
+        # print('Derived a total of ' + str(len(test_b3ds)) + ' 3d blobs')
+        tagBlobsSingular(b3ds)
+        self.subblobs = self.subblobs + b3ds
+        return b3ds, test_stitches
+
 
 class SubBlob3d(Blob3d):
     '''
@@ -1307,75 +1315,59 @@ def main():
     # NOTE [3][1] is also good
 
     sys.setrecursionlimit(3000) # HACK
-    unpickle_exp = False
+
+    unpickle_exp = True
     pickle_exp = True # Only done if not unpickling
-    exp_pickle = 'experiment8.pickle' # 2,3 working #6 working except height, 7 working except stitch height, 8 works!!!
+    exp_pickle = 'experiment9.pickle' # 2,3 working #6 working except height, 7 working except stitch height, 8 works!!!
+
+    primary_blobs = [blob3dlist[3], blob3dlist[8], blob3dlist[40]]
     if unpickle_exp:
         test_b3ds = unPickle(exp_pickle)
     else:
-        test_slides = []
-        # for blob3d in blob3dlist:
-        for blob2d in blob3dlist[3].blob2ds:
-            currentBlob3d = blob3dlist[3]
-            test_slides.append(SubSlide(blob2d, currentBlob3d))
-
-        setAllPossiblePartners(test_slides)
-        setAllShapeContexts(test_slides)
-        test_stitches = stitchAllBlobs(test_slides)
-
-        list3ds = []
-
-        # debug()
-        for slide_num, slide in enumerate(test_slides):
-            # print('\nDEBUG Slide num:' + str(slide_num) + ' has ' + str(len(slide.blob2dlist)) + ' blob2ds')
-
-            for blob in slide.blob2dlist:
-                buf = blob.getconnectedblob2ds()
-                if len(buf) != 0:
-                    list3ds.append((buf, slide))
-
+        # primary_blobs = blob3dlist
         test_b3ds = []
-        for (blob2dlist, sourceSubSlide) in list3ds:
-            test_b3ds.append(SubBlob3d(blob2dlist, sourceSubSlide))
+
+
+        for b3d in primary_blobs:
+            buf = b3d.gen_subblob3ds()
+            test_b3ds = test_b3ds + buf[0]
+            # print('Derived a total of ' + str(len(buf[0])) + ' subblob3ds from primary b3d:' + str(b3d))
         if pickle_exp:
             doPickle(test_b3ds, exp_pickle)
 
+
+
+
+    ## sub_b3ds, sub_stitchs =  blob3dlist[40].gen_subblob3ds(save=True, filename='subblobs1.pickle')
     # print('Derived a total of ' + str(len(list3ds)) + ' 3d blob components')
-    print('Derived a total of ' + str(len(test_b3ds)) + ' 3d blobs')
+    # print('Derived a total of ' + str(len(test_b3ds)) + ' 3d blobs')
+    # # GOOD BLOBS FOR RECURSIVE TESTING:
+    # # 3,8,40!
+    # print('DB plotting sublob3ds:')
+    #
+    # tagBlobsSingular(sub_b3ds)
+    # # plotBlod3ds(sub_b3ds, color='singular')
+    # print('DB PICKLING ALL WITH 1 LAYER SUBBLOBS')
+    # doPickle(sub_b3ds, 'all_subblobs.pickle')
+
+    # sub_b3ds = unPickle('all_subblobs.pickle')
 
 
-    # for blob3d in test_b3ds:
-    #     print(str(blob3d))
-    #     for blob_num, b2d in enumerate(blob3d.blob2ds):
-    #         print(' B2d: ' + str(blob_num) + ' / ' + str(len(blob3d.blob2ds)) + ' = ' + str(b2d))
-    #         # print('  Derived from blob3d: ' + str(blob3d))
-    #         print("  Minx:" + str(b2d.minx) + ' Maxx:' + str(b2d.maxx) + ' Miny:' + str(b2d.miny) + ' Maxy:' + str(b2d.maxy))
+    # print(test_b3ds)
+    # print(primary_blobs)
+    # print(test_b3ds + primary_blobs)
+    # plotBlob3ds(test_b3ds, color='blobs')
+    #
+    for b3d in primary_blobs:
+        b3d.isSingular = True
+    for blob in test_b3ds:
+        blob.isSingular = False
+    #
+    # plotBlob3ds(primary_blobs, color='blobs')
 
-    # tagBlobsSingular(blob3dlist)
-    # tagBlobsSingular(test_b3ds)
-    for blob3d in test_b3ds: # HACK
-        blob3d.isSingular = True
-    for blob3d in blob3dlist:
-        blob3d.isSingular = False
-
-
-    # debug()
-    # for blob_num, blob3d in enumerate(test_b3ds):
-    #     print('Plotting blob #' + str(blob_num) + ' = ' + str(blob3d))
-    #     plotBlob3d(blob3d)
-
-    # plotBlod3ds(blob3dlist + test_b3ds)
-    print('Blob2d heights of source blob3d:')
-    for ep in blob3dlist[3].edge_pixels:
-        print(ep.z)
-    print('----------------------')
-    for blob3d in test_b3ds:
-        print('-')
-        for ep in blob3d.edge_pixels:
-            print(ep.z)
-
-    plotBlod3ds(test_b3ds + [blob3dlist[3]], color='singular')
-
+    # plotBlob3ds(test_b3ds + primary_blobs, color='blob')
+    plotBlob3ds(test_b3ds + primary_blobs, color='singular')
+    # plotBlod3ds(blob3dlist)
 
     debug()
 
@@ -1385,7 +1377,7 @@ def main():
 
     # plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
     # NOTE: Interesting blob3ds:
-    # 3: Very complex, mix of blobs
+    # 3: Very complex, mix of blobs, irregular stitching example, even including a seperate group (blob3d)
     # NOTE temp: in the original 20 swellshark scans, there are ~ 11K blobs, ~9K stitches
     # blob3dlist[2].blob2ds[0].saveImage('test2.jpg')
     # Note, current plan is to find all blob3d's that exists with singular stitches between each 2d blob

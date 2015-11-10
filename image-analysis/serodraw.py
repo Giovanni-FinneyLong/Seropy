@@ -13,16 +13,39 @@ import tkinter
 # http://www.swharden.com/blog/2013-04-15-fixing-slow-matplotlib-in-pythonxy/
 # http://matplotlib.org/faq/usage_faq.html#what-is-a-backend
 import glob
+from myconfig import *
 
-import matplotlib.colors as colortools
-from matplotlib import animation
+if mayPlot:
+    import matplotlib.colors as colortools
+    from matplotlib import animation
+    import matplotlib.pylab as plt
+    # import vispy.mpl_plot as plt
+    import matplotlib.cm as cm
+    from vispy import plot as vp
+    import vispy.io
+    import vispy.scene
+    from vispy.scene import visuals
+    from vispy import gloo
+    #HACK
+    array_list = []
+    frame_num = 0
+    scatter = visuals.Markers()
+    scatter_list = []
+    possible_lines = visuals.Line(method=linemethod)
+    context_lines = visuals.Line(method=linemethod)
+    rotation = 'x'
+    scale = 1.
+    animation_time_string = ''
+    frames = 0
+    orders = [] # List of tuples of the format ('command', degrees/scaling total, number of iterations)
+    order_frame = 0
+
+    canvas = None
+    view = None
+
+    #TODO this needs work/experimentation:
 
 
-import matplotlib.pylab as plt
-# import vispy.mpl_plot as plt
-
-
-import matplotlib.cm as cm
 import numpy as np
 import time
 import math
@@ -41,13 +64,20 @@ import pdb
 import os
 from mpl_toolkits.mplot3d import Axes3D
 
-from myconfig import *
-from vispy import plot as vp
 
-import vispy.io
-import vispy.scene
-from vispy.scene import visuals
-from vispy import gloo
+def vispy_info():
+    import vispy
+    print(vispy.sys_info)
+
+
+def vispy_tests():
+    import vispy
+    vispy.test()
+
+
+
+
+
 
 
 # NOTE  ##########################
@@ -63,22 +93,16 @@ zdim = -1
 # NOTE  ##########################
 
 
-#HACK
-array_list = []
-frame_num = 0
-scatter = visuals.Markers()
-scatter_list = []
-possible_lines = visuals.Line(method=linemethod)
-context_lines = visuals.Line(method=linemethod)
-rotation = 'x'
-scale = 1.
-animation_time_string = ''
-frames = 0
-orders = [] # List of tuples of the format ('command', degrees/scaling total, number of iterations)
-order_frame = 0
 
-canvas = None
-view = None
+
+
+
+
+
+
+
+
+
 
 def setMasterStartTime():
     master_start_time = time.time() # FIXME!
@@ -228,7 +252,7 @@ def contrastSaturatedBlob2ds(blob2ds, minimal_edge_pixels=350):
 
 
 
-def plotBlod3ds(blob3dlist, **kwargs):
+def plotBlob3ds(blob3dlist, **kwargs):
     global canvas
     global view
 
@@ -259,7 +283,6 @@ def plotBlod3ds(blob3dlist, **kwargs):
 
     lineendpoints = 0
 
-
     if coloring == 'blob': # Note: This is very graphics intensive.
 
         for blob_num, blob3d in enumerate(blob3dlist):
@@ -271,6 +294,12 @@ def plotBlod3ds(blob3dlist, **kwargs):
             view.add(markerlist[-1])
             for stitch in blob3d.stitches:
                 lineendpoints += (2 * len(stitch.indeces)) # 2 as each line has 2 endpoints
+
+
+
+
+
+
     elif coloring == 'singular':
         total_singular_points = 0
         total_multi_points = 0 # Points from blob3ds that may be part of strands
@@ -326,7 +355,7 @@ def plotBlod3ds(blob3dlist, **kwargs):
     lower_index = 0
     upper_index = 0
     line_index = 0
-    
+
     lower_markers_locations = np.zeros([lineendpoints / 2, 3]) # Note changes to points_to_draw (num indeces) rather than count of pixels
     upper_markers_locations = np.zeros([lineendpoints / 2, 3])
     line_locations = np.zeros([lineendpoints, 3])

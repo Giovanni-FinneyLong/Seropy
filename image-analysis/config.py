@@ -10,6 +10,7 @@ remap_ids_by_group_size = True
 test_instead_of_data = False
 dePickle = False
 OpenGLLinesInsteadOfAgg = True
+mayPlot = False # Used to control the importing of visualization packages; vispy doesn't run on arm :(
 
 
 
