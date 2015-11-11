@@ -14,6 +14,13 @@ import tkinter
 # http://matplotlib.org/faq/usage_faq.html#what-is-a-backend
 import glob
 from myconfig import *
+from Blob2d import *
+from Pixel import *
+from Stitches import *
+from Slide import *
+from Blob3d import *
+
+
 
 if mayPlot:
     import matplotlib.colors as colortools
@@ -89,19 +96,9 @@ zdim = -1
 
 # master_start_time = 0 # Set at the start of main # FIXME!
 
-
+def debug():
+    pdb.set_trace()
 # NOTE  ##########################
-
-
-
-
-
-
-
-
-
-
-
 
 
 def setMasterStartTime():
@@ -208,13 +205,6 @@ def plotBlob3d(blob3d, **kwargs):
     view.add(stitch_lines)
     vispy.app.run()
 
-# def plotSlide():
-#     '''
-#     Plots a single slide, with each blob2d shown as a different color
-#     :return:
-#     '''
-#
-
 
 def contrastSaturatedBlob2ds(blob2ds, minimal_edge_pixels=350):
     '''
@@ -250,11 +240,12 @@ def contrastSaturatedBlob2ds(blob2ds, minimal_edge_pixels=350):
         else:
             print('Skipping, as blob2d had only: ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
 
-
-
 def plotBlob3ds(blob3dlist, **kwargs):
     global canvas
     global view
+    global xdim
+    global ydim
+    global zdim
 
     canvas_size = kwargs.get('canvas_size', (800,800))
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size)
@@ -264,10 +255,17 @@ def plotBlob3ds(blob3dlist, **kwargs):
 
     # Finding the maximal slide, so that the vertical dimension of the plot can be evenly divided
     total_slides = 0
-    for blob3d in blob3dlist:
+    for blob3d in blob3dlist: # TODO make gen functions
         if blob3d.highslide > total_slides:
             total_slides = blob3d.highslide
+        if blob3d.highslide > zdim:
+            zdim = blob3d.highslide
+        if blob3d.maxx > xdim:
+            xdim = blob3d.maxx
+        if blob3d.maxy > ydim:
+            ydim = blob3d.maxy
     total_slides += 1 # Note this is b/c numbering starts at 0
+
 
     view = canvas.central_widget.add_view()
     view.camera = 'turntable'  # or try 'arcball'
@@ -284,7 +282,6 @@ def plotBlob3ds(blob3dlist, **kwargs):
     lineendpoints = 0
 
     if coloring == 'blob': # Note: This is very graphics intensive.
-
         for blob_num, blob3d in enumerate(blob3dlist):
             edge_pixel_arrays.append(np.zeros([len(blob3d.edge_pixels), 3]))
             for (p_num, pixel) in enumerate(blob3d.edge_pixels):
@@ -294,12 +291,6 @@ def plotBlob3ds(blob3dlist, **kwargs):
             view.add(markerlist[-1])
             for stitch in blob3d.stitches:
                 lineendpoints += (2 * len(stitch.indeces)) # 2 as each line has 2 endpoints
-
-
-
-
-
-
     elif coloring == 'singular':
         total_singular_points = 0
         total_multi_points = 0 # Points from blob3ds that may be part of strands
@@ -330,8 +321,6 @@ def plotBlob3ds(blob3dlist, **kwargs):
         multi_markers.set_data(multi_edge_array, edge_color=None, face_color='red', size=8)
         view.add(singular_markers)
         view.add(multi_markers)
-
-
     else: # All colored the same
         print('DB ELSE BLOCK')
         total_points = 0
@@ -349,8 +338,6 @@ def plotBlob3ds(blob3dlist, **kwargs):
         markers = visuals.Markers()
         markers.set_data(edge_pixel_array, edge_color=None, face_color=colors[0], size=8) # TODO change color
         view.add(markers)
-
-
 
     lower_index = 0
     upper_index = 0
@@ -391,7 +378,6 @@ def plotBlob3ds(blob3dlist, **kwargs):
 
     view.add(stitch_lines)
     vispy.app.run()
-
 
 def plotSlidesVC(slide_stack, stitchlist=[], **kwargs):
     '''
@@ -939,34 +925,13 @@ def plotSlidesVC(slide_stack, stitchlist=[], **kwargs):
     vispy.app.run()
 
 
-def printElapsedTime(t0, tf, pad=''):
-    temp = tf - t0
-    m = math.floor(temp / 60)
-    print(pad + 'Elapsed Time: ' + str(m) + ' minutes & %.0f seconds' % (temp % 60))
 
 
-def setseerodrawdims(x,y,z):
-    global xdim
-    global ydim
-    global zdim
-    xdim = x
-    ydim = y
-    zdim = z
 
 
-def runShell():
-    gvars = globals()
-    gvars.update(locals())
-    readline.set_completer(rlcompleter.Completer(gvars).complete)
-    readline.parse_and_bind("tab: complete")
-    shell = code.InteractiveConsole(gvars)
-    shell.interact()
 
-def debug():
-    pdb.set_trace()
 
-def timeNoSpaces():
-    return time.ctime().replace(' ', '_').replace(':', '-')
+
 
 def plotSlides(slide_list):
     colors2 = plt.get_cmap('gist_rainbow')
