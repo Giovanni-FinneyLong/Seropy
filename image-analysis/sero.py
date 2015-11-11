@@ -1,23 +1,23 @@
 __author__ = 'gio'
 
-import sys
-import collections
-from serodraw import *
+
 from myconfig import *
 
-from skimage import filters
-from skimage import segmentation
-
-from PIL import ImageFilter
-from collections import OrderedDict
-import readline
-import code
-import rlcompleter
-# from pympler import asizeof
-
+from Stitches import *
+import munkres as Munkres
+from Slide import *
+from Blob3d import *
 import pickle # Note uses cPickle automatically ONLY IF python 3
-from scipy import misc as scipy_misc
-import threading
+# from skimage import filters
+# from skimage import segmentation
+# from PIL import ImageFilter
+# from collections import OrderedDict
+# import readline
+# import code
+# import rlcompleter
+# from pympler import asizeof
+# from scipy import misc as scipy_misc
+# import threading
 
 
 
@@ -266,7 +266,9 @@ def main():
 
     stitchlist = []
     if test_instead_of_data:
-        picklefile = 'pickletest_snip.pickle'
+        # picklefile = 'pickletest_snip.pickle'
+         picklefile = 'pickletest_testsnip.pickle'
+
         # pickletest1 holds the results of recomputing over gen slides from bloblist[3]
     else:
         picklefile = 'pickledata_distance.pickle'
@@ -322,6 +324,30 @@ def main():
     else:
         blob3dlist = unPickle(picklefile)
 
+    plotBlob3ds(blob3dlist, coloring='singular', costs=True)
+    debug()
+
+
+
+
+# '''    # DEBUG
+#     mult_b3ds= unPickle('pickletest_snip.pickle')
+#     offsetx = 500
+#     offsety = 00
+#     for b3d in mult_b3ds:
+#         for pixel in b3d.pixels:
+#             pixel.x += offsetx
+#             pixel.y += offsety
+#         for b2d in b3d.blob2ds:
+#             b2d.minx += offsetx
+#             b2d.maxx += offsetx
+#             b2d.miny += offsety
+#             b2d.maxy += offsety
+#         b3d.isSingular = True
+#     # plotBlob3ds(blob3dlist + mult_b3ds, coloring='singular', costs=False)
+# '''
+
+
     experimenting = False
     if experimenting:
         # NOTE Blob3dlist[3].blob2ds[6] should be divided into subblobs
@@ -366,7 +392,6 @@ def main():
     #         print(' ' + str(blob2d))
     #         for pix in blob2d.pixels:
     #             print('  ' + str(pix))
-    plotBlob3ds(blob3dlist)
 
 
     ## sub_b3ds, sub_stitchs =  blob3dlist[40].gen_subblob3ds(save=True, filename='subblobs1.pickle')
@@ -382,7 +407,7 @@ def main():
     # doPickle(sub_b3ds, 'all_subblobs.pickle')
 
     # sub_b3ds = unPickle('all_subblobs.pickle')
-
+    debug()
 
 
 

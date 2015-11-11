@@ -13,12 +13,10 @@ import tkinter
 # http://www.swharden.com/blog/2013-04-15-fixing-slow-matplotlib-in-pythonxy/
 # http://matplotlib.org/faq/usage_faq.html#what-is-a-backend
 import glob
+
+# from Slide import *
 from myconfig import *
-from Blob2d import *
 from Pixel import *
-from Stitches import *
-from Slide import *
-from Blob3d import *
 
 
 
@@ -240,18 +238,16 @@ def contrastSaturatedBlob2ds(blob2ds, minimal_edge_pixels=350):
         else:
             print('Skipping, as blob2d had only: ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
 
-def plotBlob3ds(blob3dlist, **kwargs):
+def plotBlob3ds(blob3dlist, coloring=None, costs=False,canvas_size=(800,800)):
     global canvas
     global view
     global xdim
     global ydim
     global zdim
 
-    canvas_size = kwargs.get('canvas_size', (800,800))
+    # canvas_size = kwargs.get('canvas_size', (800,800))
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size)
 
-
-    coloring = kwargs.get('color', None)
 
     # Finding the maximal slide, so that the vertical dimension of the plot can be evenly divided
     total_slides = 0
@@ -265,7 +261,7 @@ def plotBlob3ds(blob3dlist, **kwargs):
         if blob3d.maxy > ydim:
             ydim = blob3d.maxy
     total_slides += 1 # Note this is b/c numbering starts at 0
-
+    zdim += 1
 
     view = canvas.central_widget.add_view()
     view.camera = 'turntable'  # or try 'arcball'
@@ -322,7 +318,6 @@ def plotBlob3ds(blob3dlist, **kwargs):
         view.add(singular_markers)
         view.add(multi_markers)
     else: # All colored the same
-        print('DB ELSE BLOCK')
         total_points = 0
         for blob_num, blob3d in enumerate(blob3dlist):
             total_points += len(blob3d.edge_pixels)
@@ -367,6 +362,42 @@ def plotBlob3ds(blob3dlist, **kwargs):
     # if coloring == 'blob': # TODO optimize the above as these are not used
         # lower_markers.set_data(lower_markers_locations, edge_color=None, size=10)
         # upper_markers.set_data(upper_markers_locations, edge_color=None, size=7)
+    if costs: #FIXME not showing for some reason..
+        pixel_tuples = []
+        costlist = []
+        for blob3d in blob3dlist:
+            for stitch in blob3d.stitches: # rem that indeces are tuples
+                for index_num, index in enumerate(stitch.indeces): # Upper pixels are [0], lower are [1]
+                    pixel_tuples.append((stitch.upperpixels[index[0]], stitch.lowerpixels[index[1]]))
+                    costlist.append(stitch.costs[index_num])
+        costlist = list(enumerate(costlist))
+        print(costlist)
+        costlist = sorted(costlist, key=lambda enum_cost_list: enum_cost_list[1], reverse=True)
+            # costlist: (index, cost)
+
+        midpoints = np.zeros([int(len(costlist)/50),3])
+        for index in range(int(len(costlist)/50)): #FIXME! For some reason overloads the ram.
+
+            buf = costlist[index][0] # This stores the original index of the cost, which is the same as the current index of the corresponding pixel_tuple
+            # print('DB avg of pixels: ' + str(pixel_tuples[buf][0]) + ' & ' + str(pixel_tuples[buf][1]) + ' is ' + str(Pixel.midpointposition(pixel_tuples[buf][0], pixel_tuples[buf][1])))
+            # print('DIM:' + str(xdim) + ' ' + str(ydim) + ' ' + str(zdim))
+            # print('WHICH SHOULD =  : ' + str([(pixel_tuples[buf][0].x + pixel_tuples[buf][1].x) / (2 * xdim), (pixel_tuples[buf][0].y + pixel_tuples[buf][1].y) / (2 * ydim), (pixel_tuples[buf][0].z + pixel_tuples[buf][1].z) / (2 * zdim)]))
+            # print('DB cost:' + str(costlist[index][1]))
+            midpoints[index] = [(pixel_tuples[buf][0].x + pixel_tuples[buf][1].x) / (2 * xdim), (pixel_tuples[buf][0].y + pixel_tuples[buf][1].y) / (2 * ydim), (pixel_tuples[buf][0].z + pixel_tuples[buf][1].z) / (2 * zdim)]
+
+
+            # cost_text_markers.append(visuals.Text("abc", pos=Pixel.midpointposition(pixel_tuples[buf][0], pixel_tuples[buf][1]), color='yellow'))
+            # cost_text_markers.append(visuals.Text("abc", pos=Pixel.midpointposition(pixel_tuples[buf][0], pixel_tuples[buf][1]), color='yellow'))
+        cost_text_markers = visuals.Markers()
+        cost_text_markers.set_data(midpoints, edge_color=None, face_color='yellow', size=12)
+        view.add(cost_text_markers)
+        # mid_marksers.set_data(midpoints, size=20)
+
+
+
+
+
+
     if coloring != 'blob' and coloring != 'singular':
         lower_markers.set_data(lower_markers_locations, edge_color=None, face_color='yellow', size=11)
         upper_markers.set_data(upper_markers_locations, edge_color=None, face_color='green', size=11)

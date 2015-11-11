@@ -63,3 +63,7 @@ class Pixel:
                     if (xpos + horizontal_offset < local_xdim and xpos + horizontal_offset >= 0 and ypos + vertical_offset < local_ydim and ypos + vertical_offset >= 0):  # Boundary check.
                         neighbors.append(master_array[xpos + horizontal_offset][ypos + vertical_offset])
         return neighbors
+
+    @staticmethod
+    def midpointposition(pixel1, pixel2):
+        return np.array([[(pixel1.x + pixel2.x) / 2, (pixel1.y + pixel2.y) / 2, (pixel1.z + pixel2.z) / 2]])

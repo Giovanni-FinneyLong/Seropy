@@ -186,9 +186,7 @@ class Blob2d:
         return Blob2d.total_blobs
 
     def updateStitches(self, stitches):
-        # # HACK FIXME added hasattr because pickled blobs dont have a stitches list
-        # if not hasattr(self, 'stitches'):
-        #     self.stitches = []
+        # print('DB Updating stitches with stitches totally costing: ' + str(stitches.total_cost))
         self.stitches.append(stitches)
 
     def getconnectedblob2ds(self):

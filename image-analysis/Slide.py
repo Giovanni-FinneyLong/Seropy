@@ -4,6 +4,7 @@ import collections
 from serodraw import *
 # from serodraw import setglobaldims
 from myconfig import *
+from Blob2d import *
 import numpy as np
 
 from PIL import Image

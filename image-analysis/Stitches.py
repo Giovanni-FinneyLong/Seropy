@@ -1,6 +1,7 @@
 import math
 import numpy as np
 from munkres import Munkres
+from myconfig import *
 # from serodraw import debug
 
 class Stitches:
@@ -102,8 +103,8 @@ class Stitches:
                     return math.log(buf, 10)
                 except:
                     print('DB ERROR: buf = ' + str(buf))
-                    debug()
-                    pass
+                    import pdb
+                    pdb.set_trace()
             else:
                 return 0.0
 
@@ -126,7 +127,8 @@ class Stitches:
         self.indeces = munk.compute(np.copy(self.cost_array))
         self.cost = 0
         for row, col in self.indeces:
-            self.cost += self.cost_array[row][col]
+            self.total_cost += self.cost_array[row][col]
+            self.costs.append(self.cost_array[row][col])
             print('DB cost of:' + str(self.cost_array[row][col]) + ' from bin cost:' + str(costBetweenPoints(self.lower_context_bins[row], self.upper_context_bins[col])) + ' and cost from distance:' + str(distanceCostBetweenPoints(self.lowerpixels[row], self.upperpixels[col])))
 
 
@@ -134,7 +136,7 @@ class Stitches:
         return str('Stitch between slides:(' + str(self.lowerslidenum) + ',' + str(self.upperslidenum) + ') with blobs (' +
                    str(self.lowerblob.id) + ',' + str(self.upperblob.id) + '). Chose:' + str(len(self.lowerpixels)) +
                    '/' + str(len(self.lowerblob.edge_pixels)) + ' lower blob pixels and ' + str(len(self.upperpixels)) +
-                   '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels. ' + 'Cost:' + str(self.cost))
+                   '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels. ' + 'TotalCost:' + str(self.total_cost))
     __repr__ = __str__
 
     def __init__(self, lowerblob, upperblob, overscan_scale, num_bins):
@@ -146,7 +148,8 @@ class Stitches:
         self.upperblob = upperblob
         self.upperpixels = self.edgepixelsinbounds(upperblob, lowerblob)
         self.lowerpixels = self.edgepixelsinbounds(lowerblob, upperblob) # TODO psoe on the order of lower and upper
-        self.cost = -1
+        self.total_cost = -1
+        self.costs = []
         self.isReduced = False # True when have chosen a subset of the edge pixels to reduce computation
 
 
@@ -159,17 +162,19 @@ class Stitches:
             # NOTE 1:28 for (203,301) pre-opt, :37 for (174, 178), 66mins for (640, 616) -> 4 mins after optimization (picking half of each) -> 59 seconds with selective[::3]
             # NOTE After ::2 opt, total time for [:3] data slides = 10 mins 19 seconds, instead of ~ 2 hours, after selective[::3], total time = 6mins 49 seconds
             # selective [::3] with 5 slides = 36 mins
-            if len(self.upperpixels) > 200 and len(self.lowerpixels) > 200:
-                print('-->Too many pixels in below stitch, reducing to a subset, originally was: ' + str(len(self.lowerpixels)) +
+
+
+            if len(self.upperpixels) > max_pixels_to_stitch or len(self.lowerpixels) > max_pixels_to_stitch:
+                print('-->Too many pixels in the below stitch, reducing to a subset, originally was: ' + str(len(self.lowerpixels)) +
                    '/' + str(len(self.lowerblob.edge_pixels)) + ' lower blob pixels and ' + str(len(self.upperpixels)) +
                    '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels.')
-                pickoneover = 3 # HACK TODO Modify these values to be more suitable dependent on computation time
+                pickoneovers = max(1, math.ceil(len(self.upperpixels) / max_pixels_to_stitch)), max(1, math.ceil(len(self.lowerpixels) / max_pixels_to_stitch)) # HACK TODO Modify these values to be more suitable dependent on computation time
                 self.isReduced = True
-                if len(self.upperpixels) > 500 and len(self.lowerpixels) > 500:
-                    pickoneover = 5
+                # if len(self.upperpixels) > 500 and len(self.lowerpixels) > 500:
+                #     pickoneover = 5
 
-                self.upperpixels = self.upperpixels[::pickoneover] # Every pickoneover'th element
-                self.lowerpixels = self.lowerpixels[::pickoneover] # HACK this is a crude way of reducing the number of pixels
+                self.upperpixels = self.upperpixels[::pickoneovers[0]] # Every pickoneover'th element
+                self.lowerpixels = self.lowerpixels[::pickoneovers[1]] # HACK this is a crude way of reducing the number of pixels
 
             self.isConnected = True
             self.setShapeContexts(num_bins) # Set lower and upper context bins
