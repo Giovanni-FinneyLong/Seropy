@@ -14,10 +14,6 @@ class Blob3d:
         self.pairings = []
         self.lowslide = min(blob.slide.id_num for blob in self.blob2ds)
         self.highslide = max(blob.slide.id_num for blob in self.blob2ds)
-        # self.edge_pixels = [pixel for pixels in self.blob2ds for pixel in pixels]
-        # blob.edge_pixels for blob in self.blob2ds
-        # self.pixels = [pixel for pixels in blob.pixels for pixel in pixels]
-        # blob.pixels for blob in self.blob2ds
         self.pixels = []
         self.edge_pixels = []
         for blob in self.blob2ds:

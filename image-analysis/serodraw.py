@@ -19,7 +19,6 @@ from myconfig import *
 from Pixel import *
 
 
-
 if mayPlot:
     import matplotlib.colors as colortools
     from matplotlib import animation
@@ -178,7 +177,7 @@ def plotBlob3d(blob3d, **kwargs):
     markers.set_data(edge_pixel_array, edge_color=None, face_color='green', size=8)
     view.add(markers)
     lineendpoints = 0
-    for stitch in blob3d.stitches:
+    for stitch in blob3d.pairings:
         lineendpoints += (2 * len(stitch.indeces))
 
 
@@ -189,7 +188,7 @@ def plotBlob3d(blob3d, **kwargs):
     line_locations = np.zeros([lineendpoints, 3])
 
 
-    for stitch in blob3d.stitches:
+    for stitch in blob3d.pairings:
         for lowerpnum, upperpnum in stitch.indeces:
             lowerpixel = stitch.lowerpixels[lowerpnum]
             upperpixel = stitch.upperpixels[upperpnum]
@@ -285,7 +284,7 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=False,canvas_size=(800,800)):
             markerlist.append(visuals.Markers())
             markerlist[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[blob_num % len(colors)], size=8)
             view.add(markerlist[-1])
-            for stitch in blob3d.stitches:
+            for stitch in blob3d.pairings:
                 lineendpoints += (2 * len(stitch.indeces)) # 2 as each line has 2 endpoints
     elif coloring == 'singular':
         total_singular_points = 0
@@ -309,7 +308,7 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=False,canvas_size=(800,800)):
                 for pixel in blob3d.edge_pixels:
                     multi_edge_array[multi_index] = [pixel.x / xdim, pixel.y / ydim, pixel.z / (z_compression * total_slides)]
                     multi_index += 1
-            for stitch in blob3d.stitches:
+            for stitch in blob3d.pairings:
                 lineendpoints += (2 * len(stitch.indeces))
         singular_markers = visuals.Markers()
         multi_markers = visuals.Markers()
@@ -327,7 +326,7 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=False,canvas_size=(800,800)):
             for pixel in blob3d.edge_pixels:
                 edge_pixel_array[index] = [pixel.x / xdim, pixel.y / ydim, pixel.z / (z_compression * total_slides)]
                 index += 1
-            for stitch in blob3d.stitches:
+            for stitch in blob3d.pairings:
                 lineendpoints += (2 * len(stitch.indeces)) # 2 as each line has 2 endpoints
 
         markers = visuals.Markers()
@@ -338,19 +337,21 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=False,canvas_size=(800,800)):
     upper_index = 0
     line_index = 0
 
-    lower_markers_locations = np.zeros([lineendpoints / 2, 3]) # Note changes to points_to_draw (num indeces) rather than count of pixels
-    upper_markers_locations = np.zeros([lineendpoints / 2, 3])
+    # lower_markers_locations = np.zeros([lineendpoints / 2, 3]) # Note changes to points_to_draw (num indeces) rather than count of pixels
+    # upper_markers_locations = np.zeros([lineendpoints / 2, 3])
     line_locations = np.zeros([lineendpoints, 3])
 
     for blob3d in blob3dlist:
-        for stitch in blob3d.stitches:
-            for lowerpnum, upperpnum in stitch.indeces:
-                lowerpixel = stitch.lowerpixels[lowerpnum]
-                upperpixel = stitch.upperpixels[upperpnum]
-                lower_markers_locations[lower_index] = [lowerpixel.x / xdim, lowerpixel.y / ydim, (stitch.lowerslidenum ) / ( z_compression * total_slides)]
-                upper_markers_locations[upper_index] = [upperpixel.x / xdim, upperpixel.y / ydim, (stitch.upperslidenum ) / ( z_compression * total_slides)]
-                line_locations[line_index] = lower_markers_locations[lower_index]
-                line_locations[line_index + 1] = upper_markers_locations[upper_index]
+        for pairing in blob3d.pairings:
+            for stitch in pairing.stitches:
+
+            # for lowerpnum, upperpnum in stitch.indeces:
+                lowerpixel = stitch.lowerpixel
+                upperpixel = stitch.upperpixel
+                # lower_markers_locations[lower_index] = [lowerpixel.x / xdim, lowerpixel.y / ydim, (stitch.lowerslidenum ) / ( z_compression * total_slides)]
+                # upper_markers_locations[upper_index] = [upperpixel.x / xdim, upperpixel.y / ydim, (stitch.upperslidenum ) / ( z_compression * total_slides)]
+                line_locations[line_index] = [lowerpixel.x / xdim, lowerpixel.y / ydim, (pairing.lowerslidenum ) / ( z_compression * total_slides)]
+                line_locations[line_index + 1] = [upperpixel.x / xdim, upperpixel.y / ydim, (pairing.upperslidenum ) / ( z_compression * total_slides)]
 
                 lower_index += 1
                 upper_index += 1
@@ -359,48 +360,21 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=False,canvas_size=(800,800)):
     upper_markers = visuals.Markers()
     stitch_lines = visuals.Line(method=linemethod)
 
-    # if coloring == 'blob': # TODO optimize the above as these are not used
-        # lower_markers.set_data(lower_markers_locations, edge_color=None, size=10)
-        # upper_markers.set_data(upper_markers_locations, edge_color=None, size=7)
-    if costs: #FIXME not showing for some reason..
-        pixel_tuples = []
-        costlist = []
-        for blob3d in blob3dlist:
-            for stitch in blob3d.stitches: # rem that indeces are tuples
-                for index_num, index in enumerate(stitch.indeces): # Upper pixels are [0], lower are [1]
-                    pixel_tuples.append((stitch.upperpixels[index[0]], stitch.lowerpixels[index[1]]))
-                    costlist.append(stitch.costs[index_num])
-        costlist = list(enumerate(costlist))
-        print(costlist)
-        costlist = sorted(costlist, key=lambda enum_cost_list: enum_cost_list[1], reverse=True)
-            # costlist: (index, cost)
 
-        midpoints = np.zeros([int(len(costlist)/50),3])
-        for index in range(int(len(costlist)/50)): #FIXME! For some reason overloads the ram.
-
-            buf = costlist[index][0] # This stores the original index of the cost, which is the same as the current index of the corresponding pixel_tuple
-            # print('DB avg of pixels: ' + str(pixel_tuples[buf][0]) + ' & ' + str(pixel_tuples[buf][1]) + ' is ' + str(Pixel.midpointposition(pixel_tuples[buf][0], pixel_tuples[buf][1])))
-            # print('DIM:' + str(xdim) + ' ' + str(ydim) + ' ' + str(zdim))
-            # print('WHICH SHOULD =  : ' + str([(pixel_tuples[buf][0].x + pixel_tuples[buf][1].x) / (2 * xdim), (pixel_tuples[buf][0].y + pixel_tuples[buf][1].y) / (2 * ydim), (pixel_tuples[buf][0].z + pixel_tuples[buf][1].z) / (2 * zdim)]))
-            # print('DB cost:' + str(costlist[index][1]))
-            midpoints[index] = [(pixel_tuples[buf][0].x + pixel_tuples[buf][1].x) / (2 * xdim), (pixel_tuples[buf][0].y + pixel_tuples[buf][1].y) / (2 * ydim), (pixel_tuples[buf][0].z + pixel_tuples[buf][1].z) / (2 * zdim)]
-
-
-            # cost_text_markers.append(visuals.Text("abc", pos=Pixel.midpointposition(pixel_tuples[buf][0], pixel_tuples[buf][1]), color='yellow'))
-            # cost_text_markers.append(visuals.Text("abc", pos=Pixel.midpointposition(pixel_tuples[buf][0], pixel_tuples[buf][1]), color='yellow'))
-        cost_text_markers = visuals.Markers()
-        cost_text_markers.set_data(midpoints, edge_color=None, face_color='yellow', size=12)
-        view.add(cost_text_markers)
-        # mid_marksers.set_data(midpoints, size=20)
-
-
-
-
+    if costs:
+        number_of_costs_to_show = 20 # HACK
+        all_stitches = list(stitches for blob3d in blob3dlist for pairing in blob3d.pairings for stitches in pairing.stitches)
+        all_stitches = sorted(all_stitches, key=lambda stitch: stitch.distance, reverse=True) # costs are (contour, distance, total)
+        midpoints = np.zeros([number_of_costs_to_show,3])
+        for index,stitch in enumerate(all_stitches[:number_of_costs_to_show]): #FIXME! For some reason overloads the ram.
+            midpoints[index] = [(stitch.lowerpixel.x + stitch.upperpixel.x) / (2 * xdim), (stitch.lowerpixel.y + stitch.upperpixel.y) / (2 * ydim), (stitch.lowerpixel.z + stitch.upperpixel.z) / (2 * zdim)]
+            textStr = str(stitch.cost[0])[:2] + '_' +  str(stitch.cost[1])[:3] + '_' +  str(stitch.cost[2])[:2]
+            view.add(visuals.Text(textStr, pos=midpoints[index], color='yellow'))
 
 
     if coloring != 'blob' and coloring != 'singular':
-        lower_markers.set_data(lower_markers_locations, edge_color=None, face_color='yellow', size=11)
-        upper_markers.set_data(upper_markers_locations, edge_color=None, face_color='green', size=11)
+        lower_markers.set_data(line_locations[0::2], edge_color=None, face_color='yellow', size=11)
+        upper_markers.set_data(line_locations[1::2], edge_color=None, face_color='green', size=11)
         lower_markers.symbol = 'ring'
         upper_markers.symbol = '+'
         view.add(lower_markers)
@@ -435,7 +409,7 @@ def plotSlidesVC(slide_stack, stitchlist=[], **kwargs):
     orders = kwargs.get('orders') # ('command', total scaling/rotation, numberofframes)
     canvas_size = kwargs.get('canvas_size', (800,800))
     gif_size = kwargs.get('gif_size', canvas_size)
-    stitches = kwargs.get('pairings', False)
+    pairings = kwargs.get('pairings', False)
     polygons = kwargs.get('polygons', False)
     subpixels = kwargs.get('subpixels', False)
 
@@ -586,7 +560,7 @@ def plotSlidesVC(slide_stack, stitchlist=[], **kwargs):
 
 
 
-    if stitches:
+    if pairings:
         total_lower_pixels = 0
         total_upper_pixels = 0
         points_to_draw = 0
@@ -954,14 +928,6 @@ def plotSlidesVC(slide_stack, stitchlist=[], **kwargs):
     #     for blob in slide.blob2dlist:
     #         print(' Blob:' + str(blob) + ' which has' + str(len(blob.possible_partners)) + ' possible partners')
     vispy.app.run()
-
-
-
-
-
-
-
-
 
 
 def plotSlides(slide_list):

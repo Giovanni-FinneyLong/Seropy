@@ -266,8 +266,12 @@ def main():
 
     stitchlist = []
     if test_instead_of_data:
-        # picklefile = 'pickletest_snip.pickle'
-         picklefile = 'pickletest.pickle'
+         ## picklefile = 'pickletest_testsnip3.pickle'
+         ## picklefile = 'pickletest_testsnip2.pickle' # Done logbase 2 for distance, +
+
+         # picklefile = 'pickletest_refactor.pickle' # THIS IS DONE +, and log distance base 10
+         #picklefile = 'pickletest_refactor2.pickle' # THIS IS DONE *, and log distance base 2
+         picklefile = 'pickletest_refactor3.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3
 
         # pickletest1 holds the results of recomputing over gen slides from bloblist[3]
     else:
@@ -383,7 +387,6 @@ def main():
         # plotBlob3ds(test_b3ds + primary_blobs, color='blob')
         plotBlob3ds(test_b3ds + primary_blobs, color='singular')
         # plotBlod3ds(blob3dlist)
-
         debug()
 
 

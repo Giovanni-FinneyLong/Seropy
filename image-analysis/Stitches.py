@@ -100,7 +100,7 @@ class Pairing:
             buf = math.sqrt(math.pow(pixel1.x - pixel2.x, 2) + math.pow(pixel1.y - pixel2.y, 2))
             if buf > 0.0: # Because floats..
                 try:
-                    return math.log(buf, 10)
+                    return math.log(buf, 2)
                 except:
                     print('DB ERROR: buf = ' + str(buf))
                     import pdb
@@ -114,30 +114,38 @@ class Pairing:
             :return:
             """
             # Setting up cost array with the costs between respective points
-            ndim = min(len(self.lowerpixels), len(self.upperpixels)) # HACK HACK min for now, in the hopes that munkres can handle non-square matrices.
-            self.cost_array = np.zeros([ndim, ndim])
+            ndim = min(len(self.lowerpixels), len(self.upperpixels)) # Munkres can handle non-square matrices (by making them square)
+            self.cost_array = np.zeros([ndim, ndim, 3])
+            munkres_array = np.zeros([ndim,ndim]) #TODO FIXME replace this with slicing of cost array on third element
             for i in range(ndim):
                 for j in range(ndim):
-                    self.cost_array[i][j] = costBetweenPoints(self.lower_context_bins[i], self.upper_context_bins[j]) \
-                    + distanceCostBetweenPoints(self.lowerpixels[i], self.upperpixels[j]) # TODO THIS IS NEW!!! WILL NEED ADJUSTING
-            return self.cost_array
+                    contourCost = costBetweenPoints(self.lower_context_bins[i], self.upper_context_bins[j])
+                    distanceCost = distanceCostBetweenPoints(self.lowerpixels[i], self.upperpixels[j])
+                    net_cost = contourCost * distanceCost
+                    self.cost_array[i][j] = [contourCost, distanceCost, net_cost]
+                    munkres_array[i][j] = net_cost
+                    # self.cost_array[i][j] = costBetweenPoints(self.lower_context_bins[i], self.upper_context_bins[j]) \
+                    # * distanceCostBetweenPoints(self.lowerpixels[i], self.upperpixels[j]) # TODO THIS IS NEW!!! WILL NEED ADJUSTING
+            return munkres_array
 
-        makeCostArray()
+        munkres_array = makeCostArray()
         munk = Munkres()
-        self.indeces = munk.compute(np.copy(self.cost_array))
+
+        self.indeces = munk.compute(munkres_array)
         self.cost = 0
         for row, col in self.indeces:
-            self.stitches.append(Stitch(self.lowerpixels[row], self.upperpixels[col], self.lowerblob, self.upperblob, self.cost_array[row][col]))
-            self.total_cost += self.cost_array[row][col]
-            # self.costs.append(self.cost_array[row][col])
-            print('DB cost of:' + str(self.cost_array[row][col]) + ' from bin cost:' + str(costBetweenPoints(self.lower_context_bins[row], self.upper_context_bins[col])) + ' and cost from distance:' + str(distanceCostBetweenPoints(self.lowerpixels[row], self.upperpixels[col])))
-
+            if self.cost_array[row][col][1] < max_distance_cost:# HACK, may want to do this later, so that stitches can be manually removed via interactive interface (slide bar for max_value)
+                self.stitches.append(Stitch(self.lowerpixels[row], self.upperpixels[col], self.lowerblob, self.upperblob, self.cost_array[row][col]))
+                self.total_cost += self.cost_array[row][col]
+                # print('DB cost of (contour, distance, total):' + str(self.cost_array[row][col]))
+            # else:
+            #     print('Ignored cost:' + str(self.cost_array[row][col]))
 
     def __str__(self):
-        return str('Stitch between slides:(' + str(self.lowerslidenum) + ',' + str(self.upperslidenum) + ') with blobs (' +
+        return str('<Stitch between slides:(' + str(self.lowerslidenum) + ',' + str(self.upperslidenum) + ') with blobs (' +
                    str(self.lowerblob.id) + ',' + str(self.upperblob.id) + '). Chose:' + str(len(self.lowerpixels)) +
                    '/' + str(len(self.lowerblob.edge_pixels)) + ' lower blob pixels and ' + str(len(self.upperpixels)) +
-                   '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels. ' + 'TotalCost:' + str(self.total_cost))
+                   '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels. ' + 'TotalCost:' + str(self.total_cost) + '>')
     __repr__ = __str__
 
     def __init__(self, lowerblob, upperblob, overscan_scale, num_bins):
@@ -150,7 +158,6 @@ class Pairing:
         self.upperpixels = self.edgepixelsinbounds(upperblob, lowerblob)
         self.lowerpixels = self.edgepixelsinbounds(lowerblob, upperblob) # TODO psoe on the order of lower and upper
         self.total_cost = -1
-        #self.costs = []
         self.isReduced = False # True when have chosen a subset of the edge pixels to reduce computation
         self.stitches = []
 
@@ -196,9 +203,12 @@ class Stitch:
         self.lowerblob = lowerblob
         self.upperblob = upperblob
         self.cost = cost
+        self.distance = math.sqrt(math.pow(lowerpixel.x - upperpixel.x, 2) + math.pow(lowerpixel.y - upperpixel.y, 2))
 
 
     def __str__(self):
-        print('Stitch between blob2ds:(' + str(self.lowerblob) + ',' + str(self.upperblob) + '), between pixels:(' \
-        + str(self.lowerpixel) + ',' + str(self.upperpixel) + '), has (dist, contour, total) costs:(' \
-        + str(self.distance_cost) + ',' + str(self.contour_cost) + ',' + str(self.total_cost) + ')')
+        return str('<Stitch between blob2ds:(' + str(self.lowerblob.id) + ',' + str(self.upperblob.id) + '), between pixels:(' \
+        + str(self.lowerpixel) + ',' + str(self.upperpixel) + '), has cost:' \
+        + str(self.cost) + ')')
+    def __repr__(self):
+        return self.__str__()
