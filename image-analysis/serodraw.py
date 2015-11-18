@@ -237,7 +237,7 @@ def contrastSaturatedBlob2ds(blob2ds, minimal_edge_pixels=350):
         else:
             print('Skipping, as blob2d had only: ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
 
-def plotBlob3ds(blob3dlist, coloring=None, costs=False,canvas_size=(800,800)):
+def plotBlob3ds(blob3dlist, coloring=None, costs=0 ,canvas_size=(800,800)):
     global canvas
     global view
     global xdim
@@ -251,10 +251,10 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=False,canvas_size=(800,800)):
     # Finding the maximal slide, so that the vertical dimension of the plot can be evenly divided
     total_slides = 0
     for blob3d in blob3dlist: # TODO make gen functions
-        if blob3d.highslide > total_slides:
-            total_slides = blob3d.highslide
-        if blob3d.highslide > zdim:
-            zdim = blob3d.highslide
+        if blob3d.highslideheight > total_slides:
+            total_slides = blob3d.highslideheight
+        if blob3d.highslideheight > zdim:
+            zdim = blob3d.highslideheight
         if blob3d.maxx > xdim:
             xdim = blob3d.maxx
         if blob3d.maxy > ydim:
@@ -270,20 +270,40 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=False,canvas_size=(800,800)):
     axis = visuals.XYZAxis(parent=view.scene)
     edge_pixel_arrays = [] # One array per 3d blob
     markerlist = []
+
     colors = vispy.color.get_color_names() # ALl possible colors
+    # note getting rid of annoying colors
+    colors.remove('antiquewhite')
+    colors.remove('aliceblue')
+    colors.remove('blanchedalmond')
+    colors.remove('b')
+    colors.remove('aquamarine')
+    colors.remove('black')
+    # colors.remove('cadetblue')
 
     # print('The available colors are: ' + str(colors))
 
     lineendpoints = 0
 
     if coloring == 'blob': # Note: This is very graphics intensive.
+        midpoints = np.zeros([len(blob3dlist), 3])
+        midpoint_markers = []
+
         for blob_num, blob3d in enumerate(blob3dlist):
             edge_pixel_arrays.append(np.zeros([len(blob3d.edge_pixels), 3]))
             for (p_num, pixel) in enumerate(blob3d.edge_pixels):
                 edge_pixel_arrays[-1][p_num] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * total_slides)]
+            midpoints[blob_num] = [blob3d.avgx, blob3d.avgy, blob3d.avgz]
             markerlist.append(visuals.Markers())
+            midpoint_markers.append(visuals.Markers())
             markerlist[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[blob_num % len(colors)], size=8)
+            midpoint_markers[-1].set_data(np.array([[blob3d.avgx / xdim, blob3d.avgy / ydim, blob3d.avgz / zdim]]), edge_color=None, face_color=colors[blob_num % len(colors)], size=20)
+            midpoint_markers[-1].symbol = 'star'
+            print('DB blob #' + str(blob3d.id) + ' is colored ' + str(colors[blob_num % len(colors)]))
+
+
             view.add(markerlist[-1])
+            view.add(midpoint_markers[-1])
             for stitch in blob3d.pairings:
                 lineendpoints += (2 * len(stitch.indeces)) # 2 as each line has 2 endpoints
     elif coloring == 'singular':
@@ -361,14 +381,15 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=False,canvas_size=(800,800)):
     stitch_lines = visuals.Line(method=linemethod)
 
 
-    if costs:
-        number_of_costs_to_show = 20 # HACK
+    if costs > 0:
+
+        number_of_costs_to_show = costs # HACK
         all_stitches = list(stitches for blob3d in blob3dlist for pairing in blob3d.pairings for stitches in pairing.stitches)
-        all_stitches = sorted(all_stitches, key=lambda stitch: stitch.distance, reverse=True) # costs are (contour, distance, total)
+        all_stitches = sorted(all_stitches, key=lambda stitch: stitch.cost[2], reverse=True) # costs are (contour_cost, distance(as cost), total, distance(not as cost))
         midpoints = np.zeros([number_of_costs_to_show,3])
         for index,stitch in enumerate(all_stitches[:number_of_costs_to_show]): #FIXME! For some reason overloads the ram.
             midpoints[index] = [(stitch.lowerpixel.x + stitch.upperpixel.x) / (2 * xdim), (stitch.lowerpixel.y + stitch.upperpixel.y) / (2 * ydim), (stitch.lowerpixel.z + stitch.upperpixel.z) / (2 * zdim)]
-            textStr = str(stitch.cost[0])[:2] + '_' +  str(stitch.cost[1])[:3] + '_' +  str(stitch.cost[2])[:2]
+            textStr = str(stitch.cost[0])[:2] + '_' +  str(stitch.cost[3])[:3] + '_' +  str(stitch.cost[2])[:2]
             view.add(visuals.Text(textStr, pos=midpoints[index], color='yellow'))
 
 

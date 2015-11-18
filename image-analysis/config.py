@@ -29,6 +29,12 @@ z_compression = 1
 slide_portion = 1
     # (0,1]: The proportion of each slide to operate over, used to speed up test processing
 hard_max_pixel_value = 255
+max_pixels_to_stitch = 50 # The max amount of pixels acceptable in EACH pair of slides to be stitched
+max_stitch_cost = 90 # The max cost a stitch can be before it is ignored
+max_distance = 7 # The max distance between two pixels that can be stitched
+
+
+
 
 assert 0 < z_compression <= 1
 assert 0 < slide_portion <= 1

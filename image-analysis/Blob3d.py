@@ -12,8 +12,8 @@ class Blob3d:
         # Now find my pairings
         self.isSubblob = subblob # T/F
         self.pairings = []
-        self.lowslide = min(blob.slide.id_num for blob in self.blob2ds)
-        self.highslide = max(blob.slide.id_num for blob in self.blob2ds)
+        self.lowslideheight = min(blob.slide.height for blob in self.blob2ds)
+        self.highslideheight = max(blob.slide.height for blob in self.blob2ds)
         self.pixels = []
         self.edge_pixels = []
         for blob in self.blob2ds:
@@ -26,6 +26,18 @@ class Blob3d:
         self.maxy = max(blob.maxy for blob in self.blob2ds)
         self.miny = min(blob.miny for blob in self.blob2ds)
         self.minx = min(blob.minx for blob in self.blob2ds)
+        self.avgx = sum(blob.avgx * len(blob.pixels) for blob in self.blob2ds) / len(self.pixels) # FIXME this is faster, why does it yield different values?
+        self.avgy = sum(blob.avgx * len(blob.pixels) for blob in self.blob2ds) / len(self.pixels)
+        # self.avgx = sum(pixel.x for blob in self.blob2ds for pixel in blob.edge_pixels) / len(self.pixels)
+        # self.avgy = sum(pixel.y for blob in self.blob2ds for pixel in blob.edge_pixels) / len(self.pixels)
+
+        # print('DB avg x,y,x2,y2=' + str([self.avgx, self.avgy, self.avgx2, self.avgy2]))
+
+
+        self.avgz = (self.lowslideheight + self.highslideheight) / 2
+
+
+
         self.isSingular = False
         self.subblobs = []
         self.note = '' # This is a note that can be manually added for identifying certain characteristics..
@@ -35,7 +47,7 @@ class Blob3d:
             sb = 'sub'
         else:
             sb = ''
-        return str('B3D(' + str(sb) + '): lowslide=' + str(self.lowslide) + ' highslide=' + str(self.highslide) + ' #edgepixels=' + str(len(self.edge_pixels)) + ' #pixels=' + str(len(self.pixels)) + ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) +')')
+        return str('B3D(' + str(sb) + '): lowslideheight=' + str(self.lowslideheight) + ' highslideheight=' + str(self.highslideheight) + ' #edgepixels=' + str(len(self.edge_pixels)) + ' #pixels=' + str(len(self.pixels)) + ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) + ')')
 
     def add_note(self, str):
         if hasattr(self, 'note'):
@@ -77,15 +89,15 @@ class Blob3d:
         :param filename: The base filename to save, will have numerical suffix
         :return:
         '''
-        # slice_arrays = [np.zeros((self.maxx - self.minx + 1, self.maxy - self.miny + 1))] * (self.highslide - self.lowslide + 1) # HACK on +1
+        # slice_arrays = [np.zeros((self.maxx - self.minx + 1, self.maxy - self.miny + 1))] * (self.highslideheight - self.lowslideheight + 1) # HACK on +1
         slice_arrays = []
-        for i in range(self.highslide - self.lowslide + 1):
+        for i in range(self.highslideheight - self.lowslideheight + 1):
             slice_arrays.append(np.zeros((self.maxx - self.minx + 1, self.maxy - self.miny + 1)))
         savename = FIGURES_DIR + filename
 
         for b2d in self.blob2ds:
             for pixel in b2d.pixels:
-                slice_arrays[pixel.z - self.lowslide][pixel.x - self.minx][pixel.y - self.miny] = pixel.val
+                slice_arrays[pixel.z - self.lowslideheight][pixel.x - self.minx][pixel.y - self.miny] = pixel.val
         for slice_num, slice in enumerate(slice_arrays):
             img = scipy_misc.toimage(slice, cmin=0.0, cmax=255.0)
             print('Saving Image of Blob2d as: ' + str(savename) + str(slice_num) + '.png')

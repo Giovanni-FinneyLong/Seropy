@@ -329,7 +329,8 @@ def main():
     else:
         blob3dlist = unPickle(picklefile)
 
-    plotBlob3ds(blob3dlist, coloring='singular', costs=True)
+    # plotBlob3ds([blob3dlist[:3]], coloring='blob', costs=True)
+    plotBlob3ds(blob3dlist, coloring='blob', costs=10)
     debug()
 
 
@@ -390,12 +391,6 @@ def main():
         debug()
 
 
-    # for blob3d in blob3dlist:
-    #     print(blob3d)
-    #     for blob2d in blob3d.blob2ds:
-    #         print(' ' + str(blob2d))
-    #         for pix in blob2d.pixels:
-    #             print('  ' + str(pix))
 
 
     ## sub_b3ds, sub_stitchs =  blob3dlist[40].gen_subblob3ds(save=True, filename='subblobs1.pickle')

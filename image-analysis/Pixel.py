@@ -1,4 +1,5 @@
 import numpy as np
+import math
 class Pixel:
     '''
     This class is being used to hold the coordinates, base info and derived info of a pixel of a single image\'s layer
@@ -67,3 +68,7 @@ class Pixel:
     @staticmethod
     def midpointposition(pixel1, pixel2):
         return np.array([[(pixel1.x + pixel2.x) / 2, (pixel1.y + pixel2.y) / 2, (pixel1.z + pixel2.z) / 2]])
+
+    @staticmethod
+    def distancebetween(pixel1, pixel2):
+        return math.sqrt(math.pow(pixel1.x - pixel2.x, 2) + math.pow(pixel1.y - pixel2.y, 2))
