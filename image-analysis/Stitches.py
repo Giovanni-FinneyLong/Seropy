@@ -127,8 +127,9 @@ class Pairing:
         self.indeces = munk.compute(np.copy(self.cost_array))
         self.cost = 0
         for row, col in self.indeces:
+            self.stitches.append(Stitch(self.lowerpixels[row], self.upperpixels[col], self.lowerblob, self.upperblob, self.cost_array[row][col]))
             self.total_cost += self.cost_array[row][col]
-            self.costs.append(self.cost_array[row][col])
+            # self.costs.append(self.cost_array[row][col])
             print('DB cost of:' + str(self.cost_array[row][col]) + ' from bin cost:' + str(costBetweenPoints(self.lower_context_bins[row], self.upper_context_bins[col])) + ' and cost from distance:' + str(distanceCostBetweenPoints(self.lowerpixels[row], self.upperpixels[col])))
 
 
@@ -149,9 +150,9 @@ class Pairing:
         self.upperpixels = self.edgepixelsinbounds(upperblob, lowerblob)
         self.lowerpixels = self.edgepixelsinbounds(lowerblob, upperblob) # TODO psoe on the order of lower and upper
         self.total_cost = -1
-        self.costs = []
+        #self.costs = []
         self.isReduced = False # True when have chosen a subset of the edge pixels to reduce computation
-
+        self.stitches = []
 
         if len(self.lowerpixels) != 0: # Optimization
             self.upperpixels = self.edgepixelsinbounds(upperblob, lowerblob)
@@ -189,17 +190,13 @@ class Stitch:
     A single instance of a stitch between two blob2ds.
     There may be many 'Stitch' object to one 'Pairing' between two blob2ds
     '''
-    def __init__(self, lowerpixel, upperpixel, lowerblob, upperblob,distance_cost, contour_cost):
+    def __init__(self, lowerpixel, upperpixel, lowerblob, upperblob, cost):
         self.lowerpixel = lowerpixel
         self.upperpixel = upperpixel
         self.lowerblob = lowerblob
         self.upperblob = upperblob
-        self.distance_cost = distance_cost
-        self.contour_cost = contour_cost
-        self.set_total_cost()
+        self.cost = cost
 
-    def set_total_cost(self):#TODO find the best combo
-        self.total_cost = self.distance_cost * self.contour_cost
 
     def __str__(self):
         print('Stitch between blob2ds:(' + str(self.lowerblob) + ',' + str(self.upperblob) + '), between pixels:(' \
