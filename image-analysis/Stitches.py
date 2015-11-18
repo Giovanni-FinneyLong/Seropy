@@ -163,7 +163,6 @@ class Stitches:
             # NOTE After ::2 opt, total time for [:3] data slides = 10 mins 19 seconds, instead of ~ 2 hours, after selective[::3], total time = 6mins 49 seconds
             # selective [::3] with 5 slides = 36 mins
 
-
             if len(self.upperpixels) > max_pixels_to_stitch or len(self.lowerpixels) > max_pixels_to_stitch:
                 print('-->Too many pixels in the below stitch, reducing to a subset, originally was: ' + str(len(self.lowerpixels)) +
                    '/' + str(len(self.lowerblob.edge_pixels)) + ' lower blob pixels and ' + str(len(self.upperpixels)) +
@@ -184,3 +183,25 @@ class Stitches:
             upperblob.updateStitches(self)
         else:
             self.isConnected = False
+
+class Stitch:
+    '''
+    A single instance of a stitch between two blob2ds.
+    There may be many 'Stitch' object to one 'Stitches' between two blob2ds
+    '''
+    def __init__(self, lowerpixel, upperpixel, lowerblob, upperblob,distance_cost, contour_cost):
+        self.lowerpixel = lowerpixel
+        self.upperpixel = upperpixel
+        self.lowerblob = lowerblob
+        self.upperblob = upperblob
+        self.distance_cost = distance_cost
+        self.contour_cost = contour_cost
+        self.set_total_cost()
+
+    def set_total_cost(self):#TODO find the best combo
+        self.total_cost = self.distance_cost * self.contour_cost
+
+    def __str__(self):
+        print('Stitch between blob2ds:(' + str(self.lowerblob) + ',' + str(self.upperblob) + '), between pixels:(' \
+        + str(self.lowerpixel) + ',' + str(self.upperpixel) + '), has (dist, contour, total) costs:(' \
+        + str(self.distance_cost) + ',' str(self.contour_cost) + ',' + str(self.total_cost) + ')')

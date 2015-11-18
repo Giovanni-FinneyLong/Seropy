@@ -11,7 +11,7 @@ test_instead_of_data = False
 dePickle = False
 OpenGLLinesInsteadOfAgg = True
 mayPlot = False # Used to control the importing of visualization packages; vispy doesn't run on arm :(
-
+max_pixels_to_stitch = 150 # Max threshold for the number of pixels to use for Stitches from any Blob2d
 
 
   ### Variables ###
