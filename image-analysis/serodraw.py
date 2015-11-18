@@ -435,7 +435,7 @@ def plotSlidesVC(slide_stack, stitchlist=[], **kwargs):
     orders = kwargs.get('orders') # ('command', total scaling/rotation, numberofframes)
     canvas_size = kwargs.get('canvas_size', (800,800))
     gif_size = kwargs.get('gif_size', canvas_size)
-    stitches = kwargs.get('stitches', False)
+    stitches = kwargs.get('pairings', False)
     polygons = kwargs.get('polygons', False)
     subpixels = kwargs.get('subpixels', False)
 

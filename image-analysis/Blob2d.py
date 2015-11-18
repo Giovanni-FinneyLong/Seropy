@@ -30,7 +30,7 @@ class Blob2d:
         self.partner_subpixels = [] # Each element is a list of pixels, corresponding to a subset of the edge pixels from the partner blob
                                     # The value of each element in the sublist for each partner is the index of the pixel from the corresponding partner
         self.my_subpixels = []      # Set of own subpixels, with each list corresponding to a list from partner_subpixels
-        self.stitches = [] # A list of stitches that this blob belongs to
+        self.pairings = [] # A list of pairings that this blob belongs to
         self.minx = min(pixel.x for pixel in self.pixels)
         self.maxx = max(pixel.x for pixel in self.pixels)
         self.miny = min(pixel.y for pixel in self.pixels)
@@ -185,9 +185,9 @@ class Blob2d:
         '''
         return Blob2d.total_blobs
 
-    def updateStitches(self, stitches):
-        # print('DB Updating stitches with stitches totally costing: ' + str(stitches.total_cost))
-        self.stitches.append(stitches)
+    def updatePairings(self, stitches):
+        # print('DB Updating pairings with pairings totally costing: ' + str(pairings.total_cost))
+        self.pairings.append(stitches)
 
     def getconnectedblob2ds(self):
         '''
@@ -206,7 +206,7 @@ class Blob2d:
             :param: blob2dlist: The accumulated list of a blob2ds which are connected directly or indirectly to the inital seed blob
             '''
 
-            if hasattr(cursorblob, 'stitches') and len(cursorblob.stitches) != 0:
+            if hasattr(cursorblob, 'pairings') and len(cursorblob.stitches) != 0:
                 if cursorblob not in blob2dlist:
                     if hasattr(cursorblob, 'assignedto3d') and cursorblob.assignedto3d:
                         print('====> DB Warning, adding a blob to list that has already been assigned: ' + str(cursorblob))

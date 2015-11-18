@@ -102,7 +102,7 @@ def setAllShapeContexts(slidelist):
 
 
 def stitchAllBlobs(slidelist):
-    stitchlist = []
+    pairlist = []
     print('Beginning to stitch together blobs')
     for slide_num, slide in enumerate(slidelist):
         print('Starting slide #' + str(slide_num) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds')
@@ -114,12 +114,12 @@ def stitchAllBlobs(slidelist):
             for b2_num, blob2 in enumerate(blob1.possible_partners):
                 print('   Comparing to blob2:' + str(blob2))
                 t0 = time.time()
-                bufStitch = Stitches(blob1, blob2, 1.1, 36)
+                bufStitch = Pairing(blob1, blob2, 1.1, 36)
                 if bufStitch.isConnected:
-                    stitchlist.append(bufStitch)
+                    pairlist.append(bufStitch)
                     tf = time.time()
                     printElapsedTime(t0, tf, pad='    ')
-    return stitchlist
+    return pairlist
 
 
 def segment_horizontal(blob3d):
@@ -135,7 +135,7 @@ def segment_horizontal(blob3d):
                 downward_stitch += 1
         if upward_stitch > 1 or downward_stitch > 1:
             print('Found instance of multiple stitching on b2d:' + str(blob2d_num) + ' which has ' + str(downward_stitch)
-                  + ' downward and ' + str(upward_stitch) + ' upward stitches')
+                  + ' downward and ' + str(upward_stitch) + ' upward pairings')
             display = True
         if display:
             plotBlob3d(blob3d)
@@ -247,7 +247,7 @@ def expDistance():
     interests[0].isSingular = True # GREEN FOR SINGULAR
     interests[1].isSingular = False # RED FOR NOT SINGULAR
 
-    # for stitch in interests[0].stitches:
+    # for stitch in interests[0].pairings:
     #     for lowerpnum, upperpnum in stitch.indeces:
     #         stitch.lowerpixels[lowerpnum]
     #         stitch.upperpixels[upperpnum]
@@ -267,11 +267,11 @@ def main():
     stitchlist = []
     if test_instead_of_data:
         # picklefile = 'pickletest_snip.pickle'
-         picklefile = 'pickletest_testsnip.pickle'
+         picklefile = 'pickletest.pickle'
 
         # pickletest1 holds the results of recomputing over gen slides from bloblist[3]
     else:
-        picklefile = 'pickledata_distance.pickle'
+        picklefile = 'pickledata.pickle'
 
     # NOTE: pickledata.pickle holds the pickle data from all primary b3ds that were created without the additional consideration
     # For the distance between points (not counting the log scaling applied to bins
@@ -414,12 +414,12 @@ def main():
 
 
 
-    # plotSlidesVC(all_slides, stitchlist, stitches=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
+    # plotSlidesVC(all_slides, stitchlist, pairings=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
     # NOTE: Interesting blob3ds:
     # 3: Very complex, mix of blobs, irregular stitching example, even including a seperate group (blob3d)
-    # NOTE temp: in the original 20 swellshark scans, there are ~ 11K blobs, ~9K stitches
+    # NOTE temp: in the original 20 swellshark scans, there are ~ 11K blobs, ~9K pairings
     # blob3dlist[2].blob2ds[0].saveImage('test2.jpg')
-    # Note, current plan is to find all blob3d's that exists with singular stitches between each 2d blob
+    # Note, current plan is to find all blob3d's that exists with singular pairings between each 2d blob
     # These blobs should be 'known' to be singular blobs.
     # An additional heuristic may be necessary, potentially using the cost from Munkres()
     # Or computing a new cost based on the displacements between stitched pixelsS

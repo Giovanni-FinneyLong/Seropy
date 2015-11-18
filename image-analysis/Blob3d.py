@@ -1,6 +1,6 @@
 class Blob3d:
     '''
-    A group of blob2ds that chain together with stitches into a 3d shape
+    A group of blob2ds that chain together with pairings into a 3d shape
     Setting subblob=True indicates that this is a blob created from a pre-existing blob3d.
     '''
     total_blobs = 0
@@ -9,7 +9,7 @@ class Blob3d:
         self.id = Blob3d.total_blobs
         Blob3d.total_blobs += 1
         self.blob2ds = blob2dlist          # List of the blob 2ds used to create this blob3d
-        # Now find my stitches
+        # Now find my pairings
         self.isSubblob = subblob # T/F
         self.stitches = []
         self.lowslide = min(blob.slide.id_num for blob in self.blob2ds)

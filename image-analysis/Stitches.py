@@ -4,13 +4,13 @@ from munkres import Munkres
 from myconfig import *
 # from serodraw import debug
 
-class Stitches:
+class Pairing:
     """
     Only created when it is expected that two blobs from different slides belong to the same blob3d
     Contains the cost, and point information from stitching 2 blobs together.
     Contains 2 sets of mappings to their edge pixels
-    As stitches are created before it is confirmed that two blobs may overlap or be suitable partners, the internal vars
-        isConnected and isPartners indicate whether the Stitches are valid, in the sense of overlap and viable partners respectively
+    As pairings are created before it is confirmed that two blobs may overlap or be suitable partners, the internal vars
+        isConnected and isPartners indicate whether the Pairing are valid, in the sense of overlap and viable partners respectively
     """
 
     def edgepixelsinbounds(self, subsetblob, boundaryblob):
@@ -179,15 +179,15 @@ class Stitches:
             self.setShapeContexts(num_bins) # Set lower and upper context bins
             print('   ' + str(self))
             self.munkresCost() # Now have set self.cost and self.indeces and self.connect
-            lowerblob.updateStitches(self)
-            upperblob.updateStitches(self)
+            lowerblob.updatePairings(self)
+            upperblob.updatePairings(self)
         else:
             self.isConnected = False
 
 class Stitch:
     '''
     A single instance of a stitch between two blob2ds.
-    There may be many 'Stitch' object to one 'Stitches' between two blob2ds
+    There may be many 'Stitch' object to one 'Pairing' between two blob2ds
     '''
     def __init__(self, lowerpixel, upperpixel, lowerblob, upperblob,distance_cost, contour_cost):
         self.lowerpixel = lowerpixel
