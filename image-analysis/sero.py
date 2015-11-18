@@ -128,7 +128,7 @@ def segment_horizontal(blob3d):
         upward_stitch = 0
         downward_stitch = 0
         display = False
-        for stitch in blob2d.stitches:
+        for stitch in blob2d.pairings:
             if blob2d == stitch.lowerblob:
                 upward_stitch += 1
             if blob2d == stitch.upperblob:
@@ -148,11 +148,11 @@ def tagBlobsSingular(blob3dlist):
         singular = True
         for blob2d_num, blob2d in enumerate(blob3d.blob2ds):
             if blob2d_num == 0 or blob2d_num == len(blob3d.blob2ds): # Endcap exceptions due to texture
-                if len(blob3d.stitches) > 99: # TODO why doesn't this have any effect? FIXME
+                if len(blob3d.pairings) > 99: # TODO why doesn't this have any effect? FIXME
                     singular = False
                     break
             else:
-                if len(blob3d.stitches) > 3: # Note ideally if > 2
+                if len(blob3d.pairings) > 3: # Note ideally if > 2
                     singular = False
                     break
         blob3d.isSingular = singular
@@ -316,6 +316,7 @@ def main():
         blob3dlist = []
         for blob2dlist in list3ds:
             blob3dlist.append(Blob3d(blob2dlist))
+        print('There are a total of ' + str(len(blob3dlist)) + ' blob3ds')
         tagBlobsSingular(blob3dlist) # TODO improve the simple classification
         for blob3d in blob3dlist:
             blob3d.set_note(note)
