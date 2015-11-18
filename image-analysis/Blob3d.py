@@ -1,3 +1,7 @@
+from Slide import Slide, SubSlide
+from Stitches import Pairing
+
+
 class Blob3d:
     '''
     A group of blob2ds that chain together with pairings into a 3d shape
@@ -26,8 +30,12 @@ class Blob3d:
         self.maxy = max(blob.maxy for blob in self.blob2ds)
         self.miny = min(blob.miny for blob in self.blob2ds)
         self.minx = min(blob.minx for blob in self.blob2ds)
-        self.avgx = sum(blob.avgx * len(blob.pixels) for blob in self.blob2ds) / len(self.pixels) # FIXME this is faster, why does it yield different values?
-        self.avgy = sum(blob.avgx * len(blob.pixels) for blob in self.blob2ds) / len(self.pixels)
+        # self.avgx = sum(blob.avgx * len(blob.pixels) for blob in self.blob2ds) / len(self.pixels) # FIXME this is faster is more accurate, but not working correctly..
+        # self.avgy = sum(blob.avgx * len(blob.pixels) for blob in self.blob2ds) / len(self.pixels)
+        self.avgx = sum(blob.avgx for blob in self.blob2ds) / len(self.blob2ds)
+        self.avgy = sum(blob.avgy for blob in self.blob2ds) / len(self.blob2ds)
+
+
         # self.avgx = sum(pixel.x for blob in self.blob2ds for pixel in blob.edge_pixels) / len(self.pixels)
         # self.avgy = sum(pixel.y for blob in self.blob2ds for pixel in blob.edge_pixels) / len(self.pixels)
 
@@ -57,14 +65,35 @@ class Blob3d:
     def set_note(self, str):
         self.note = str
 
+    @staticmethod
+    def tagBlobsSingular(blob3dlist):
+        singular_count = 0
+        non_singular_count = 0
+        for blob3d in blob3dlist:
+            singular = True
+            for blob2d_num, blob2d in enumerate(blob3d.blob2ds):
+                if blob2d_num != 0 or blob2d_num != len(blob3d.blob2ds): # Endcap exceptions due to texture
+                    if len(blob3d.pairings) > 3: # Note ideally if > 2
+                        singular = False
+                        break
+            blob3d.isSingular = singular
+            # Temp:
+            if singular:
+                singular_count += 1
+            else:
+                non_singular_count += 1
+        print('There are ' + str(singular_count) + ' singular 3d-blobs and ' + str(non_singular_count) + ' non-singular 3d-blobs')
+
+
+
     def gen_subblob3ds(self, save=False, filename=''):
         test_slides = []
         # for blob3d in blob3dlist:
         for blob2d in self.blob2ds:
             test_slides.append(SubSlide(blob2d, self))
-        setAllPossiblePartners(test_slides)
-        setAllShapeContexts(test_slides)
-        test_stitches = stitchAllBlobs(test_slides)
+        Slide.setAllPossiblePartners(test_slides)
+        Slide.setAllShapeContexts(test_slides)
+        test_stitches = Pairing.stitchAllBlobs(test_slides)
         list3ds = []
         for slide_num, slide in enumerate(test_slides):
             for blob in slide.blob2dlist:
@@ -77,7 +106,7 @@ class Blob3d:
         if save:
             doPickle(b3ds, filename)
         # print('Derived a total of ' + str(len(test_b3ds)) + ' 3d blobs')
-        tagBlobsSingular(b3ds)
+        Blob3d.tagBlobsSingular(b3ds)
         if not hasattr(self, 'subblobs'): # HACK FIXME once regen pickle
             self.subblobs = []
         self.subblobs = self.subblobs + b3ds

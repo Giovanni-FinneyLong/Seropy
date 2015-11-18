@@ -153,6 +153,20 @@ class Slide:
         printElapsedTime(self.t0, self.tf)
         print('')
 
+    @staticmethod
+    def setAllPossiblePartners(slidelist):
+        for slide_num, slide in enumerate(slidelist[:-1]): # All but the last slide
+            for blob in slide.blob2dlist:
+                blob.setPossiblePartners(slidelist[slide_num + 1])
+    @staticmethod
+    def setAllShapeContexts(slidelist):
+        # Note Use the shape contexts approach from here: http://www.cs.berkeley.edu/~malik/papers/mori-belongie-malik-pami05.pdf
+        # Note The paper uses 'Representative Shape Contexts' to do inital matching; I will do away with this in favor of checking bounds for possible overlaps
+        for slide in slidelist:
+            for blob in slide.blob2dlist:
+                blob.setShapeContexts(36)
+
+
     def getNextBlobId(self):
         # Starts at 0
         self.id_num += 1
@@ -406,7 +420,7 @@ def setseerodrawdims(x,y,z):
     ydim = y
     zdim = z
 
-def printElapsedTime(t0, tf, pad=''):
+def  printElapsedTime(t0, tf, pad=''): # HACK FIXME REMOVE THIS AND IMPORT CORRECTLY
     temp = tf - t0
     m = math.floor(temp / 60)
     plural_minutes = ''

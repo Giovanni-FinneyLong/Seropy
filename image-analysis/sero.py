@@ -87,39 +87,11 @@ def unPickle(filename):
         return blob3dlist
 
 
-def setAllPossiblePartners(slidelist):
-    for slide_num, slide in enumerate(slidelist[:-1]): # All but the last slide
-        for blob in slide.blob2dlist:
-            blob.setPossiblePartners(slidelist[slide_num + 1])
 
 
-def setAllShapeContexts(slidelist):
-    # Note Use the shape contexts approach from here: http://www.cs.berkeley.edu/~malik/papers/mori-belongie-malik-pami05.pdf
-    # Note The paper uses 'Representative Shape Contexts' to do inital matching; I will do away with this in favor of checking bounds for possible overlaps
-    for slide in slidelist:
-        for blob in slide.blob2dlist:
-            blob.setShapeContexts(36)
 
 
-def stitchAllBlobs(slidelist):
-    pairlist = []
-    print('Beginning to stitch together blobs')
-    for slide_num, slide in enumerate(slidelist):
-        print('Starting slide #' + str(slide_num) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds')
-        for blob1 in slide.blob2dlist:
-            if len(blob1.possible_partners) > 0:
-                print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
-            # print('  Blob1 current parter_costs:' + str(blob1.partner_costs))
 
-            for b2_num, blob2 in enumerate(blob1.possible_partners):
-                print('   Comparing to blob2:' + str(blob2))
-                t0 = time.time()
-                bufStitch = Pairing(blob1, blob2, 1.1, 36)
-                if bufStitch.isConnected:
-                    pairlist.append(bufStitch)
-                    tf = time.time()
-                    printElapsedTime(t0, tf, pad='    ')
-    return pairlist
 
 
 def segment_horizontal(blob3d):
@@ -140,28 +112,6 @@ def segment_horizontal(blob3d):
         if display:
             plotBlob3d(blob3d)
 
-def tagBlobsSingular(blob3dlist):
-    singular_count = 0
-    non_singular_count = 0
-
-    for blob3d in blob3dlist:
-        singular = True
-        for blob2d_num, blob2d in enumerate(blob3d.blob2ds):
-            if blob2d_num == 0 or blob2d_num == len(blob3d.blob2ds): # Endcap exceptions due to texture
-                if len(blob3d.pairings) > 99: # TODO why doesn't this have any effect? FIXME
-                    singular = False
-                    break
-            else:
-                if len(blob3d.pairings) > 3: # Note ideally if > 2
-                    singular = False
-                    break
-        blob3d.isSingular = singular
-        # Temp:
-        if singular:
-            singular_count += 1
-        else:
-            non_singular_count += 1
-    print('There are ' + str(singular_count) + ' singular 3d-blobs and ' + str(non_singular_count) + ' non-singular 3d-blobs')
 
 
 
@@ -261,10 +211,7 @@ def main():
 
     # expDistance()
     # debug()
-    note = 'Was created by setting distance cost log to base 2 instead of 10'
-
-
-    stitchlist = []
+    note = 'Was created by setting distance cost log to base 2 instead of 10, and multiplying by contour_cost'
     if test_instead_of_data:
          ## picklefile = 'pickletest_testsnip3.pickle'
          ## picklefile = 'pickletest_testsnip2.pickle' # Done logbase 2 for distance, +
@@ -321,7 +268,7 @@ def main():
         for blob2dlist in list3ds:
             blob3dlist.append(Blob3d(blob2dlist))
         print('There are a total of ' + str(len(blob3dlist)) + ' blob3ds')
-        tagBlobsSingular(blob3dlist) # TODO improve the simple classification
+        Blob3d.tagBlobsSingular(blob3dlist) # TODO improve the simple classification
         for blob3d in blob3dlist:
             blob3d.set_note(note)
         doPickle(blob3dlist, picklefile)
@@ -330,10 +277,10 @@ def main():
         blob3dlist = unPickle(picklefile)
 
     # plotBlob3ds([blob3dlist[:3]], coloring='blob', costs=True)
-    plotBlob3ds(blob3dlist, coloring='blob', costs=10)
-    debug()
+    # tagBlobsSingular(blob3dlist) # This is here temporarily to not need to repickle each time
 
-
+    # plotBlob3ds(blob3dlist, coloring='singular', costs=0, midpoints=True)
+    # debug()
 
 
 # '''    # DEBUG
@@ -354,15 +301,15 @@ def main():
 # '''
 
 
-    experimenting = False
+    experimenting = True
     if experimenting:
         # NOTE Blob3dlist[3].blob2ds[6] should be divided into subblobs
         # NOTE [3][1] is also good
         unpickle_exp = True
         pickle_exp = True # Only done if not unpickling
-        exp_pickle = 'experiment10.pickle' # 2,3 working #6 working except height, 7 working except stitch height, 8 works!!!
+        exp_pickle = 'pickletest_subblobs.pickle' # 2,3 working #6 working except height, 7 working except stitch height, 8 works!!!
 
-        primary_blobs = [blob3dlist[3], blob3dlist[8], blob3dlist[40]]
+        primary_blobs = blob3dlist #[blob3dlist[3], blob3dlist[8], blob3dlist[40]]
         if unpickle_exp:
             test_b3ds = unPickle(exp_pickle)
         else:
@@ -371,7 +318,7 @@ def main():
             for b3d_num, b3d in enumerate(primary_blobs):
                 print('DB GENERATING SUBBLOBS For B3d #' + str(b3d_num) + ' / ' + str(len(primary_blobs)))
                 buf = b3d.gen_subblob3ds()
-                test_b3ds = test_b3ds + buf[0]
+                test_b3ds = test_b3ds + buf[0] # buf[0] b/c currently returning b3ds,stitchlist
                 # print('Derived a total of ' + str(len(buf[0])) + ' subblob3ds from primary b3d:' + str(b3d))
             if pickle_exp:
                 doPickle(test_b3ds, exp_pickle)
@@ -386,7 +333,7 @@ def main():
         # plotBlob3ds(primary_blobs, color='blobs')
 
         # plotBlob3ds(test_b3ds + primary_blobs, color='blob')
-        plotBlob3ds(test_b3ds + primary_blobs, color='singular')
+        plotBlob3ds(test_b3ds + primary_blobs, coloring='singular')
         # plotBlod3ds(blob3dlist)
         debug()
 

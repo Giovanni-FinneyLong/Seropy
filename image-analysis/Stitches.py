@@ -3,7 +3,8 @@ import numpy as np
 from munkres import Munkres
 from myconfig import *
 # from serodraw import debug
-import Pixel
+# import Pixel
+import time
 class Pairing:
     """
     Only created when it is expected that two blobs from different slides belong to the same blob3d
@@ -143,7 +144,38 @@ class Pairing:
             # else:
             #     print('Ignored cost:' + str(self.cost_array[row][col]))
 
+    @staticmethod
+    def stitchAllBlobs(slidelist):
+        def  printElapsedTime(t0, tf, pad=''): # HACK FIXME REMOVE THIS AND IMPORT CORRECTLY
+            temp = tf - t0
+            m = math.floor(temp / 60)
+            plural_minutes = ''
+            if m > 1:
+                plural_minutes = 's'
+            if m > 0:
+                print(pad + 'Elapsed Time: ' + str(m) + ' minute' + str(plural_minutes) + ' & %.0f seconds' % (temp % 60))
+            else:
+                print(pad + 'Elapsed Time: %.2f seconds' % (temp % 60))
+        pairlist = []
+        print('Beginning to stitch together blobs')
+        for slide_num, slide in enumerate(slidelist):
+            print('Starting slide #' + str(slide_num) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds')
+            for blob1 in slide.blob2dlist:
+                if len(blob1.possible_partners) > 0:
+                    print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
+                # print('  Blob1 current parter_costs:' + str(blob1.partner_costs))
 
+                for b2_num, blob2 in enumerate(blob1.possible_partners):
+                    print('   Comparing to blob2:' + str(blob2))
+                    t0 = time.time()
+                    bufStitch = Pairing(blob1, blob2, 1.1, 36)
+                    if bufStitch.isConnected:
+                        pairlist.append(bufStitch)
+                        tf = time.time()
+                        printElapsedTime(t0, tf, pad='    ')
+
+
+        return pairlist
 
     def __str__(self):
         if self.cost == -1:
