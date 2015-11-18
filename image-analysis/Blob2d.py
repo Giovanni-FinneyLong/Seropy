@@ -206,14 +206,14 @@ class Blob2d:
             :param: blob2dlist: The accumulated list of a blob2ds which are connected directly or indirectly to the inital seed blob
             '''
 
-            if hasattr(cursorblob, 'pairings') and len(cursorblob.stitches) != 0:
+            if hasattr(cursorblob, 'pairings') and len(cursorblob.pairings) != 0:
                 if cursorblob not in blob2dlist:
                     if hasattr(cursorblob, 'assignedto3d') and cursorblob.assignedto3d:
                         print('====> DB Warning, adding a blob to list that has already been assigned: ' + str(cursorblob))
                     cursorblob.assignedto3d = True
                     blob2dlist.append(cursorblob)
-                    for stitch in cursorblob.stitches:
-                        for blob in (stitch.lowerblob, stitch.upperblob):
+                    for pairing in cursorblob.pairings:
+                        for blob in (pairing.lowerblob, pairing.upperblob):
                             followstitches(blob, blob2dlist)
             else:
                  Blob2d.blobswithoutstitches += 1

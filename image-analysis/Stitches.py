@@ -201,4 +201,4 @@ class Stitch:
     def __str__(self):
         print('Stitch between blob2ds:(' + str(self.lowerblob) + ',' + str(self.upperblob) + '), between pixels:(' \
         + str(self.lowerpixel) + ',' + str(self.upperpixel) + '), has (dist, contour, total) costs:(' \
-        + str(self.distance_cost) + ',' str(self.contour_cost) + ',' + str(self.total_cost) + ')')
+        + str(self.distance_cost) + ',' + str(self.contour_cost) + ',' + str(self.total_cost) + ')')

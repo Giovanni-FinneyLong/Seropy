@@ -42,7 +42,7 @@ class Slide:
         assert not (matrix is None and filename is None)
         slices = []
         self.t0 = time.time()
-        if matrix is None: # Only done if this is a primary slide
+        if matrix is None: # Only done if this is a primary slide # FIXME
             self.id_num = Slide.total_slides
             self.height = Slide.total_slides
             Slide.total_slides += 1
@@ -52,7 +52,7 @@ class Slide:
             print('Starting on image: ' + filename)
             imarray = np.array(imagein)
             (self.local_xdim, self.local_ydim, self.local_zdim) =  (im_xdim, im_ydim, im_zdim) = imarray.shape[0],imarray.shape[1], self.height
-            setglobaldims(im_xdim * slide_portion, im_ydim * slide_portion, im_zdim * slide_portion) # TODO FIXME
+            # setglobaldims(im_xdim * slide_portion, im_ydim * slide_portion, im_zdim * slide_portion) # TODO FIXME, remove when possible
             print('The are ' + str(zdim) + ' channels')
             image_channels = imagein.split()
             for s in range(len(image_channels)):  # Better to split image and use splits for arrays than to split an array

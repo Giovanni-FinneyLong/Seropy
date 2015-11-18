@@ -11,7 +11,7 @@ class Blob3d:
         self.blob2ds = blob2dlist          # List of the blob 2ds used to create this blob3d
         # Now find my pairings
         self.isSubblob = subblob # T/F
-        self.stitches = []
+        self.pairings = []
         self.lowslide = min(blob.slide.id_num for blob in self.blob2ds)
         self.highslide = max(blob.slide.id_num for blob in self.blob2ds)
         # self.edge_pixels = [pixel for pixels in self.blob2ds for pixel in pixels]
@@ -23,9 +23,9 @@ class Blob3d:
         for blob in self.blob2ds:
             self.pixels += blob.pixels
             self.edge_pixels += blob.edge_pixels
-            for stitch in blob.stitches:
-                if stitch not in self.stitches: # TODO set will be faster
-                    self.stitches.append(stitch)
+            for stitch in blob.pairings:
+                if stitch not in self.pairings: # TODO set will be faster
+                    self.pairings.append(stitch)
         self.maxx = max(blob.maxx for blob in self.blob2ds)
         self.maxy = max(blob.maxy for blob in self.blob2ds)
         self.miny = min(blob.miny for blob in self.blob2ds)
