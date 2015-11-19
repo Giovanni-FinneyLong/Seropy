@@ -237,7 +237,7 @@ def contrastSaturatedBlob2ds(blob2ds, minimal_edge_pixels=350):
         else:
             print('Skipping, as blob2d had only: ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
 
-def plotBlob3ds(blob3dlist, coloring=None, costs=0, midpoints=False, canvas_size=(800,800)):
+def plotBlob3ds(blob3dlist, coloring=None, costs=0, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800,800)):
     global canvas
     global view
     global xdim
@@ -280,18 +280,33 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=0, midpoints=False, canvas_size
     colors.remove('aquamarine')
     colors.remove('black')
     # colors.remove('cadetblue')
-
     # print('The available colors are: ' + str(colors))
 
     lineendpoints = 0
 
-    if midpoints:
-        midpoint_markers = []
+    if b3dmidpoints:
+        b3d_midpoint_markers = []
         for blob_num, blob3d in enumerate(blob3dlist):
-            midpoint_markers.append(visuals.Markers())
-            midpoint_markers[-1].set_data(np.array([[blob3d.avgx / xdim, blob3d.avgy / ydim, blob3d.avgz / zdim]]), edge_color='w', face_color=colors[blob_num % len(colors)], size=25)
-            midpoint_markers[-1].symbol = 'star'
-            view.add(midpoint_markers[-1])
+            b3d_midpoint_markers.append(visuals.Markers())
+            b3d_midpoint_markers[-1].set_data(np.array([[blob3d.avgx / xdim, blob3d.avgy / ydim, blob3d.avgz / zdim]]), edge_color='w', face_color=colors[blob_num % len(colors)], size=25)
+            b3d_midpoint_markers[-1].symbol = 'star'
+            view.add(b3d_midpoint_markers[-1])
+    if b2dmidpoints:
+        b2d_num = 0
+        b2d_count = sum(len(b3d.blob2ds) for b3d in blob3dlist)
+        print('b2d_count=' + str(b2d_count))
+        b2d_midpoints = np.zeros([b2d_count, 3])
+
+        for blob3d in blob3dlist:
+            for blob2d in blob3d.blob2ds:
+                b2d_midpoints[b2d_num] = [blob2d.avgx / xdim, blob2d.avgy / ydim, blob2d.height / zdim]
+                b2d_num += 1
+
+        b2d_midpoint_markers = visuals.Markers()
+        b2d_midpoint_markers.set_data(b2d_midpoints, edge_color='w', face_color='yellow', size=15)
+        b2d_midpoint_markers.symbol = 'diamond'
+        view.add(b2d_midpoint_markers)
+
 
     if coloring == 'blob': # Note: This is very graphics intensive.
 

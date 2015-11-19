@@ -8,6 +8,7 @@ import munkres as Munkres
 from Slide import *
 from Blob3d import *
 import pickle # Note uses cPickle automatically ONLY IF python 3
+from Stitches import Pairing
 # from skimage import filters
 # from skimage import segmentation
 # from PIL import ImageFilter
@@ -218,7 +219,8 @@ def main():
 
          # picklefile = 'pickletest_refactor.pickle' # THIS IS DONE +, and log distance base 10
          #picklefile = 'pickletest_refactor2.pickle' # THIS IS DONE *, and log distance base 2
-         picklefile = 'pickletest_refactor3.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3
+         picklefile = 'pickletest_refactor3.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 50
+         picklefile = 'pickletest_refactor4.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
 
         # pickletest1 holds the results of recomputing over gen slides from bloblist[3]
     else:
@@ -249,10 +251,10 @@ def main():
             all_slides.append(Slide(imagefile)) # Pixel computations are done here, as the slide is created.
         # Note now that all slides are generated, and blobs are merged, time to start mapping blobs upward, to their possible partners
 
-        setAllPossiblePartners(all_slides)
-        setAllShapeContexts(all_slides)
+        Slide.setAllPossiblePartners(all_slides)
+        Slide.setAllShapeContexts(all_slides)
         t_start_munkres = time.time()
-        stitchlist = stitchAllBlobs(all_slides)
+        stitchlist = Pairing.stitchAllBlobs(all_slides)
         t_finish_munkres = time.time()
         print('Done stitching together blobs, total time for all: ', end='')
         printElapsedTime(t_start_munkres, t_finish_munkres)
@@ -279,7 +281,7 @@ def main():
     # plotBlob3ds([blob3dlist[:3]], coloring='blob', costs=True)
     # tagBlobsSingular(blob3dlist) # This is here temporarily to not need to repickle each time
 
-    # plotBlob3ds(blob3dlist, coloring='singular', costs=0, midpoints=True)
+    # plotBlob3ds(blob3dlist, coloring='singular', costs=0, b3dmidpoints=True)
     # debug()
 
 
@@ -333,7 +335,7 @@ def main():
         # plotBlob3ds(primary_blobs, color='blobs')
 
         # plotBlob3ds(test_b3ds + primary_blobs, color='blob')
-        plotBlob3ds(test_b3ds + primary_blobs, coloring='singular')
+        plotBlob3ds(test_b3ds + primary_blobs, coloring='singular', b2dmidpoints=True)
         # plotBlod3ds(blob3dlist)
         debug()
 
