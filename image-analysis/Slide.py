@@ -1,7 +1,7 @@
 from Pixel import *
 import sys
 import collections
-from serodraw import *
+# from serodraw import *
 # from serodraw import setglobaldims
 from myconfig import *
 from Blob2d import *
@@ -336,17 +336,6 @@ class SubSlide(Slide):
 
     def __str__(self):
         return super().__str__() + ' <subslide>: Offset(x,y):(' + str(self.offsetx) + ',' + str(self.offsety) + ')' + ' height:' + str(self.height)
-
-
-def runShell():
-    gvars = globals()
-    gvars.update(locals())
-    readline.set_completer(rlcompleter.Completer(gvars).complete)
-    readline.parse_and_bind("tab: complete")
-    shell = code.InteractiveConsole(gvars)
-    shell.interact()
-
-
 
 def timeNoSpaces():
     return time.ctime().replace(' ', '_').replace(':', '-')

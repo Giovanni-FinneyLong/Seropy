@@ -9,6 +9,7 @@ from Slide import *
 from Blob3d import *
 import pickle # Note uses cPickle automatically ONLY IF python 3
 from Stitches import Pairing
+from serodraw import *
 # from skimage import filters
 # from skimage import segmentation
 # from PIL import ImageFilter
@@ -221,14 +222,15 @@ def main():
 
          # picklefile = 'pickletest_refactor.pickle' # THIS IS DONE +, and log distance base 10
          #picklefile = 'pickletest_refactor2.pickle' # THIS IS DONE *, and log distance base 2
-         picklefile = 'pickletest_refactor3.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 50
+         # picklefile = 'pickletest_refactor3.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 50
         # doPickle(test_b3ds + primary_blobs, directory='H:/Dropbox/Serotonin/pickles/recursive/', filename='depth1_subset_of_b3ds.pickle', note=picklenote)
 
 
 
-         # picklefile = 'pickletest_refactor4.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
+         picklefile = 'pickletest_refactor4.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
         # pickletest1 holds the results of recomputing over gen slides from bloblist[3]
-         picklefile = 'H:/Dropbox/Serotonin/pickles/recursive/' + 'depth1_subset_of_b3ds.pickle'
+
+         # picklefile = 'H:/Dropbox/Serotonin/pickles/recursive/' + 'depth1_subset_of_b3ds.pickle'
     else:
         picklefile = 'pickledata.pickle'
 
@@ -310,12 +312,12 @@ def main():
 # '''
 
 
-    experimenting = False
+    experimenting = True
     if experimenting:
         # NOTE Blob3dlist[3].blob2ds[6] should be divided into subblobs
         # NOTE [3][1] is also good
-        unpickle_exp = True
-        pickle_exp = True # Only done if not unpickling
+        unpickle_exp = False
+        pickle_exp = False # Only done if not unpickling
         exp_pickle = 'pickletest_subblobs.pickle' # 2,3 working #6 working except height, 7 working except stitch height, 8 works!!!
 
         primary_blobs = blob3dlist #[blob3dlist[3], blob3dlist[8], blob3dlist[40]]
@@ -366,7 +368,12 @@ def main():
 
         # plotBlob3ds(test_b3ds + primary_blobs, coloring='depth', b2dmidpoints=False, canvas_size=(1000,1000), b2d_midpoint_values=10)
         # plotBlod3ds(blob3dlist)
-    plotBlob3ds(blob3dlist, coloring='depth', b2dmidpoints=False, canvas_size=(1000,1000), b2d_midpoint_values=10)
+    for blob3d in blob3dlist: # FIXME repairing old pickles
+        if not hasattr(blob3d, 'recursive_depth'):
+            blob3d.recursive_depth = 0
+
+
+    plotBlob3ds(blob3dlist, coloring='depth', b2dmidpoints=False, canvas_size=(1000,1000), b2d_midpoint_values=50)
     debug()
 
     #TODO

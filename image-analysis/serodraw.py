@@ -14,10 +14,7 @@ import tkinter
 # http://matplotlib.org/faq/usage_faq.html#what-is-a-backend
 import glob
 
-# from Slide import *
 from myconfig import *
-from Pixel import *
-from Blob3d import Blob3d, SubBlob3d
 
 
 if mayPlot:
@@ -126,12 +123,14 @@ def plotBlob3d(blob3d, **kwargs):
         midy += blob.avgy
     midx /= len(blob3d.blob2ds)
     midy /= len(blob3d.blob2ds)
-    midz = (blob3d.highslide + blob3d.lowslide) / 2
+    midz = (blob3d.highslideheight + blob3d.lowslideheight) / 2
 
 
 
-    maxwidth = blob3d.maxx - blob3d.minx
-    maxheight = blob3d.maxy - blob3d.miny
+    xdim = blob3d.maxx - blob3d.minx
+    ydim = blob3d.maxy - blob3d.miny
+    zdim = blob3d.highslideheight - blob3d.lowslideheight
+
     # /TODO
     canvas_size = kwargs.get('canvas_size', (800,800))
     translate = kwargs.get('translate', True) # Offset the blob towards the origin along the x,y axis
@@ -173,7 +172,7 @@ def plotBlob3d(blob3d, **kwargs):
     markers = []
     colors = vispy.color.get_color_names() # ALl possible colors
     for (p_num, pixel) in enumerate(blob3d.edge_pixels):
-            edge_pixel_array[p_num] = [(pixel.x - offsetx) / xdim, (pixel.y - offsety) / ydim, pixel.z / ( z_compression * len(blob3d.blob2ds))]
+            edge_pixel_array[p_num] = [(pixel.x - offsetx) / xdim, (pixel.y - offsety) / ydim, pixel.z /  (z_compression * zdim)]
     markers = visuals.Markers()
     markers.set_data(edge_pixel_array, edge_color=None, face_color='green', size=8)
     view.add(markers)
@@ -193,8 +192,8 @@ def plotBlob3d(blob3d, **kwargs):
         for lowerpnum, upperpnum in stitch.indeces:
             lowerpixel = stitch.lowerpixels[lowerpnum]
             upperpixel = stitch.upperpixels[upperpnum]
-            line_locations[line_index] = [(lowerpixel.x - offsetx) / xdim, (lowerpixel.y - offsety) / ydim, (stitch.lowerslidenum) / ( z_compression * len(blob3d.blob2ds))]
-            line_locations[line_index + 1] = [(upperpixel.x - offsetx) / xdim, (upperpixel.y - offsety) / ydim, (stitch.upperslidenum) / ( z_compression * len(blob3d.blob2ds))]
+            line_locations[line_index] = [(lowerpixel.x - offsetx) / xdim, (lowerpixel.y - offsety) / ydim, (stitch.lowerslidenum) / ( z_compression * zdim)]
+            line_locations[line_index + 1] = [(upperpixel.x - offsetx) / xdim, (upperpixel.y - offsety) / ydim, (stitch.upperslidenum) / ( z_compression * zdim)]
             line_index += 2
     lower_markers = visuals.Markers()
     upper_markers = visuals.Markers()
@@ -278,9 +277,12 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=0, b2dmidpoints=False, b3dmidpo
     # note getting rid of annoying colors
     colors.remove('antiquewhite')
     colors.remove('aliceblue')
+    colors.remove('azure')
     colors.remove('blanchedalmond')
     colors.remove('b')
     colors.remove('aquamarine')
+    colors.remove('beige')
+    colors.remove('bisque')
     colors.remove('black')
     # colors.remove('cadetblue')
     # print('The available colors are: ' + str(colors))
@@ -333,9 +335,6 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=0, b2dmidpoints=False, b3dmidpo
     elif coloring == 'depth': # Coloring based on recursive depth
         # HACK can be removed when repickled # FIXME
         print('Coloring based on depth')
-        for blob in blob3dlist:
-            if type(blob) is Blob3d:
-                blob.recursive_depth = 0 # Assumed to be parent
         max_depth = max(blob.recursive_depth for blob in blob3dlist)
         # NOTE because of sorting, this needs to be done before any info (like midpoints) is extracted from blob3dslist
         blob3dlist = sorted(blob3dlist, key=lambda blob: blob.recursive_depth, reverse=False) # Now sorted by depth, lowest first (primary)
@@ -359,6 +358,7 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=0, b2dmidpoints=False, b3dmidpo
 
             markerlist.append(visuals.Markers())
             markerlist[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[depth % len(colors)], size=8)
+            print('Using color: ' + str(colors[depth % len(colors)]))
             view.add(markerlist[-1])
 
 

@@ -1,6 +1,7 @@
-import Slide
+from Slide import Slide, SubSlide
 from Stitches import Pairing
-
+from sero import doPickle
+from serodraw import plotBlob3d
 
 class Blob3d:
     '''
@@ -86,6 +87,11 @@ class Blob3d:
 
 
     def gen_subblob3ds(self, save=False, filename=''):
+
+        print('DB plotting b3d which is being used for subblobs:' + str(self))
+        plotBlob3d(self)
+
+
         test_slides = []
         # for blob3d in blob3dlist:
         for blob2d in self.blob2ds:
