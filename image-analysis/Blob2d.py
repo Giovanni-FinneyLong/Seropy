@@ -26,7 +26,6 @@ class Blob2d:
         self.height = slide.height
         self.possible_partners = [] # A list of blobs which MAY be part of the same blob3d as this blob2d
         self.partner_costs = [] # The minimal cost for the corresponding blob2d in possible_partners
-        self.partner_indeces = [] # A list of indeces (row, column) for each
         self.partner_subpixels = [] # Each element is a list of pixels, corresponding to a subset of the edge pixels from the partner blob
                                     # The value of each element in the sublist for each partner is the index of the pixel from the corresponding partner
         self.my_subpixels = []      # Set of own subpixels, with each list corresponding to a list from partner_subpixels

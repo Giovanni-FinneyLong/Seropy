@@ -11,10 +11,10 @@ test_instead_of_data = False
 dePickle = False
 OpenGLLinesInsteadOfAgg = True
 mayPlot = False # Used to control the importing of visualization packages; vispy doesn't run on arm :(
-max_pixels_to_stitch = 150 # Max threshold for the number of pixels to use for Pairing from any Blob2d
 
 
   ### Variables ###
+max_pixels_to_stitch = 150 # Max threshold for the number of pixels to use for Pairing from any Blob2d
 debug_pixel_ops_y_depth = 500
 overscan_coefficient = 1.1 # A number >= 1, which is the scaling for selecting edge pixels
 min_val_threshold = 250
@@ -29,15 +29,17 @@ z_compression = 1
 slide_portion = 1
     # (0,1]: The proportion of each slide to operate over, used to speed up test processing
 hard_max_pixel_value = 255
-max_pixels_to_stitch = 50 # The max amount of pixels acceptable in EACH pair of slides to be stitched
 max_stitch_cost = 90 # The max cost a stitch can be before it is ignored
-max_distance = 7 # The max distance between two pixels that can be stitched
+max_distance = 7 # The max distance that two pixels can be apart and still be stitched together.
+                 # If this threshold is breached, edge_pixels will not have any line to them, including a substitute
+min_pixels_to_split = 9 # The minimum number of pixels in a Blob2d of a Subblob3d
+                        # This is currently experimental
 
 
-
-
+#NOTE these would be good for a sliding scale?
 assert 0 < z_compression <= 1
 assert 0 < slide_portion <= 1
+
 
 
   ### Folders ###

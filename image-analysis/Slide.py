@@ -42,6 +42,7 @@ class Slide:
         assert not (matrix is None and filename is None)
         slices = []
         self.t0 = time.time()
+        self.isSubslide = False
         if matrix is None: # Only done if this is a primary slide # FIXME
             self.id_num = Slide.total_slides
             self.height = Slide.total_slides
@@ -61,6 +62,7 @@ class Slide:
                 if np.amax(slices[s]) == 0:
                     print('Channel #' + str(s) + ' is empty')
         else:
+            self.isSubslide = True
             slices = [matrix]
             self.local_xdim, self.local_ydim = matrix.shape
             self.id_num = Slide.sub_slides
@@ -84,14 +86,15 @@ class Slide:
         endmax = 0
         while (endmax < len(pixels) and pixels[endmax].val >= min_val_threshold ):
             endmax += 1
-        print('There are ' + str(endmax) + ' pixels above the minimal threshold')
+        if not self.isSubslide:
+            print('There are ' + str(endmax) + ' pixels above the minimal threshold')
         # Time to pre-process the maximal pixels; try and create groups/clusters
         self.alive_pixels = filterSparsePixelsFromList(pixels[0:endmax], (self.local_xdim, self.local_ydim))
         self.alive_pixels.sort() # Sorted here so that in y,x order instead of value order
         alive_pixel_array = np.zeros([self.local_xdim, self.local_ydim], dtype=object)
         for pixel in self.alive_pixels:
             alive_pixel_array[pixel.x][pixel.y] = pixel
-        (derived_ids, derived_count, num_ids_equiv) = self.firstPass(self.alive_pixels, (self.local_xdim, self.local_ydim))
+        (derived_ids, derived_count, num_ids_equiv) = self.firstPass(self.alive_pixels, (self.local_xdim, self.local_ydim), not self.isSubslide) # Note only printing when primary slide
         counter = collections.Counter(derived_ids)
         total_ids = len(counter.items())
         print('There were: ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(total_ids) + ' blobs')
@@ -104,7 +107,8 @@ class Slide:
 
         # Note that we can now sort the Blob2d.equivalency_set b/c all blobs have been sorted
         self.equivalency_set = sorted(self.equivalency_set)
-        print('Touching blobs: ' + str(self.equivalency_set))
+        if not self.isSubslide:
+            print('Touching blobs: ' + str(self.equivalency_set))
 
         equiv_sets = []
         for (index, tuple) in enumerate(self.equivalency_set):
@@ -180,7 +184,7 @@ class Slide:
         ''' Allows access to class vars without class declaration'''
         return Slide.total_slides
 
-    def firstPass(self, pixel_list, local_dim_tuple):
+    def firstPass(self, pixel_list, local_dim_tuple, print_info):
 
         # NOTE Vertical increases downwards, horizontal increases to the right. (Origin top left)
         # Order of neighboring pixels visitation:
@@ -261,8 +265,8 @@ class Slide:
         if debug_pixel_ops:
             print('EQUIVALENT LABELS: ' + str(equivalent_labels))
         # Time to clean up the first member of each id group-as they are skipped from the remapping
-
-        print('Number of initial pixel ids before deriving equivalencies:' + str(self.id_num))
+        if print_info:
+            print('Number of initial pixel ids before deriving equivalencies:' + str(self.id_num))
         id_to_reuse = []
 
         for id in range(self.id_num):
@@ -292,7 +296,8 @@ class Slide:
         for id in range(len(equivalent_labels)):
             if equivalent_labels[id] != id:
                 removed_id_count += 1
-        print('There were ' + str(removed_id_count) + ' removed ids')
+        if print_info:
+            print('There were ' + str(removed_id_count) + ' removed ids')
 
         # TODO: See if we can reverse the adjusting of the actual pixel ids until after the equivalent labels are cleaned up, to reflect the merged labels
 

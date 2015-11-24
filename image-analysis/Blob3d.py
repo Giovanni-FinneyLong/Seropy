@@ -1,4 +1,4 @@
-from Slide import Slide, SubSlide
+import Slide
 from Stitches import Pairing
 
 
@@ -20,6 +20,7 @@ class Blob3d:
         self.highslideheight = max(blob.slide.height for blob in self.blob2ds)
         self.pixels = []
         self.edge_pixels = []
+        self.recursive_depth = 0
         for blob in self.blob2ds:
             self.pixels += blob.pixels
             self.edge_pixels += blob.edge_pixels
@@ -40,8 +41,6 @@ class Blob3d:
         # self.avgy = sum(pixel.y for blob in self.blob2ds for pixel in blob.edge_pixels) / len(self.pixels)
 
         # print('DB avg x,y,x2,y2=' + str([self.avgx, self.avgy, self.avgx2, self.avgy2]))
-
-
         self.avgz = (self.lowslideheight + self.highslideheight) / 2
 
 
@@ -51,10 +50,10 @@ class Blob3d:
         self.note = '' # This is a note that can be manually added for identifying certain characteristics..
 
     def __str__(self):
-        if hasattr(self, 'subblob') and self.subblob is True:
-            sb = 'sub'
+        if hasattr(self, 'recursive_depth'):
+            sb = str(self.recursive_depth)
         else:
-            sb = ''
+            sb = '0'
         return str('B3D(' + str(sb) + '): lowslideheight=' + str(self.lowslideheight) + ' highslideheight=' + str(self.highslideheight) + ' #edgepixels=' + str(len(self.edge_pixels)) + ' #pixels=' + str(len(self.pixels)) + ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) + ')')
 
     def add_note(self, str):
@@ -102,7 +101,7 @@ class Blob3d:
                     list3ds.append((buf, slide))
         b3ds = []
         for (blob2dlist, sourceSubSlide) in list3ds:
-            b3ds.append(SubBlob3d(blob2dlist, sourceSubSlide))
+            b3ds.append(SubBlob3d(blob2dlist, self))
         if save:
             doPickle(b3ds, filename)
         # print('Derived a total of ' + str(len(test_b3ds)) + ' 3d blobs')
@@ -136,8 +135,18 @@ class SubBlob3d(Blob3d):
     '''
 
     '''
-    def __init(self, blob2dlist, parentB3d):
-        super().__init__(self, blob2dlist, True)
+    def __init__(self, blob2dlist, parentB3d):
+
+
+        super().__init__(blob2dlist, True)
+        if type(parentB3d) is Blob3d: # Not subblob3d
+            self.recursive_depth = 1
+        else:
+            self.recursive_depth = parentB3d.recursive_depth + 1
+        print('Recursive depth:' + str(self.recursive_depth))
+
+
+
         self.parent = parentB3d
         # These subblobs need to have offsets, so that they can be correctly placed within their corresponding b3ds when plotting
         # NOTE minx,miny,maxx,maxy are all set in Blob3d.__init__

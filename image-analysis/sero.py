@@ -88,13 +88,6 @@ def unPickle(filename):
         return blob3dlist
 
 
-
-
-
-
-
-
-
 def segment_horizontal(blob3d):
     splitblobs2dpairs = [] # Store as tuples
     for blob2d_num,blob2d in enumerate(blob3d.blob2ds):
@@ -112,8 +105,6 @@ def segment_horizontal(blob3d):
             display = True
         if display:
             plotBlob3d(blob3d)
-
-
 
 
 def experiment():
@@ -141,6 +132,7 @@ def experiment():
     ax.set_xticks([])
     ax.set_yticks([])
     plt.show()
+
 
 def expDistance():
 
@@ -324,6 +316,7 @@ def main():
                 # print('Derived a total of ' + str(len(buf[0])) + ' subblob3ds from primary b3d:' + str(b3d))
             if pickle_exp:
                 doPickle(test_b3ds, exp_pickle)
+                #doPickle(primary_blobs, picklefile) # Note this will cause an error if run more than once
         for b3d in primary_blobs:
             b3d.isSingular = True
         for blob in test_b3ds:
@@ -333,13 +326,27 @@ def main():
         # print(test_b3ds + primary_blobs)
         # plotBlob3ds(test_b3ds, color='blobs')
         # plotBlob3ds(primary_blobs, color='blobs')
-
         # plotBlob3ds(test_b3ds + primary_blobs, color='blob')
-        plotBlob3ds(test_b3ds + primary_blobs, coloring='singular', b2dmidpoints=True)
+        # for b_num, b3d in enumerate(primary_blobs):
+        #     print(b_num, end = ': ')
+        #     print(b3d)
+        #     print(b_num, end = ': ')
+        #     print(b3d.subblobs)
+        # for sub_bnum, b3d in enumerate(test_b3ds):
+        #     print('SB:' + str(sub_bnum) + '/' + str(len(test_b3ds)) + ':'  + str(b3d))
+        #     if hasattr(b3d, 'parent'):
+        #         print('HAS PARENT:' + str(b3d.parent))
+        #     else:
+        #         print('No Parent:')
+            # print('  ' + str(b3d.parent))
+
+
+
+        plotBlob3ds(test_b3ds + primary_blobs, coloring='depth', b2dmidpoints=False, canvas_size=(1000,1000), b2d_midpoint_values=10)
         # plotBlod3ds(blob3dlist)
         debug()
 
-
+    #TODO,
 
 
     ## sub_b3ds, sub_stitchs =  blob3dlist[40].gen_subblob3ds(save=True, filename='subblobs1.pickle')

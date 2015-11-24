@@ -17,6 +17,7 @@ import glob
 # from Slide import *
 from myconfig import *
 from Pixel import *
+from Blob3d import Blob3d, SubBlob3d
 
 
 if mayPlot:
@@ -237,7 +238,7 @@ def contrastSaturatedBlob2ds(blob2ds, minimal_edge_pixels=350):
         else:
             print('Skipping, as blob2d had only: ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
 
-def plotBlob3ds(blob3dlist, coloring=None, costs=0, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800,800)):
+def plotBlob3ds(blob3dlist, coloring=None, costs=0, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800,800), b2d_midpoint_values=0):
     global canvas
     global view
     global xdim
@@ -250,6 +251,8 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=0, b2dmidpoints=False, b3dmidpo
 
     # Finding the maximal slide, so that the vertical dimension of the plot can be evenly divided
     total_slides = 0
+    print('DB plotting a total of ' + str(len(blob3dlist)) + ' blob3ds')
+
     for blob3d in blob3dlist: # TODO make gen functions
         if blob3d.highslideheight > total_slides:
             total_slides = blob3d.highslideheight
@@ -284,32 +287,9 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=0, b2dmidpoints=False, b3dmidpo
 
     lineendpoints = 0
 
-    if b3dmidpoints:
-        b3d_midpoint_markers = []
-        for blob_num, blob3d in enumerate(blob3dlist):
-            b3d_midpoint_markers.append(visuals.Markers())
-            b3d_midpoint_markers[-1].set_data(np.array([[blob3d.avgx / xdim, blob3d.avgy / ydim, blob3d.avgz / zdim]]), edge_color='w', face_color=colors[blob_num % len(colors)], size=25)
-            b3d_midpoint_markers[-1].symbol = 'star'
-            view.add(b3d_midpoint_markers[-1])
-    if b2dmidpoints:
-        b2d_num = 0
-        b2d_count = sum(len(b3d.blob2ds) for b3d in blob3dlist)
-        print('b2d_count=' + str(b2d_count))
-        b2d_midpoints = np.zeros([b2d_count, 3])
-
-        for blob3d in blob3dlist:
-            for blob2d in blob3d.blob2ds:
-                b2d_midpoints[b2d_num] = [blob2d.avgx / xdim, blob2d.avgy / ydim, blob2d.height / zdim]
-                b2d_num += 1
-
-        b2d_midpoint_markers = visuals.Markers()
-        b2d_midpoint_markers.set_data(b2d_midpoints, edge_color='w', face_color='yellow', size=15)
-        b2d_midpoint_markers.symbol = 'diamond'
-        view.add(b2d_midpoint_markers)
 
 
     if coloring == 'blob': # Note: This is very graphics intensive.
-
         for blob_num, blob3d in enumerate(blob3dlist):
             edge_pixel_arrays.append(np.zeros([len(blob3d.edge_pixels), 3]))
             for (p_num, pixel) in enumerate(blob3d.edge_pixels):
@@ -319,8 +299,7 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=0, b2dmidpoints=False, b3dmidpo
             markerlist[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[blob_num % len(colors)], size=8)
             print('DB blob #' + str(blob3d.id) + ' is colored ' + str(colors[blob_num % len(colors)]))
             view.add(markerlist[-1])
-            for stitch in blob3d.pairings:
-                lineendpoints += (2 * len(stitch.indeces)) # 2 as each line has 2 endpoints
+
     elif coloring == 'singular':
         total_singular_points = 0
         total_multi_points = 0 # Points from blob3ds that may be part of strands
@@ -351,6 +330,41 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=0, b2dmidpoints=False, b3dmidpo
         multi_markers.set_data(multi_edge_array, edge_color=None, face_color='red', size=8)
         view.add(singular_markers)
         view.add(multi_markers)
+    elif coloring == 'depth': # Coloring based on recursive depth
+        # HACK can be removed when repickled # FIXME
+        print('Coloring based on depth')
+        for blob in blob3dlist:
+            if type(blob) is Blob3d:
+                blob.recursive_depth = 0 # Assumed to be parent
+        max_depth = max(blob.recursive_depth for blob in blob3dlist)
+        # NOTE because of sorting, this needs to be done before any info (like midpoints) is extracted from blob3dslist
+        blob3dlist = sorted(blob3dlist, key=lambda blob: blob.recursive_depth, reverse=False) # Now sorted by depth, lowest first (primary)
+        cur_depth = blob3dlist[0].recursive_depth
+        current_index = 0
+        b3ds_by_depth = [] # A list of lists, each sublist containing all b3ds the depth of the lists's index
+        for cur_depth in range(max_depth + 1): # +1 for endcap
+            b3ds_at_depth = []
+            while(current_index != len(blob3dlist) and blob3dlist[current_index].recursive_depth == cur_depth):
+                b3ds_at_depth.append(blob3dlist[current_index])
+                current_index += 1
+            b3ds_by_depth.append(b3ds_at_depth)
+        for depth, depth_list in enumerate(b3ds_by_depth):
+            num_edge_pixels_at_depth = sum(len(b3d.edge_pixels) for b3d in depth_list)
+            edge_pixel_arrays.append(np.zeros([num_edge_pixels_at_depth, 3]))
+            p_num = 0
+            for b3d in depth_list:
+                for pixel in b3d.edge_pixels:
+                    edge_pixel_arrays[-1][p_num] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * total_slides)]
+                    p_num += 1
+
+            markerlist.append(visuals.Markers())
+            markerlist[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[depth % len(colors)], size=8)
+            view.add(markerlist[-1])
+
+
+    # all_stitches = sorted(all_stitches, key=lambda stitch: stitch.cost[2], reverse=True) # costs are (contour_cost, distance(as cost), total, distance(not as cost))
+
+
     else: # All colored the same
         total_points = 0
         for blob_num, blob3d in enumerate(blob3dlist):
@@ -374,6 +388,9 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=0, b2dmidpoints=False, b3dmidpo
 
     # lower_markers_locations = np.zeros([lineendpoints / 2, 3]) # Note changes to points_to_draw (num indeces) rather than count of pixels
     # upper_markers_locations = np.zeros([lineendpoints / 2, 3])
+    for blob_num, blob3d in enumerate(blob3dlist):
+        for stitch in blob3d.pairings:
+            lineendpoints += (2 * len(stitch.indeces)) # 2 as each line has 2 endpoints
     line_locations = np.zeros([lineendpoints, 3])
 
     for blob3d in blob3dlist:
@@ -408,7 +425,7 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=0, b2dmidpoints=False, b3dmidpo
             view.add(visuals.Text(textStr, pos=midpoints[index], color='yellow'))
 
 
-    if coloring != 'blob' and coloring != 'singular':
+    if coloring != 'blob' and coloring != 'singular' and coloring != 'depth':
         lower_markers.set_data(line_locations[0::2], edge_color=None, face_color='yellow', size=11)
         upper_markers.set_data(line_locations[1::2], edge_color=None, face_color='green', size=11)
         lower_markers.symbol = 'ring'
@@ -416,6 +433,51 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=0, b2dmidpoints=False, b3dmidpo
         view.add(lower_markers)
         view.add(upper_markers)
     stitch_lines.set_data(pos=line_locations, connect='segments')
+
+    if b3dmidpoints:
+        b3d_midpoint_markers = []
+        for blob_num, blob3d in enumerate(blob3dlist):
+            b3d_midpoint_markers.append(visuals.Markers())
+            b3d_midpoint_markers[-1].set_data(np.array([[blob3d.avgx / xdim, blob3d.avgy / ydim, blob3d.avgz / zdim]]), edge_color='w', face_color=colors[blob_num % len(colors)], size=25)
+            b3d_midpoint_markers[-1].symbol = 'star'
+            view.add(b3d_midpoint_markers[-1])
+    if b2dmidpoints:
+        b2d_num = 0
+        b2d_count = sum(len(b3d.blob2ds) for b3d in blob3dlist)
+        b2d_midpoint_pos = np.zeros([b2d_count, 3])
+
+        for blob3d in blob3dlist:
+            for blob2d in blob3d.blob2ds:
+                b2d_midpoint_pos[b2d_num] = [blob2d.avgx / xdim, blob2d.avgy / ydim, blob2d.height / zdim]
+                b2d_num += 1
+
+        b2d_midpoint_markers = visuals.Markers()
+        b2d_midpoint_markers.set_data(b2d_midpoint_pos, edge_color='w', face_color='yellow', size=15)
+        b2d_midpoint_markers.symbol = 'diamond'
+        view.add(b2d_midpoint_markers)
+
+    if b2d_midpoint_values > 0:
+
+        max_midpoints = b2d_midpoint_values
+        print('The midpoints texts are the number of edge_pixels in the Blob2d, showing a total of ' + str(max_midpoints))
+        #HACK
+        b2d_count = sum(len(b3d.blob2ds) for b3d in blob3dlist)
+        b2d_midpoint_textmarkers = []
+        b2d_midpoint_pos = np.zeros([b2d_count, 3])
+        b2d_num = 0
+
+        blob2dlist = list(b2d for b3d in blob3dlist for b2d in b3d.blob2ds)
+        blob2dlist = sorted(blob2dlist, key=lambda blob2d: len(blob2d.edge_pixels), reverse=False)
+        # all_stitches = sorted(all_stitches, key=lambda stitch: stitch.cost[2], reverse=True) # costs are (contour_cost, distance(as cost), total, distance(not as cost))
+
+        for b2d_num, b2d in enumerate(blob2dlist[0::3][:max_midpoints]): # GETTING EVERY Nth RELEVANT INDEX
+            b2d_midpoint_pos[b2d_num] = [b2d.avgx / xdim, b2d.avgy / ydim, b2d.height / zdim]
+            b2d_midpoint_textmarkers.append(visuals.Text(str(len(b2d.edge_pixels)), pos=b2d_midpoint_pos[b2d_num], color='yellow'))
+            view.add(b2d_midpoint_textmarkers[-1])
+
+
+
+
 
     view.add(stitch_lines)
     vispy.app.run()
