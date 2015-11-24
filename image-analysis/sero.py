@@ -60,14 +60,19 @@ def munkresCompare(blob1, blob2):
     return total_cost, indeces
 
 
-def doPickle(blob3dlist, filename):
+def doPickle(blob3dlist, filename, directory='', note=''):
     pickledict = dict()
     pickledict['blob3ds'] = blob3dlist
     pickledict['xdim'] = xdim
     pickledict['ydim'] = ydim
     pickledict['zdim'] = zdim
-
+    pickledict['note'] = note # TODO use info to rememeber info about different pickles
+    if directory != '':
+        filename = directory + '/' + filename
     try:
+        print('Saving to pickle:'+ str(filename))
+        if note != '':
+            print('Including note:' + str(note))
         pickle.dump(pickledict, open(filename, "wb"))
     except RuntimeError:
         print('\nIf recursion depth has been exceeded, you may increase the maximal depth with: sys.setrecursionlimit(<newdepth>)')
@@ -77,13 +82,18 @@ def doPickle(blob3dlist, filename):
         pass
 
 
-def unPickle(filename):
-        print('Loading from pickle')
+def unPickle(filename, directory=''):
+        if directory != '':
+            filename = directory + '/' + filename
+        print('Loading from pickle:' + str(filename))
         pickledict = pickle.load(open(filename, "rb"))
         blob3dlist = pickledict['blob3ds']
         xdim = pickledict['xdim']
         ydim = pickledict['ydim']
         zdim = pickledict['zdim']
+        # TODO look for info
+        if 'note' in pickledict:
+            print('Included note:' + pickledict['note'])
         setglobaldims(xdim, ydim, zdim)
         return blob3dlist
 
@@ -212,9 +222,13 @@ def main():
          # picklefile = 'pickletest_refactor.pickle' # THIS IS DONE +, and log distance base 10
          #picklefile = 'pickletest_refactor2.pickle' # THIS IS DONE *, and log distance base 2
          picklefile = 'pickletest_refactor3.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 50
-         picklefile = 'pickletest_refactor4.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
+        # doPickle(test_b3ds + primary_blobs, directory='H:/Dropbox/Serotonin/pickles/recursive/', filename='depth1_subset_of_b3ds.pickle', note=picklenote)
 
+
+
+         # picklefile = 'pickletest_refactor4.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
         # pickletest1 holds the results of recomputing over gen slides from bloblist[3]
+         picklefile = 'H:/Dropbox/Serotonin/pickles/recursive/' + 'depth1_subset_of_b3ds.pickle'
     else:
         picklefile = 'pickledata.pickle'
 
@@ -268,10 +282,11 @@ def main():
         doPickle(blob3dlist, picklefile)
 
     else:
+
+        # blob3dlist = unPickle(directory='H:/Dropbox/Serotonin/pickles/recursive/', filename='depth1_subset_of_b3ds.pickle'))
         blob3dlist = unPickle(picklefile)
 
-    # plotBlob3ds([blob3dlist[:3]], coloring='blob', costs=True)
-    # tagBlobsSingular(blob3dlist) # This is here temporarily to not need to repickle each time
+
 
     # plotBlob3ds(blob3dlist, coloring='singular', costs=0, b3dmidpoints=True)
     # debug()
@@ -295,7 +310,7 @@ def main():
 # '''
 
 
-    experimenting = True
+    experimenting = False
     if experimenting:
         # NOTE Blob3dlist[3].blob2ds[6] should be divided into subblobs
         # NOTE [3][1] is also good
@@ -317,6 +332,13 @@ def main():
             if pickle_exp:
                 doPickle(test_b3ds, exp_pickle)
                 #doPickle(primary_blobs, picklefile) # Note this will cause an error if run more than once
+
+        # picklenote = "These were generated from a few interesting blob3ds from the full list of blob3ds\nThere has been one level of recursion performed"
+        # doPickle(test_b3ds + primary_blobs, directory='H:/Dropbox/Serotonin/pickles/recursive/', filename='depth1_subset_of_b3ds.pickle', note=picklenote)
+
+
+
+
         for b3d in primary_blobs:
             b3d.isSingular = True
         for blob in test_b3ds:
@@ -342,11 +364,12 @@ def main():
 
 
 
-        plotBlob3ds(test_b3ds + primary_blobs, coloring='depth', b2dmidpoints=False, canvas_size=(1000,1000), b2d_midpoint_values=10)
+        # plotBlob3ds(test_b3ds + primary_blobs, coloring='depth', b2dmidpoints=False, canvas_size=(1000,1000), b2d_midpoint_values=10)
         # plotBlod3ds(blob3dlist)
-        debug()
+    plotBlob3ds(blob3dlist, coloring='depth', b2dmidpoints=False, canvas_size=(1000,1000), b2d_midpoint_values=10)
+    debug()
 
-    #TODO,
+    #TODO
 
 
     ## sub_b3ds, sub_stitchs =  blob3dlist[40].gen_subblob3ds(save=True, filename='subblobs1.pickle')
@@ -362,7 +385,6 @@ def main():
     # doPickle(sub_b3ds, 'all_subblobs.pickle')
 
     # sub_b3ds = unPickle('all_subblobs.pickle')
-    debug()
 
 
 

@@ -143,9 +143,6 @@ class SubBlob3d(Blob3d):
             self.recursive_depth = 1
         else:
             self.recursive_depth = parentB3d.recursive_depth + 1
-        print('Recursive depth:' + str(self.recursive_depth))
-
-
 
         self.parent = parentB3d
         # These subblobs need to have offsets, so that they can be correctly placed within their corresponding b3ds when plotting
