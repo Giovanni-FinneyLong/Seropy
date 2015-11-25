@@ -311,13 +311,19 @@ def main():
 #     # plotBlob3ds(blob3dlist + mult_b3ds, coloring='singular', costs=False)
 # '''
 
+    # for bnum, b3d in enumerate(blob3dlist):
+    #     print(bnum)
+    #     plotBlob3d(b3d)
+    blob3dlist = [blob3dlist[1]] # HACK THIS IS THE ONE HAVING ISSUES WITH THE TOP LAYER AND SUBSTITCHES
+
+
 
     experimenting = True
     if experimenting:
         # NOTE Blob3dlist[3].blob2ds[6] should be divided into subblobs
         # NOTE [3][1] is also good
         unpickle_exp = False
-        pickle_exp = False # Only done if not unpickling
+        pickle_exp = True # Only done if not unpickling
         exp_pickle = 'pickletest_subblobs.pickle' # 2,3 working #6 working except height, 7 working except stitch height, 8 works!!!
 
         primary_blobs = blob3dlist #[blob3dlist[3], blob3dlist[8], blob3dlist[40]]
@@ -341,10 +347,10 @@ def main():
 
 
 
-        for b3d in primary_blobs:
-            b3d.isSingular = True
-        for blob in test_b3ds:
-            blob.isSingular = False
+        # for b3d in primary_blobs:
+        #     b3d.isSingular = True
+        # for blob in test_b3ds:
+        #     blob.isSingular = False
         # print(test_b3ds)
         # print(primary_blobs)
         # print(test_b3ds + primary_blobs)
@@ -373,7 +379,7 @@ def main():
             blob3d.recursive_depth = 0
 
 
-    plotBlob3ds(blob3dlist, coloring='depth', b2dmidpoints=False, canvas_size=(1000,1000), b2d_midpoint_values=50)
+    plotBlob3ds(blob3dlist + test_b3ds, coloring='depth', b2dmidpoints=False, canvas_size=(1000,1000), b2d_midpoint_values=50)
     debug()
 
     #TODO

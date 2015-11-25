@@ -77,7 +77,18 @@ def vispy_tests():
     vispy.test()
 
 
-
+if mayPlot:
+    colors = vispy.color.get_color_names() # ALl possible colors
+    # note getting rid of annoying colors
+    colors.remove('antiquewhite')
+    colors.remove('aliceblue')
+    colors.remove('azure')
+    colors.remove('blanchedalmond')
+    colors.remove('b')
+    colors.remove('aquamarine')
+    colors.remove('beige')
+    colors.remove('bisque')
+    colors.remove('black')
 
 
 
@@ -99,9 +110,12 @@ def debug():
 def setMasterStartTime():
     master_start_time = time.time() # FIXME!
 
-def plotBlob3d(blob3d, **kwargs):
+
+
+def plotBlob3d(blob3d, coloring='', **kwargs):
     global canvas
     global view
+    global colors
     # FIXME TODO can remove this once repickled
 
 
@@ -163,19 +177,27 @@ def plotBlob3d(blob3d, **kwargs):
     print('Camera currently at distance:' + str(view.camera.distance))
 
     #     view.add(visuals.Text(str(blob.id) + ':' + str(index), pos=avg_list[index], color='white'))
-
-
-
-
     axis = visuals.XYZAxis(parent=view.scene)
-    edge_pixel_array = np.zeros([len(blob3d.edge_pixels), 3])
     markers = []
-    colors = vispy.color.get_color_names() # ALl possible colors
-    for (p_num, pixel) in enumerate(blob3d.edge_pixels):
-            edge_pixel_array[p_num] = [(pixel.x - offsetx) / xdim, (pixel.y - offsety) / ydim, pixel.z /  (z_compression * zdim)]
-    markers = visuals.Markers()
-    markers.set_data(edge_pixel_array, edge_color=None, face_color='green', size=8)
-    view.add(markers)
+
+    if coloring == 'blob2d':
+        edge_pixel_arrays = []
+        markers = []
+        for b2d_num, blob2d in enumerate(blob3d.blob2ds):
+            edge_pixel_arrays.append(np.zeros([len(blob2d.edge_pixels), 3]))
+            markers.append(visuals.Markers())
+            for (p_num, pixel) in enumerate(blob2d.edge_pixels):
+                edge_pixel_arrays[-1][p_num] = [(pixel.x - offsetx) / xdim, (pixel.y - offsety) / ydim, pixel.z /  (z_compression * zdim)]
+            markers[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[b2d_num], size=8)
+            view.add(markers[-1])
+    else:
+        edge_pixel_array = np.zeros([len(blob3d.edge_pixels), 3])
+
+        for (p_num, pixel) in enumerate(blob3d.edge_pixels):
+                edge_pixel_array[p_num] = [(pixel.x - offsetx) / xdim, (pixel.y - offsety) / ydim, pixel.z /  (z_compression * zdim)]
+        markers = visuals.Markers()
+        markers.set_data(edge_pixel_array, edge_color=None, face_color='green', size=8)
+        view.add(markers)
     lineendpoints = 0
     for stitch in blob3d.pairings:
         lineendpoints += (2 * len(stitch.indeces))
@@ -243,7 +265,7 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=0, b2dmidpoints=False, b3dmidpo
     global xdim
     global ydim
     global zdim
-
+    global colors
     # canvas_size = kwargs.get('canvas_size', (800,800))
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size)
 
@@ -273,18 +295,18 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=0, b2dmidpoints=False, b3dmidpo
     edge_pixel_arrays = [] # One array per 3d blob
     markerlist = []
 
-    colors = vispy.color.get_color_names() # ALl possible colors
-    # note getting rid of annoying colors
-    colors.remove('antiquewhite')
-    colors.remove('aliceblue')
-    colors.remove('azure')
-    colors.remove('blanchedalmond')
-    colors.remove('b')
-    colors.remove('aquamarine')
-    colors.remove('beige')
-    colors.remove('bisque')
-    colors.remove('black')
-    # colors.remove('cadetblue')
+    # colors = vispy.color.get_color_names() # ALl possible colors
+    # # note getting rid of annoying colors
+    # colors.remove('antiquewhite')
+    # colors.remove('aliceblue')
+    # colors.remove('azure')
+    # colors.remove('blanchedalmond')
+    # colors.remove('b')
+    # colors.remove('aquamarine')
+    # colors.remove('beige')
+    # colors.remove('bisque')
+    # colors.remove('black')
+    # # colors.remove('cadetblue')
     # print('The available colors are: ' + str(colors))
 
     lineendpoints = 0
@@ -1026,6 +1048,28 @@ def plotSlidesVC(slide_stack, stitchlist=[], **kwargs):
     #     for blob in slide.blob2dlist:
     #         print(' Blob:' + str(blob) + ' which has' + str(len(blob.possible_partners)) + ' possible partners')
     vispy.app.run()
+
+def showSlide(slide):
+    # HACK
+    if len(slide.alive_pixels) > 0:
+        width = max(pixel.x for pixel in slide.alive_pixels) + 1 # HACK
+        height = max(pixel.y for pixel in slide.alive_pixels) + 1 # HACK
+        array = np.zeros([width, height])
+        for pixel in slide.alive_pixels:
+            array[pixel.x][pixel.y] = pixel.val
+        plt.imshow(array, cmap='rainbow')
+        plt.show()
+    else:
+        print('Cannot show slide with no pixels:' + str(slide))
+
+def showBlob2d(b2d):
+    width = max(pixel.x for pixel in b2d.pixels) + 1
+    height = max(pixel.y for pixel in b2d.pixels) + 1
+    array = np.zeros([width, height])
+    for pixel in b2d.pixels:
+        array[pixel.x][pixel.y] = pixel.val
+    plt.imshow(array, cmap='rainbow')
+    plt.show()
 
 
 def plotSlides(slide_list):

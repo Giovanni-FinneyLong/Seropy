@@ -341,7 +341,6 @@ def timeNoSpaces():
     return time.ctime().replace(' ', '_').replace(':', '-')
 
 
-
 def getIdLists(pixels, **kwargs):
     '''
     Returns a list of lists, each of which corresponds to an id. If remapped, the first list is the largest

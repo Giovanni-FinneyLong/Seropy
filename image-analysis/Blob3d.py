@@ -1,7 +1,7 @@
 from Slide import Slide, SubSlide
 from Stitches import Pairing
 from sero import doPickle
-from serodraw import plotBlob3d
+from serodraw import plotBlob3d, showSlide, showBlob2d
 
 class Blob3d:
     '''
@@ -88,14 +88,28 @@ class Blob3d:
 
     def gen_subblob3ds(self, save=False, filename=''):
 
-        print('DB plotting b3d which is being used for subblobs:' + str(self))
-        plotBlob3d(self)
+
+        debugging = True
 
 
         test_slides = []
-        # for blob3d in blob3dlist:
+        # # HACK
+        self.blob2ds = sorted(self.blob2ds, key=lambda b2d: len(b2d.pixels), reverse=True)
+        # #HACK
+        if debugging:
+            print('DB plotting b3d which is being used for subblobs:' + str(self))
+            plotBlob3d(self, coloring='blob2d')
+
+
         for blob2d in self.blob2ds:
+            if debugging:
+                print('From blob2d:' + str(blob2d))
+                showBlob2d(blob2d)
             test_slides.append(SubSlide(blob2d, self))
+            if debugging:
+                print('Created subslide:' + str(test_slides[-1]))
+                showSlide(test_slides[-1])
+
         Slide.setAllPossiblePartners(test_slides)
         Slide.setAllShapeContexts(test_slides)
         test_stitches = Pairing.stitchAllBlobs(test_slides)
