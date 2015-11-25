@@ -145,7 +145,7 @@ class Pairing:
             #     print('Ignored cost:' + str(self.cost_array[row][col]))
 
     @staticmethod
-    def stitchAllBlobs(slidelist):
+    def stitchAllBlobs(slidelist, quiet=False):
         def  printElapsedTime(t0, tf, pad=''): # HACK FIXME REMOVE THIS AND IMPORT CORRECTLY
             temp = tf - t0
             m = math.floor(temp / 60)
@@ -157,22 +157,27 @@ class Pairing:
             else:
                 print(pad + 'Elapsed Time: %.2f seconds' % (temp % 60))
         pairlist = []
-        print('Beginning to stitch together blobs')
+        if not quiet:
+            print('Beginning to stitch together blobs')
         for slide_num, slide in enumerate(slidelist):
-            print('Starting slide #' + str(slide_num) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds')
+            if not quiet:
+                print('Starting slide #' + str(slide_num) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds')
             for blob1 in slide.blob2dlist:
                 if len(blob1.possible_partners) > 0:
-                    print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
+                    if not quiet:
+                        print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
                 # print('  Blob1 current parter_costs:' + str(blob1.partner_costs))
 
                 for b2_num, blob2 in enumerate(blob1.possible_partners):
-                    print('   Comparing to blob2:' + str(blob2))
+                    if not quiet:
+                        print('   Comparing to blob2:' + str(blob2))
                     t0 = time.time()
-                    bufStitch = Pairing(blob1, blob2, 1.1, 36)
+                    bufStitch = Pairing(blob1, blob2, 1.1, 36, quiet=quiet)
                     if bufStitch.isConnected:
                         pairlist.append(bufStitch)
-                        tf = time.time()
-                        printElapsedTime(t0, tf, pad='    ')
+                        if not quiet:
+                            tf = time.time()
+                            printElapsedTime(t0, tf, pad='    ')
 
 
         return pairlist
@@ -189,7 +194,7 @@ class Pairing:
                    '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels. ' + 'Cost:' + cost_str + '>')
     __repr__ = __str__
 
-    def __init__(self, lowerblob, upperblob, overscan_scale, num_bins):
+    def __init__(self, lowerblob, upperblob, overscan_scale, num_bins, quiet=False):
         self.overscan_scale = overscan_scale
         self.num_bins = num_bins
         self.lowerslidenum = lowerblob.slide.height # CHANGED
@@ -213,9 +218,10 @@ class Pairing:
             # selective [::3] with 5 slides = 36 mins
 
             if len(self.upperpixels) > max_pixels_to_stitch or len(self.lowerpixels) > max_pixels_to_stitch:
-                print('-->Too many pixels in the below stitch, reducing to a subset, originally was: ' + str(len(self.lowerpixels)) +
-                   '/' + str(len(self.lowerblob.edge_pixels)) + ' lower blob pixels and ' + str(len(self.upperpixels)) +
-                   '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels.')
+                if not quiet:
+                    print('-->Too many pixels in the below stitch, reducing to a subset, originally was: ' + str(len(self.lowerpixels)) +
+                        '/' + str(len(self.lowerblob.edge_pixels)) + ' lower blob pixels and ' + str(len(self.upperpixels)) +
+                        '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels.')
                 pickoneovers = max(1, math.ceil(len(self.upperpixels) / max_pixels_to_stitch)), max(1, math.ceil(len(self.lowerpixels) / max_pixels_to_stitch)) # HACK TODO Modify these values to be more suitable dependent on computation time
                 self.isReduced = True
                 # if len(self.upperpixels) > 500 and len(self.lowerpixels) > 500:
@@ -226,7 +232,8 @@ class Pairing:
 
             self.isConnected = True
             self.setShapeContexts(num_bins) # Set lower and upper context bins
-            print('   ' + str(self))
+            if not quiet:
+                print('   ' + str(self))
             self.munkresCost() # Now have set self.cost and self.indeces and self.connect
             lowerblob.updatePairings(self)
             upperblob.updatePairings(self)

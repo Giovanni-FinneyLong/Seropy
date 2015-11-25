@@ -66,7 +66,7 @@ class Blob3d:
         self.note = str
 
     @staticmethod
-    def tagBlobsSingular(blob3dlist):
+    def tagBlobsSingular(blob3dlist, quiet=False):
         singular_count = 0
         non_singular_count = 0
         for blob3d in blob3dlist:
@@ -82,16 +82,15 @@ class Blob3d:
                 singular_count += 1
             else:
                 non_singular_count += 1
-        print('There are ' + str(singular_count) + ' singular 3d-blobs and ' + str(non_singular_count) + ' non-singular 3d-blobs')
+        if not quiet:
+            print('There are ' + str(singular_count) + ' singular 3d-blobs and ' + str(non_singular_count) + ' non-singular 3d-blobs')
 
 
 
     def gen_subblob3ds(self, save=False, filename=''):
 
 
-        debugging = True
-
-
+        debugging = False
         test_slides = []
         # # HACK
         self.blob2ds = sorted(self.blob2ds, key=lambda b2d: len(b2d.pixels), reverse=True)
@@ -109,10 +108,13 @@ class Blob3d:
             if debugging:
                 print('Created subslide:' + str(test_slides[-1]))
                 showSlide(test_slides[-1])
+                print('---Now showing the ' + str(len(test_slides[-1].blob2dlist)) + ' blob2ds which have been generated')
+                for subb2d in test_slides[-1].blob2dlist:
+                    showBlob2d(subb2d)
 
         Slide.setAllPossiblePartners(test_slides)
         Slide.setAllShapeContexts(test_slides)
-        test_stitches = Pairing.stitchAllBlobs(test_slides)
+        test_stitches = Pairing.stitchAllBlobs(test_slides, quiet=True)
         list3ds = []
         for slide_num, slide in enumerate(test_slides):
             for blob in slide.blob2dlist:
@@ -125,7 +127,7 @@ class Blob3d:
         if save:
             doPickle(b3ds, filename)
         # print('Derived a total of ' + str(len(test_b3ds)) + ' 3d blobs')
-        Blob3d.tagBlobsSingular(b3ds)
+        Blob3d.tagBlobsSingular(b3ds, quiet=True)
         if not hasattr(self, 'subblobs'): # HACK FIXME once regen pickle
             self.subblobs = []
         self.subblobs = self.subblobs + b3ds

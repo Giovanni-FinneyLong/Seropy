@@ -311,10 +311,18 @@ def main():
 #     # plotBlob3ds(blob3dlist + mult_b3ds, coloring='singular', costs=False)
 # '''
 
+
+
+
+    # blob3dlist = [blob3dlist[1]] # HACK THIS IS THE ONE HAVING ISSUES WITH THE TOP LAYER AND SUBSTITCHES
+
+
     # for bnum, b3d in enumerate(blob3dlist):
     #     print(bnum)
     #     plotBlob3d(b3d)
-    blob3dlist = [blob3dlist[1]] # HACK THIS IS THE ONE HAVING ISSUES WITH THE TOP LAYER AND SUBSTITCHES
+
+
+
 
 
 
@@ -322,7 +330,7 @@ def main():
     if experimenting:
         # NOTE Blob3dlist[3].blob2ds[6] should be divided into subblobs
         # NOTE [3][1] is also good
-        unpickle_exp = False
+        unpickle_exp = True
         pickle_exp = True # Only done if not unpickling
         exp_pickle = 'pickletest_subblobs.pickle' # 2,3 working #6 working except height, 7 working except stitch height, 8 works!!!
 
@@ -378,8 +386,12 @@ def main():
         if not hasattr(blob3d, 'recursive_depth'):
             blob3d.recursive_depth = 0
 
+    plotBlob3d(blob3dlist[1], coloring='blob2d')
+    # TODO look more closely at the blob2d from within [1] that is causing the issue (not creating subblobs..) Why?
+    # Begin with plotting the blob2d_num with each blob2d
 
-    plotBlob3ds(blob3dlist + test_b3ds, coloring='depth', b2dmidpoints=False, canvas_size=(1000,1000), b2d_midpoint_values=50)
+
+    plotBlob3ds(blob3dlist + test_b3ds, coloring='depth', b2dmidpoints=False, canvas_size=(1000,1000), b2d_midpoint_values=20)
     debug()
 
     #TODO

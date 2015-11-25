@@ -35,7 +35,7 @@ class Slide:
     total_slides = 0
     sub_slides = 0
 
-    def __init__(self, filename=None, matrix=None, height=None):
+    def __init__(self, filename=None, matrix=None, height=None, quiet=False):
         # Note: Must include either filename or matrix
         # When given a matrix instead of a filename of an image, the assumption is that
         # We are computing over blob2ds from within a blob3d,ie experimenting with a subslide
@@ -50,17 +50,20 @@ class Slide:
             self.filename = filename
             self.primary_slide = True
             imagein = Image.open(filename)
-            print('Starting on image: ' + filename)
+            if not quiet:
+                print('Starting on image: ' + filename)
             imarray = np.array(imagein)
             (self.local_xdim, self.local_ydim, self.local_zdim) =  (im_xdim, im_ydim, im_zdim) = imarray.shape[0],imarray.shape[1], self.height
             # setglobaldims(im_xdim * slide_portion, im_ydim * slide_portion, im_zdim * slide_portion) # TODO FIXME, remove when possible
-            print('The are ' + str(zdim) + ' channels')
+            if not quiet:
+                print('The are ' + str(zdim) + ' channels')
             image_channels = imagein.split()
             for s in range(len(image_channels)):  # Better to split image and use splits for arrays than to split an array
                 buf = np.array(image_channels[s])
                 slices.append(buf)
                 if np.amax(slices[s]) == 0:
-                    print('Channel #' + str(s) + ' is empty')
+                    if not quiet:
+                        print('Channel #' + str(s) + ' is empty')
         else:
             self.isSubslide = True
             slices = [matrix]
@@ -79,7 +82,8 @@ class Slide:
                 if (pixel_value != 0):  # Can use alternate min threshold and <=
                     pixels.append(Pixel(pixel_value, curx, cury, self.id_num))
                     self.sum_pixels += pixel_value
-        print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(self.local_xdim * self.local_ydim) + ' pixels')
+        if not quiet:
+            print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(self.local_xdim * self.local_ydim) + ' pixels')
         pixels.sort(key=lambda pix: pix.val, reverse=True)# Note that sorting is being done like so to sort based on value not position as is normal with pixels. Sorting is better as no new list
 
         # Lets go further and grab the maximal pixels, which are at the front
@@ -87,9 +91,10 @@ class Slide:
         while (endmax < len(pixels) and pixels[endmax].val >= min_val_threshold ):
             endmax += 1
         if not self.isSubslide:
-            print('There are ' + str(endmax) + ' pixels above the minimal threshold')
+            if not quiet:
+                print('There are ' + str(endmax) + ' pixels above the minimal threshold')
         # Time to pre-process the maximal pixels; try and create groups/clusters
-        self.alive_pixels = filterSparsePixelsFromList(pixels[0:endmax], (self.local_xdim, self.local_ydim))
+        self.alive_pixels = filterSparsePixelsFromList(pixels[0:endmax], (self.local_xdim, self.local_ydim), quiet=quiet)
         self.alive_pixels.sort() # Sorted here so that in y,x order instead of value order
         alive_pixel_array = np.zeros([self.local_xdim, self.local_ydim], dtype=object)
         for pixel in self.alive_pixels:
@@ -97,7 +102,8 @@ class Slide:
         (derived_ids, derived_count, num_ids_equiv) = self.firstPass(self.alive_pixels, (self.local_xdim, self.local_ydim), not self.isSubslide) # Note only printing when primary slide
         counter = collections.Counter(derived_ids)
         total_ids = len(counter.items())
-        print('There were: ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(total_ids) + ' blobs')
+        if not quiet:
+            print('There were: ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(total_ids) + ' blobs')
         most_common_ids = counter.most_common()# HACK Grabbing all for now, +1 b/c we start at 0 # NOTE Stored as (id, count)
         id_lists = getIdLists(self.alive_pixels, remap=remap_ids_by_group_size, id_counts=most_common_ids) # Hack, don't ned to supply id_counts of remap is false; just convenient for now
         self.blob2dlist = [] # Note that blobs in the blob list are ordered by number of pixels, not id, this makes merging faster
@@ -108,7 +114,8 @@ class Slide:
         # Note that we can now sort the Blob2d.equivalency_set b/c all blobs have been sorted
         self.equivalency_set = sorted(self.equivalency_set)
         if not self.isSubslide:
-            print('Touching blobs: ' + str(self.equivalency_set))
+            if not quiet:
+                print('Touching blobs: ' + str(self.equivalency_set))
 
         equiv_sets = []
         for (index, tuple) in enumerate(self.equivalency_set):
@@ -152,10 +159,10 @@ class Slide:
             self.edge_pixels.extend(self.blob2dlist[blobnum].edge_pixels)
         if matrix is not None:
             Blob2d.total_blobs += len(self.blob2dlist)
-
-        self.tf = time.time()
-        printElapsedTime(self.t0, self.tf)
-        print('')
+        if not quiet:
+            self.tf = time.time()
+            printElapsedTime(self.t0, self.tf)
+            print('')
 
     @staticmethod
     def setAllPossiblePartners(slidelist):
@@ -313,7 +320,7 @@ class SubSlide(Slide):
     '''
 
     def __init__(self, sourceBlob2d, sourceBlob3d):
-        super().__init__(matrix=sourceBlob2d.gen_saturated_array(), height=sourceBlob2d.slide.id_num)
+        super().__init__(matrix=sourceBlob2d.gen_saturated_array(), height=sourceBlob2d.slide.id_num, quiet=True) # NOTE can turn off quiet if desired
 
         assert(isinstance(sourceBlob2d, Blob2d))
         self.parentB3d = sourceBlob3d
@@ -374,7 +381,7 @@ def getIdLists(pixels, **kwargs):
     else:
         print('Issue with kwargs in call to getIdLists!!')
 
-def filterSparsePixelsFromList(listin, local_dim_tuple):
+def filterSparsePixelsFromList(listin, local_dim_tuple, quiet=False):
     local_xdim, local_ydim = local_dim_tuple
     max_float_array = np.zeros([local_xdim, local_ydim])
     for pixel in listin:
@@ -402,7 +409,8 @@ def filterSparsePixelsFromList(listin, local_dim_tuple):
         pixel.setNeighborValues(buf_nzn, buf_maxn, buf_sumn, neighbors_checked)
         if buf_nzn >= minimal_nonzero_neighbors:
             filtered_pixels.append(pixel)
-    print('There are ' + str(len(listin) - len(filtered_pixels)) + ' dead pixels & ' + str(len(filtered_pixels)) + ' still alive')
+    if not quiet:
+        print('There are ' + str(len(listin) - len(filtered_pixels)) + ' dead pixels & ' + str(len(filtered_pixels)) + ' still alive')
     return filtered_pixels
 
 def setseerodrawdims(x,y,z):
