@@ -165,7 +165,12 @@ class Slide:
             print('')
 
     @staticmethod
-    def setAllPossiblePartners(slidelist):
+    def setAllPossiblePartners(slidelist, **kwargs):
+        debugflag = kwargs.get('debugflag', -1)
+        debug2ds = kwargs.get('debugforb2ds',[])
+        debugging = (debugflag == 1)# debug, set value as desired
+
+
         for slide_num, slide in enumerate(slidelist[:-1]): # All but the last slide
             for blob in slide.blob2dlist:
                 blob.setPossiblePartners(slidelist[slide_num + 1])

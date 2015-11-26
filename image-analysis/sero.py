@@ -309,7 +309,7 @@ def main():
             sub_slides = []
             for b3d_num, b3d in enumerate(primary_blobs):
                 print('DB GENERATING SUBBLOBS For B3d #' + str(b3d_num) + ' / ' + str(len(primary_blobs)))
-                buf = b3d.gen_subblob3ds(debugflag=0)#b3d_num)# DEBUG
+                buf = b3d.gen_subblob3ds(debugflag=b3d_num, debugforb2ds=[5,9,11])#b3d_num)# DEBUG
                 test_b3ds = test_b3ds + buf[0] # buf[0] b/c currently returning b3ds,stitchlist, slides # TODO need to return slides
                 sub_slides = sub_slides + buf[2]
                 # print('Derived a total of ' + str(len(buf[0])) + ' subblob3ds from primary b3d:' + str(b3d))

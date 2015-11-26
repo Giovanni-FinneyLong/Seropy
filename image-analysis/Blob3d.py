@@ -87,38 +87,66 @@ class Blob3d:
 
 
 
-    def gen_subblob3ds(self, save=False, filename='', debugflag=0):
+    def gen_subblob3ds(self, save=False, filename='', **kwargs):
 
-
-
-        debugging = (debugflag == 1)
-        test_slides = []
-        # # HACK
-        self.blob2ds = sorted(self.blob2ds, key=lambda b2d: len(b2d.pixels), reverse=True)
-        # #HACK
-
-        # if debugging:
-        #     print('DB plotting b3d which is being used for subblobs:' + str(self))
-        #     plotBlob3d(self, coloring='blob2d', b2dids=True)
-
+        debugflag = kwargs.get('debugflag', -1)
+        debug2ds = kwargs.get('debugforb2ds',[])
 
         # DEBUG
-        debug2ds = [5,9,11]
+        debugging = (debugflag == 1)
+        display = False
         # /DEBUG
 
+        test_slides = []
+        # # HACK
+        # self.blob2ds = sorted(self.blob2ds, key=lambda b2d: len(b2d.pixels), reverse=True)
+        # #HACK
+
+        # DEBUG
+        # debug2ds = [5,9,11]
+        slides_from_debug_blob2ds = []
+        debug_blob2ds_sublobs = []
+
+        # /DEBUG
+
+
         for b2d_num,blob2d in enumerate(self.blob2ds):
-            if debugging and b2d_num in debug2ds:
+            if debugging and b2d_num in debug2ds and display:
                 print('From blob2d #' + str(b2d_num) + ':' + str(blob2d))
                 showBlob2d(blob2d)
             test_slides.append(SubSlide(blob2d, self))
             if debugging and b2d_num in debug2ds:
-                print('Created subslide:' + str(test_slides[-1]))
-                showSlide(test_slides[-1])
-                print('---Now showing the ' + str(len(test_slides[-1].blob2dlist)) + ' blob2ds which have been generated')
-                for subb2d in test_slides[-1].blob2dlist:
-                    showBlob2d(subb2d)
+                # print('>>Adding another ' + str(len(test_slides[-1].blob2dlist)) + ' blob2ds from generated subslide')
+                slides_from_debug_blob2ds.append(test_slides[-1])
+                debug_blob2ds_sublobs += test_slides[-1].blob2dlist
 
-        Slide.setAllPossiblePartners(test_slides)
+                if display:
+                    print('Created subslide:' + str(test_slides[-1]))
+                    showSlide(test_slides[-1])
+                    print('---Now showing the ' + str(len(test_slides[-1].blob2dlist)) + ' blob2ds which have been generated')
+                    for subb2d in test_slides[-1].blob2dlist:
+                        showBlob2d(subb2d)
+        # DEBUG
+        # NOTE finding the correspond slide_nums and blob_nums so that they can be identified and observed within the below static Slide methods
+        # TODO TODO TODO Continue tracking the source of the issue
+
+        if debugging: #DEBUG
+            debug_blob2ds = [blob2d for b2d_num, blob2d in enumerate(self.blob2ds) if b2d_num in debug2ds]
+            print('> Found the following ' + str(len(debug_blob2ds)) + ' blob2ds which are being debugged: ' + str(debug_blob2ds))
+            # Now need to find slides that derived from debug_blob2ds
+            print('> Found the following ' + str(len(slides_from_debug_blob2ds)) + ' slides which are being debugged: ' + str(slides_from_debug_blob2ds))
+            print('> Found the following ' + str(len(debug_blob2ds_sublobs)) + ' blob2ds which are within the slides from the blob2ds being debugged: ' + str(debug_blob2ds_sublobs))
+            # NOTE at this point, have lists of debug_blob2ds, and their generated slides and blob2ds:
+            # All generated subslides and subblob2ds have had a debugFlag set
+
+        Slide.setAllPossiblePartners(test_slides, **kwargs)
+        if debugging:
+            for b2d_num,b2d in enumerate(debug_blob2ds_sublobs):
+                print('Possible partners of b2d #' + str(b2d_num) + ':' + str(b2d.possible_partners))
+        # DEBUG to here, everything ok Seems to be finding possible_partners ok
+        
+
+
         Slide.setAllShapeContexts(test_slides)
         test_stitches = Pairing.stitchAllBlobs(test_slides, quiet=True)
         list3ds = []
