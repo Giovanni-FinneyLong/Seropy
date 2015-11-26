@@ -87,25 +87,31 @@ class Blob3d:
 
 
 
-    def gen_subblob3ds(self, save=False, filename=''):
+    def gen_subblob3ds(self, save=False, filename='', debugflag=0):
 
 
-        debugging = False
+
+        debugging = (debugflag == 1)
         test_slides = []
         # # HACK
         self.blob2ds = sorted(self.blob2ds, key=lambda b2d: len(b2d.pixels), reverse=True)
         # #HACK
-        if debugging:
-            print('DB plotting b3d which is being used for subblobs:' + str(self))
-            plotBlob3d(self, coloring='blob2d')
+
+        # if debugging:
+        #     print('DB plotting b3d which is being used for subblobs:' + str(self))
+        #     plotBlob3d(self, coloring='blob2d', b2dids=True)
 
 
-        for blob2d in self.blob2ds:
-            if debugging:
-                print('From blob2d:' + str(blob2d))
+        # DEBUG
+        debug2ds = [5,9,11]
+        # /DEBUG
+
+        for b2d_num,blob2d in enumerate(self.blob2ds):
+            if debugging and b2d_num in debug2ds:
+                print('From blob2d #' + str(b2d_num) + ':' + str(blob2d))
                 showBlob2d(blob2d)
             test_slides.append(SubSlide(blob2d, self))
-            if debugging:
+            if debugging and b2d_num in debug2ds:
                 print('Created subslide:' + str(test_slides[-1]))
                 showSlide(test_slides[-1])
                 print('---Now showing the ' + str(len(test_slides[-1].blob2dlist)) + ' blob2ds which have been generated')
@@ -131,7 +137,7 @@ class Blob3d:
         if not hasattr(self, 'subblobs'): # HACK FIXME once regen pickle
             self.subblobs = []
         self.subblobs = self.subblobs + b3ds
-        return b3ds, test_stitches
+        return b3ds, test_stitches, test_slides
 
     def save2d(self, filename):
         '''

@@ -289,48 +289,14 @@ def main():
         blob3dlist = unPickle(picklefile)
 
 
-
-    # plotBlob3ds(blob3dlist, coloring='singular', costs=0, b3dmidpoints=True)
-    # debug()
-
-
-# '''    # DEBUG
-#     mult_b3ds= unPickle('pickletest_snip.pickle')
-#     offsetx = 500
-#     offsety = 00
-#     for b3d in mult_b3ds:
-#         for pixel in b3d.pixels:
-#             pixel.x += offsetx
-#             pixel.y += offsety
-#         for b2d in b3d.blob2ds:
-#             b2d.minx += offsetx
-#             b2d.maxx += offsetx
-#             b2d.miny += offsety
-#             b2d.maxy += offsety
-#         b3d.isSingular = True
-#     # plotBlob3ds(blob3dlist + mult_b3ds, coloring='singular', costs=False)
-# '''
-
-
-
-
     # blob3dlist = [blob3dlist[1]] # HACK THIS IS THE ONE HAVING ISSUES WITH THE TOP LAYER AND SUBSTITCHES
-
-
-    # for bnum, b3d in enumerate(blob3dlist):
-    #     print(bnum)
-    #     plotBlob3d(b3d)
-
-
-
-
 
 
     experimenting = True
     if experimenting:
         # NOTE Blob3dlist[3].blob2ds[6] should be divided into subblobs
         # NOTE [3][1] is also good
-        unpickle_exp = True
+        unpickle_exp = False
         pickle_exp = True # Only done if not unpickling
         exp_pickle = 'pickletest_subblobs.pickle' # 2,3 working #6 working except height, 7 working except stitch height, 8 works!!!
 
@@ -340,10 +306,12 @@ def main():
         else:
             # primary_blobs = blob3dlist
             test_b3ds = []
+            sub_slides = []
             for b3d_num, b3d in enumerate(primary_blobs):
                 print('DB GENERATING SUBBLOBS For B3d #' + str(b3d_num) + ' / ' + str(len(primary_blobs)))
-                buf = b3d.gen_subblob3ds()
-                test_b3ds = test_b3ds + buf[0] # buf[0] b/c currently returning b3ds,stitchlist
+                buf = b3d.gen_subblob3ds(debugflag=0)#b3d_num)# DEBUG
+                test_b3ds = test_b3ds + buf[0] # buf[0] b/c currently returning b3ds,stitchlist, slides # TODO need to return slides
+                sub_slides = sub_slides + buf[2]
                 # print('Derived a total of ' + str(len(buf[0])) + ' subblob3ds from primary b3d:' + str(b3d))
             if pickle_exp:
                 doPickle(test_b3ds, exp_pickle)
@@ -351,71 +319,36 @@ def main():
 
         # picklenote = "These were generated from a few interesting blob3ds from the full list of blob3ds\nThere has been one level of recursion performed"
         # doPickle(test_b3ds + primary_blobs, directory='H:/Dropbox/Serotonin/pickles/recursive/', filename='depth1_subset_of_b3ds.pickle', note=picklenote)
-
-
-
-
-        # for b3d in primary_blobs:
-        #     b3d.isSingular = True
-        # for blob in test_b3ds:
-        #     blob.isSingular = False
-        # print(test_b3ds)
-        # print(primary_blobs)
-        # print(test_b3ds + primary_blobs)
-        # plotBlob3ds(test_b3ds, color='blobs')
-        # plotBlob3ds(primary_blobs, color='blobs')
-        # plotBlob3ds(test_b3ds + primary_blobs, color='blob')
-        # for b_num, b3d in enumerate(primary_blobs):
-        #     print(b_num, end = ': ')
-        #     print(b3d)
-        #     print(b_num, end = ': ')
-        #     print(b3d.subblobs)
-        # for sub_bnum, b3d in enumerate(test_b3ds):
-        #     print('SB:' + str(sub_bnum) + '/' + str(len(test_b3ds)) + ':'  + str(b3d))
-        #     if hasattr(b3d, 'parent'):
-        #         print('HAS PARENT:' + str(b3d.parent))
-        #     else:
-        #         print('No Parent:')
-            # print('  ' + str(b3d.parent))
-
-
-
         # plotBlob3ds(test_b3ds + primary_blobs, coloring='depth', b2dmidpoints=False, canvas_size=(1000,1000), b2d_midpoint_values=10)
         # plotBlod3ds(blob3dlist)
     for blob3d in blob3dlist: # FIXME repairing old pickles
         if not hasattr(blob3d, 'recursive_depth'):
             blob3d.recursive_depth = 0
 
-    plotBlob3d(blob3dlist[1], coloring='blob2d')
-    # TODO look more closely at the blob2d from within [1] that is causing the issue (not creating subblobs..) Why?
-    # Begin with plotting the blob2d_num with each blob2d
+    # sub_slides = buf[2]
+    print('# subslides = ' + str(len(sub_slides)))
+    slide_b2ds = sum(len(slide.blob2dlist) for slide in sub_slides)
+    b3d_b2ds = sum(len(b3d.blob2ds) for b3d in test_b3ds)
+    print('There were # b2ds from slides & b3ds ' + str(slide_b2ds) + '_' + str(b3d_b2ds))
 
 
-    plotBlob3ds(blob3dlist + test_b3ds, coloring='depth', b2dmidpoints=False, canvas_size=(1000,1000), b2d_midpoint_values=20)
+
+    # plotBlob3ds(blob3dlist + test_b3ds, coloring='depth', b2dmidpoints=False, canvas_size=(1000,1000), b2d_midpoint_values=20)
+    # plotBlob3d(blob3dlist[1], coloring='blob2d', b2dids=True)
+
+    # NOTE working on bloblist[1], have found that some blob2ds are not stitching as expected
+    # From the above b3d, the following b2ds are not generating subblob2ds correctly: 5,9,11 and some others, focusing on those now
+
     debug()
 
-    #TODO
 
 
-    ## sub_b3ds, sub_stitchs =  blob3dlist[40].gen_subblob3ds(save=True, filename='subblobs1.pickle')
-    # print('Derived a total of ' + str(len(list3ds)) + ' 3d blob components')
-    # print('Derived a total of ' + str(len(test_b3ds)) + ' 3d blobs')
+
+
+
+
     # # GOOD BLOBS FOR RECURSIVE TESTING:
     # # 3,8,40!
-    # print('DB plotting sublob3ds:')
-    #
-    # tagBlobsSingular(sub_b3ds)
-    # # plotBlod3ds(sub_b3ds, color='singular')
-    # print('DB PICKLING ALL WITH 1 LAYER SUBBLOBS')
-    # doPickle(sub_b3ds, 'all_subblobs.pickle')
-
-    # sub_b3ds = unPickle('all_subblobs.pickle')
-
-
-
-
-
-
     # plotSlidesVC(all_slides, stitchlist, pairings=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
     # NOTE: Interesting blob3ds:
     # 3: Very complex, mix of blobs, irregular stitching example, even including a seperate group (blob3d)

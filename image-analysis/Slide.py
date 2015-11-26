@@ -311,7 +311,7 @@ class Slide:
         return (derived_ids, derived_count, removed_id_count)
 
     def __str__(self):
-        return str('Slide <Id:' + str(self.id_num) + 'Num of Blob2ds:' + str(len(self.blob2dlist)) + '>')
+        return str('Slide <Id:' + str(self.id_num) + ' Num of Blob2ds:' + str(len(self.blob2dlist)) + '>')
 
 
 class SubSlide(Slide):

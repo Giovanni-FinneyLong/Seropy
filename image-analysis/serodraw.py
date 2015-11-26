@@ -112,7 +112,7 @@ def setMasterStartTime():
 
 
 
-def plotBlob3d(blob3d, coloring='', **kwargs):
+def plotBlob3d(blob3d, coloring='', b2dids=False, **kwargs):
     global canvas
     global view
     global colors
@@ -178,7 +178,25 @@ def plotBlob3d(blob3d, coloring='', **kwargs):
 
     #     view.add(visuals.Text(str(blob.id) + ':' + str(index), pos=avg_list[index], color='white'))
     axis = visuals.XYZAxis(parent=view.scene)
-    markers = []
+    midpoints = []
+    # FIXME This is repairing incorrect averages in blob2ds
+    for b2d in blob3d.blob2ds:
+        b2d.avgx = sum(pixel.x for pixel in b2d.edge_pixels) / len(b2d.edge_pixels)
+        b2d.avgy = sum(pixel.y for pixel in b2d.edge_pixels) / len(b2d.edge_pixels)
+    # /FIXME
+
+
+    if b2dids is True:
+        midpoints.append(np.zeros([1,3]))
+        for b2d_num, b2d in enumerate(blob3d.blob2ds): #FIXME! For some reason overloads the ram.
+            midpoints[-1] = [(b2d.avgx - offsetx) / xdim, (b2d.avgy - offsety) / ydim, b2d.height / (z_compression * zdim)]
+            textStr = str(b2d_num)
+            if coloring == 'blob2d':
+                color = colors[b2d_num]
+            else:
+                color = 'yellow'
+            view.add(visuals.Text(textStr, pos=midpoints[-1], color=color))
+
 
     if coloring == 'blob2d':
         edge_pixel_arrays = []
@@ -1052,23 +1070,28 @@ def plotSlidesVC(slide_stack, stitchlist=[], **kwargs):
 def showSlide(slide):
     # HACK
     if len(slide.alive_pixels) > 0:
-        width = max(pixel.x for pixel in slide.alive_pixels) + 1 # HACK
-        height = max(pixel.y for pixel in slide.alive_pixels) + 1 # HACK
-        array = np.zeros([width, height])
+        maxx = max(b2d.maxx for b2d in slide.blob2dlist)
+        maxy = max(b2d.maxy for b2d in slide.blob2dlist)
+        minx = min(b2d.minx for b2d in slide.blob2dlist)
+        miny = min(b2d.miny for b2d in slide.blob2dlist)
+
+        array = np.zeros([maxx - minx + 1, maxy - miny + 1])
         for pixel in slide.alive_pixels:
-            array[pixel.x][pixel.y] = pixel.val
-        plt.imshow(array, cmap='rainbow')
+            array[pixel.x - minx][pixel.y - miny] = pixel.val
+        plt.imshow(array, cmap='rainbow', interpolation='none')
+        # plt.matshow(array)
         plt.show()
     else:
         print('Cannot show slide with no pixels:' + str(slide))
 
 def showBlob2d(b2d):
-    width = max(pixel.x for pixel in b2d.pixels) + 1
-    height = max(pixel.y for pixel in b2d.pixels) + 1
+    width = b2d.maxx - b2d.minx + 1 #max(pixel.x for pixel in b2d.pixels) + 1
+    height = b2d.maxy - b2d.miny + 1#max(pixel.y for pixel in b2d.pixels) + 1
     array = np.zeros([width, height])
     for pixel in b2d.pixels:
-        array[pixel.x][pixel.y] = pixel.val
-    plt.imshow(array, cmap='rainbow')
+        array[pixel.x - b2d.minx][pixel.y - b2d.miny] = pixel.val
+    plt.imshow(array, cmap='rainbow', interpolation='none')
+    plt.colorbar()
     plt.show()
 
 
