@@ -34,7 +34,7 @@ max_distance = 7 # The max distance that two pixels can be apart and still be st
                  # If this threshold is breached, edge_pixels will not have any line to them, including a substitute
 min_pixels_to_split = 9 # The minimum number of pixels in a Blob2d of a Subblob3d
                         # This is currently experimental
-
+pickledir = '' # Can be relative
 
 #NOTE these would be good for a sliding scale?
 assert 0 < z_compression <= 1

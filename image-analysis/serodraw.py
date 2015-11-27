@@ -285,7 +285,8 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
     ydim = ymax - ymin
     zdim = zmax - zmin
 
-    canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size)
+    canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size,
+                                     title='plotBlob2ds(' + str(len(blob2ds)) + '-Blob2ds, coloring=' + str(coloring) + ' canvas_size=' + str(canvas_size) + ')')
     view = canvas.central_widget.add_view()
     edge_pixel_arrays = []
     markers = []
@@ -299,7 +300,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
                 blob2d.offsety = 0
 
             edge_pixel_arrays[-1][p_num] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, pixel.z /  (z_compression * zdim)]
-        markers[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[b2d_num], size=8)
+        markers[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[b2d_num % len(colors)], size=8)
         view.add(markers[-1])
 
     if ids is True:
@@ -353,7 +354,8 @@ def plotBlob3ds(blob3dlist, coloring=None, costs=0, b2dmidpoints=False, b3dmidpo
     global zdim
     global colors
     # canvas_size = kwargs.get('canvas_size', (800,800))
-    canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size)
+    canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size,
+                                     title='plotBlob3ds(' + str(len(blob3dlist)) + '-Blob3ds, coloring=' + str(coloring) + ', canvas_size=' + str(canvas_size) + ')')
 
 
     # Finding the maximal slide, so that the vertical dimension of the plot can be evenly divided
@@ -1162,7 +1164,6 @@ def showBlob2d(b2d):
     plt.colorbar()
     plt.show()
 
-
 def plotSlides(slide_list):
     colors2 = plt.get_cmap('gist_rainbow')
     num_slides = len(slide_list)
@@ -1203,6 +1204,11 @@ def plotSlides(slide_list):
     # plt.savefig("3D.png")
     print('Now displaying rendering @' + str(time.ctime()))
     plt.show()
+
+
+
+
+
 
 # NOTE: all marker types:
 '''

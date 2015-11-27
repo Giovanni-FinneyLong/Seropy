@@ -83,9 +83,8 @@ def doPickle(blob3dlist, filename, directory='', note=''):
         pass
 
 
-def unPickle(filename, directory=''):
-        if directory != '':
-            filename = directory + '/' + filename
+def unPickle(filename, directory=pickledir):
+        filename = directory + '/' + filename
         print('Loading from pickle:' + str(filename))
         pickledict = pickle.load(open(filename, "rb"))
         blob3dlist = pickledict['blob3ds']
@@ -224,13 +223,9 @@ def main():
          #picklefile = 'pickletest_refactor2.pickle' # THIS IS DONE *, and log distance base 2
          # picklefile = 'pickletest_refactor3.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 50
         # doPickle(test_b3ds + primary_blobs, directory='H:/Dropbox/Serotonin/pickles/recursive/', filename='depth1_subset_of_b3ds.pickle', note=picklenote)
-
-
-
          picklefile = 'pickletest_refactor4.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
-        # pickletest1 holds the results of recomputing over gen slides from bloblist[3]
 
-         # picklefile = 'H:/Dropbox/Serotonin/pickles/recursive/' + 'depth1_subset_of_b3ds.pickle'
+
     else:
         picklefile = 'pickledata.pickle'
 
@@ -291,7 +286,6 @@ def main():
 
     # blob3dlist = [blob3dlist[1]] # HACK THIS IS THE ONE HAVING ISSUES WITH THE TOP LAYER AND SUBSTITCHES
 
-
     experimenting = True
     if experimenting:
         # NOTE Blob3dlist[3].blob2ds[6] should be divided into subblobs
@@ -309,7 +303,7 @@ def main():
             sub_slides = []
             for b3d_num, b3d in enumerate(primary_blobs):
                 print('DB GENERATING SUBBLOBS For B3d #' + str(b3d_num) + ' / ' + str(len(primary_blobs)))
-                buf = b3d.gen_subblob3ds(debugflag=b3d_num, debugforb2ds=[5,9,11])#b3d_num)# DEBUG
+                buf = b3d.gen_subblob3ds(debugflag=b3d_num, debugforb2ds=[4,15])#b3d_num)# DEBUG was [5,9,11]
                 test_b3ds = test_b3ds + buf[0] # buf[0] b/c currently returning b3ds,stitchlist, slides # TODO need to return slides
                 sub_slides = sub_slides + buf[2]
                 # print('Derived a total of ' + str(len(buf[0])) + ' subblob3ds from primary b3d:' + str(b3d))
@@ -319,27 +313,45 @@ def main():
 
         # picklenote = "These were generated from a few interesting blob3ds from the full list of blob3ds\nThere has been one level of recursion performed"
         # doPickle(test_b3ds + primary_blobs, directory='H:/Dropbox/Serotonin/pickles/recursive/', filename='depth1_subset_of_b3ds.pickle', note=picklenote)
-        # plotBlob3ds(test_b3ds + primary_blobs, coloring='depth', b2dmidpoints=False, canvas_size=(1000,1000), b2d_midpoint_values=10)
-        # plotBlod3ds(blob3dlist)
-    for blob3d in blob3dlist: # FIXME repairing old pickles
-        if not hasattr(blob3d, 'recursive_depth'):
-            blob3d.recursive_depth = 0
+        for blob3d in primary_blobs: # FIXME repairing old pickles
+            if not hasattr(blob3d, 'recursive_depth'):
+                blob3d.recursive_depth = 0
 
-    # sub_slides = buf[2]
-    print('# subslides = ' + str(len(sub_slides)))
-    slide_b2ds = sum(len(slide.blob2dlist) for slide in sub_slides)
-    b3d_b2ds = sum(len(b3d.blob2ds) for b3d in test_b3ds)
-    print('There were # b2ds from slides & b3ds ' + str(slide_b2ds) + '_' + str(b3d_b2ds))
+        #DEBUG
+        both_filename = 'sub_slides+all_slides__blob3dlist+test_b3ds.pickle'
+        if not unpickle_exp and not dePickle:
+            slide_dict = dict()
+            both_slides  = sub_slides + all_slides
+            both_blob3ds = blob3dlist + test_b3ds
+            slide_dict['slides'] = both_slides
+            slide_dict['blob3ds'] = both_blob3ds
+            print('Writing slide pickle')
+            pickle.dump(slide_dict, open(both_filename, "wb"))
+        else:
+            print('Loading from pickle:' + str(both_filename))
+            pickledict = pickle.load(open(both_filename, "rb"))
+            both_slides = pickledict['slides']
+            both_blob3ds = pickledict['blob3ds']
+
+
+        sub_blob2ds_from_slides = [blob2d for slide in both_slides for blob2d in slide.blob2dlist]
+        sub_blob2ds_from_blob3ds = [blob2d for blob3d in both_blob3ds for blob2d in blob3d.blob2ds]
+        print('\n\nPLOTTING ALL BLOB2DS, the ones from the original slides, and the generated subslides')
+        # THE HOLY DEBUG GRAIL
+        print('Plotting from both_slides')
+        plotBlob2ds(sub_blob2ds_from_slides)
+        print('Plotting from both_blob3ds')
+        plotBlob2ds(sub_blob2ds_from_blob3ds)
 
 
 
-    # plotBlob3ds(blob3dlist + test_b3ds, coloring='depth', b2dmidpoints=False, canvas_size=(1000,1000), b2d_midpoint_values=20)
-    # plotBlob3d(blob3dlist[1], coloring='blob2d', b2dids=True)
+    # plotBlob3ds(primary_blobs + test_b3ds, coloring='depth', b2dmidpoints=False, canvas_size=(1000,1000), b2d_midpoint_values=20)
+
 
     # NOTE working on bloblist[1], have found that some blob2ds are not stitching as expected
     # From the above b3d, the following b2ds are not generating subblob2ds correctly: 5,9,11 and some others, focusing on those now
 
-    debug()
+    # debug()
 
 
 

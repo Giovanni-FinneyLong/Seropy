@@ -14,13 +14,17 @@ class Blob2d:
     total_blobs = 0 # Note that this is set AFTER merging is done, and so is not modified by blobs
     blobswithoutstitches = 0
 
-    def __init__(self, idnum, list_of_pixels, master_array, slide):
+    def __init__(self, idnum, list_of_pixels, master_array, slide, offsetx=0, offsety=0):
         self.id = idnum
         self.pixels = list_of_pixels
         self.num_pixels = len(list_of_pixels)
         self.assignedto3d = False # Set to true once a blod2d has been added to a list that will be used to construct a blob3d
-
+        self.debugFlag = False
         self.sum_vals = 0
+        self.offsetx = offsetx
+        self.offsety = offsety
+
+
         self.master_array = master_array
         self.slide = slide
         self.height = slide.height
@@ -188,7 +192,7 @@ class Blob2d:
         # print('DB Updating pairings with pairings totally costing: ' + str(pairings.total_cost))
         self.pairings.append(stitches)
 
-    def getconnectedblob2ds(self):
+    def getconnectedblob2ds(self, debug=False):
         '''
         Recursively finds all blobs that are directly or indirectly connected to this blob via stitching
         :return: The list of all blobs that are connected to this blob, including the seed blob
@@ -220,8 +224,13 @@ class Blob2d:
 
 
 
+        # if debug and self.debugFlag:
+        #     print('--Called getconnectedblob2ds on a debugBlob:' + str(self))
+        #     print('---Has assignedto3d:' + str(hasattr(self, 'assignedto3d')))
+
         #DEBUG use assigned to 3d to check for errors in recursive tracing
         # Note use assignedto3d to avoid using a blob as
+
         if hasattr(self, 'assignedto3d') and self.assignedto3d is True: # hasattr included to deal with outdate pickle files
             # Has already been assigned to a blob3d group, so no need to use as a seed
             return []

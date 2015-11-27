@@ -139,13 +139,13 @@ class Pairing:
             # NOTE Sorting indeces = [contour_cost, dist_cost, total_cost, distance]
             if self.cost_array[row][col][3] < max_distance and self.cost_array[row][col][2] < max_stitch_cost :# HACK, may want to do this later, so that stitches can be manually removed via interactive interface (slide bar for max_value)
                 self.stitches.append(Stitch(self.lowerpixels[row], self.upperpixels[col], self.lowerblob, self.upperblob, self.cost_array[row][col]))
-                self.cost += self.cost_array[row][col]
+                self.cost += self.cost_array[row][col][2] # 2 for total_cost
                 # print('DB cost of (contour, distance, total):' + str(self.cost_array[row][col]))
             # else:
             #     print('Ignored cost:' + str(self.cost_array[row][col]))
 
     @staticmethod
-    def stitchAllBlobs(slidelist, quiet=False):
+    def stitchAllBlobs(slidelist, quiet=False, debug=False):
         def  printElapsedTime(t0, tf, pad=''): # HACK FIXME REMOVE THIS AND IMPORT CORRECTLY
             temp = tf - t0
             m = math.floor(temp / 60)
@@ -160,26 +160,29 @@ class Pairing:
         if not quiet:
             print('Beginning to stitch together blobs')
         for slide_num, slide in enumerate(slidelist):
-            if not quiet:
+            if not quiet or (debug and slide.debugFlag is True):
                 print('Starting slide #' + str(slide_num) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds')
+
             for blob1 in slide.blob2dlist:
                 if len(blob1.possible_partners) > 0:
-                    if not quiet:
+                    if not quiet or (debug and blob1.debugFlag is True):
                         print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
                 # print('  Blob1 current parter_costs:' + str(blob1.partner_costs))
 
                 for b2_num, blob2 in enumerate(blob1.possible_partners):
-                    if not quiet:
+                    if not quiet or (debug and (blob1.debugFlag is True or blob2.debugFlag is True)):
                         print('   Comparing to blob2:' + str(blob2))
                     t0 = time.time()
                     bufStitch = Pairing(blob1, blob2, 1.1, 36, quiet=quiet)
                     if bufStitch.isConnected:
+                        if (debug and (blob1.debugFlag is True or blob2.debugFlag is True)):
+                            print('    +Blobs connected')
                         pairlist.append(bufStitch)
                         if not quiet:
                             tf = time.time()
                             printElapsedTime(t0, tf, pad='    ')
-
-
+                    elif (debug and (blob1.debugFlag is True or blob2.debugFlag is True)):
+                        print('    -Blobs not connected')
         return pairlist
 
     def __str__(self):
@@ -239,6 +242,7 @@ class Pairing:
             upperblob.updatePairings(self)
         else:
             self.isConnected = False
+
 
 class Stitch:
     '''

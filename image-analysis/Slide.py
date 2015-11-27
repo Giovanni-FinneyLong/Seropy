@@ -43,6 +43,7 @@ class Slide:
         slices = []
         self.t0 = time.time()
         self.isSubslide = False
+        self.debugFlag = False
         if matrix is None: # Only done if this is a primary slide # FIXME
             self.id_num = Slide.total_slides
             self.height = Slide.total_slides
@@ -56,7 +57,7 @@ class Slide:
             (self.local_xdim, self.local_ydim, self.local_zdim) =  (im_xdim, im_ydim, im_zdim) = imarray.shape[0],imarray.shape[1], self.height
             # setglobaldims(im_xdim * slide_portion, im_ydim * slide_portion, im_zdim * slide_portion) # TODO FIXME, remove when possible
             if not quiet:
-                print('The are ' + str(zdim) + ' channels')
+                print('The are ' + str(self.height) + ' channels') # TODO check this is alright for tiffs
             image_channels = imagein.split()
             for s in range(len(image_channels)):  # Better to split image and use splits for arrays than to split an array
                 buf = np.array(image_channels[s])

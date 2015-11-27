@@ -1,7 +1,7 @@
 from Slide import Slide, SubSlide
 from Stitches import Pairing
 from sero import doPickle
-from serodraw import plotBlob3d, showSlide, showBlob2d
+from serodraw import plotBlob3d, showSlide, showBlob2d, plotBlob2ds
 
 class Blob3d:
     '''
@@ -91,9 +91,15 @@ class Blob3d:
 
         debugflag = kwargs.get('debugflag', -1)
         debug2ds = kwargs.get('debugforb2ds',[])
-
         # DEBUG
         debugging = (debugflag == 1)
+        if debugging:
+            print('Debugging for blob3d:' + str(self))
+            print('Targeting blob2ds#:' + str(debug2ds))
+            # plotBlob3d(self,coloring='blob2d', b2dids=True)
+            print('DB showing plotting with plotblob2ds')
+            plotBlob2ds(self.blob2ds, ids=True)
+
         display = False
         # /DEBUG
 
@@ -138,26 +144,78 @@ class Blob3d:
             print('> Found the following ' + str(len(debug_blob2ds_sublobs)) + ' blob2ds which are within the slides from the blob2ds being debugged: ' + str(debug_blob2ds_sublobs))
             # NOTE at this point, have lists of debug_blob2ds, and their generated slides and blob2ds:
             # All generated subslides and subblob2ds have had a debugFlag set
-
+            for slide in slides_from_debug_blob2ds:
+                slide.debugFlag = True
+            for b2d in debug_blob2ds_sublobs:
+                b2d.debugFlag = True
         Slide.setAllPossiblePartners(test_slides, **kwargs)
+
         if debugging:
             for b2d_num,b2d in enumerate(debug_blob2ds_sublobs):
                 print('Possible partners of b2d #' + str(b2d_num) + ':' + str(b2d.possible_partners))
         # DEBUG to here, everything ok Seems to be finding possible_partners ok
-        
 
 
         Slide.setAllShapeContexts(test_slides)
-        test_stitches = Pairing.stitchAllBlobs(test_slides, quiet=True)
+        test_pairings = Pairing.stitchAllBlobs(test_slides, quiet=True, debug=False)
+        if debugging:
+            print('Done stitching all blob2ds')
+            for b2d in debug_blob2ds_sublobs:
+                print(' B2D:' + str(b2d) + ' has ' + str(len(b2d.possible_partners)) + ' possible partners')
+                # print('  Connectedb2ds:' + str(b2d.getconnectedblob2ds()))
+                print('  # Pairings:' + str(len(b2d.pairings)))
+
         list3ds = []
         for slide_num, slide in enumerate(test_slides):
             for blob in slide.blob2dlist:
-                buf = blob.getconnectedblob2ds()
+                buf = blob.getconnectedblob2ds(debug=True) # DEBUG
                 if len(buf) != 0:
                     list3ds.append((buf, slide))
+
+        #DEBUG
+        if debugging:
+            print('>>>>The debug_blob2ds_sublobs are:' + str(debug_blob2ds_sublobs))
+
+            print("There are a total of " + str(len(list3ds)) + ' lists of blob2ds, each of which will make a blob2d')
+            for list2dblobs, sourcesubslide in list3ds:
+                inter_buf = list(set(list2dblobs).intersection(debug_blob2ds_sublobs))
+                if len(inter_buf) != 0:
+                    print(' Found ' + str(len(inter_buf)) + ' common blob2ds which are:' + str(inter_buf))
+            print('There are a total of ' + str(len(test_pairings)) + ' pairings between the created blobs')
+            for pairing in test_pairings:
+                if pairing.lowerblob in debug_blob2ds_sublobs or pairing.upperblob in debug_blob2ds_sublobs:
+                    print(' Found a stitch containing a debug_subblob:' + str(pairing))
+
+
+        original_b2ds = [blob2d for blob2d in self.blob2ds]
+        sub_b2ds = [blob2d for slide in test_slides for blob2d in slide.blob2dlist]
+        # DEBUG DEBUG DEBUG
+        # plotBlob2ds(original_b2ds + sub_b2ds)
+        #DEBUG
+
+
+        # NOTE currently found the generated subblobs (which arent showing up), within test_pairings and list3ds
+        # Now need to check if they are making it into the 3d blobs
+        # DEBUG DEBUG The debug b2ds are not showing up in the above lists. SO they are not getting added correctly in .getconnectedblob2ds()
         b3ds = []
         for (blob2dlist, sourceSubSlide) in list3ds:
             b3ds.append(SubBlob3d(blob2dlist, self))
+
+         # DEBUG
+        if debugging:
+            print("There are a total of " + str(len(b3ds)) + ' blob3ds')
+            for b3d in b3ds:
+                inter_buf =  list(set(b3d.blob2ds).intersection(debug_blob2ds_sublobs))
+                if len(inter_buf) != 0:
+                    print(' Found ' + str(len(inter_buf)) + ' blob2ds within a blob3d. The blob2ds are:' + str(inter_buf))
+            print('>>>>The debug_blob2ds_sublobs are:' + str(debug_blob2ds_sublobs))
+
+
+
+
+
+
+
         if save:
             doPickle(b3ds, filename)
         # print('Derived a total of ' + str(len(test_b3ds)) + ' 3d blobs')
@@ -165,7 +223,7 @@ class Blob3d:
         if not hasattr(self, 'subblobs'): # HACK FIXME once regen pickle
             self.subblobs = []
         self.subblobs = self.subblobs + b3ds
-        return b3ds, test_stitches, test_slides
+        return b3ds, test_pairings, test_slides
 
     def save2d(self, filename):
         '''
