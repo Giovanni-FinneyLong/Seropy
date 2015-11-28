@@ -57,7 +57,7 @@ class Slide:
             (self.local_xdim, self.local_ydim, self.local_zdim) =  (im_xdim, im_ydim, im_zdim) = imarray.shape[0],imarray.shape[1], self.height
             # setglobaldims(im_xdim * slide_portion, im_ydim * slide_portion, im_zdim * slide_portion) # TODO FIXME, remove when possible
             if not quiet:
-                print('The are ' + str(self.height) + ' channels') # TODO check this is alright for tiffs
+                print('The are ' + str(self.hei) + ' channels')
             image_channels = imagein.split()
             for s in range(len(image_channels)):  # Better to split image and use splits for arrays than to split an array
                 buf = np.array(image_channels[s])
@@ -267,8 +267,9 @@ class Slide:
                 if debug_pixel_ops:
                     print('****Pixel:' + str(pixel) + ' already had an id when the cursor reached it')
             if pixel.blob_id == -1: # Didn't manage to derive an id_num from the neighboring pixels
+                # FIXME
                 pixel.blob_id = len(pixel_id_groups) # This is used to assign the next id to a pixel, using an id that is new
-
+                # FIXME
 
                 pixel_id_groups.append([pixel])
                 derived_ids.append(pixel.blob_id) # Todo should refactor 'derived_ids' to be more clear

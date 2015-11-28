@@ -290,7 +290,7 @@ def main():
     if experimenting:
         # NOTE Blob3dlist[3].blob2ds[6] should be divided into subblobs
         # NOTE [3][1] is also good
-        unpickle_exp = False
+        unpickle_exp = True
         pickle_exp = True # Only done if not unpickling
         exp_pickle = 'pickletest_subblobs.pickle' # 2,3 working #6 working except height, 7 working except stitch height, 8 works!!!
 
@@ -336,12 +336,26 @@ def main():
 
         sub_blob2ds_from_slides = [blob2d for slide in both_slides for blob2d in slide.blob2dlist]
         sub_blob2ds_from_blob3ds = [blob2d for blob3d in both_blob3ds for blob2d in blob3d.blob2ds]
-        print('\n\nPLOTTING ALL BLOB2DS, the ones from the original slides, and the generated subslides')
+        excluded_sub_blob2ds = [blob2d for blob2d in sub_blob2ds_from_slides if blob2d not in sub_blob2ds_from_blob3ds]
+        print('A total of ' + str(excluded_sub_blob2ds) + ' sub blob2ds exist in slide but not in any blob3ds')
         # THE HOLY DEBUG GRAIL
-        print('Plotting from both_slides')
-        plotBlob2ds(sub_blob2ds_from_slides)
-        print('Plotting from both_blob3ds')
-        plotBlob2ds(sub_blob2ds_from_blob3ds)
+        # print('\n\nPLOTTING ALL BLOB2DS, the ones from the original slides, and the generated subslides')
+        # print('Plotting from both_slides')
+        # plotBlob2ds(sub_blob2ds_from_slides, titleNote='These are the blob2ds from both_slides', ids=True)
+        # print('Plotting from both_blob3ds')
+        # plotBlob2ds(sub_blob2ds_from_blob3ds, titleNote='There are the blob2ds from both_blob3ds')
+        # NOTE DEBUGGING
+        # FROM THE both_slide blob2ds, the following ids (there's more) are expected to have pairings/stitching, but none are visualized
+        NO_STITCHES = 69,70,81,82,83,86
+        STITCHES_DOWN_ONLY = 71,72,73
+        no_stitch_subblobs = [blob2d for blob2d in sub_blob2ds_from_slides if blob2d.id in NO_STITCHES]
+        stitch_down_only_subblobs = [blob2d for blob2d in sub_blob2ds_from_slides if blob2d.id in STITCHES_DOWN_ONLY]
+        print('Specified a total of ' + str(len(NO_STITCHES)) + ' no_stitch_subblobs and ' + str(len(STITCHES_DOWN_ONLY)) + ' stitch_down_only_subblobs')
+        print('Found ' + str(len(no_stitch_subblobs)) + ' and ' + str(len(stitch_down_only_subblobs)) + ' respectively')
+        print(sorted(no_stitch_subblobs, key=lambda blob2d: blob2d.id))
+        print(sorted(stitch_down_only_subblobs, key=lambda blob2d: blob2d.id))
+
+        # print('As a set, Found ' + str(len(set(no_stitch_subblobs))) + ' and ' + str(len(set(stitch_down_only_subblobs))) + ' respectively')
 
 
 

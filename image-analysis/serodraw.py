@@ -269,7 +269,7 @@ def contrastSaturatedBlob2ds(blob2ds, minimal_edge_pixels=350):
         else:
             print('Skipping, as blob2d had only: ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
 
-def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches=True):
+def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches=True, titleNote=''):
     global canvas
     global view
     global colors
@@ -286,7 +286,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
     zdim = zmax - zmin
 
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size,
-                                     title='plotBlob2ds(' + str(len(blob2ds)) + '-Blob2ds, coloring=' + str(coloring) + ' canvas_size=' + str(canvas_size) + ')')
+                                     title='plotBlob2ds(' + str(len(blob2ds)) + '-Blob2ds, coloring=' + str(coloring) + ' canvas_size=' + str(canvas_size) + ') ' + titleNote)
     view = canvas.central_widget.add_view()
     edge_pixel_arrays = []
     markers = []
@@ -310,10 +310,10 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
             midpoints[-1] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, b2d.height / (z_compression * zdim)]
             textStr = str(b2d_num)
             if coloring == '' or coloring == 'blob2d':
-                color = colors[b2d_num]
+                color = colors[b2d_num % len(colors)]
             else:
                 color = 'yellow'
-            view.add(visuals.Text(textStr, pos=midpoints[-1], color=color))
+            view.add(visuals.Text(textStr, pos=midpoints[-1], color=color, font_size=15, bold=True))
     if stitches:
         lineendpoints = 0
         for blob2d in blob2ds:
