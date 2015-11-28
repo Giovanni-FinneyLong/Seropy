@@ -158,8 +158,8 @@ class Slide:
         for (blobnum, blobslist) in enumerate(self.blob2dlist):
             edge_lists.append(self.blob2dlist[blobnum].edge_pixels)
             self.edge_pixels.extend(self.blob2dlist[blobnum].edge_pixels)
-        if matrix is not None:
-            Blob2d.total_blobs += len(self.blob2dlist)
+        # if matrix is not None:
+        #     Blob2d.total_blobs += len(self.blob2dlist)
         if not quiet:
             self.tf = time.time()
             printElapsedTime(self.t0, self.tf)
@@ -214,8 +214,11 @@ class Slide:
         # 5 = (-1, 1)
         # 1 = (0, -1
 
-        local_xdim, local_ydim = local_dim_tuple
+        print('DB: Calling firstPass, the value of Blob2d.total_blobs = ' + str(Blob2d.total_blobs))
 
+
+
+        local_xdim, local_ydim = local_dim_tuple
         vertical_offsets  = [-1, -1, -1, 0]#[1, 0, -1, -1]#,  0,   1, -1] #, 1, -1, 0, 1]
         horizontal_offsets = [-1, 0, 1, -1]#[-1, -1, -1, 0]#, 1, 1,  0] #, 0, 1, 1, 1]
 

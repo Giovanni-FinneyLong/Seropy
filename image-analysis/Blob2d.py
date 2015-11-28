@@ -13,9 +13,50 @@ class Blob2d:
     # equivalency_set = set() # Used to keep track of touching blobs, which can then be merged.
     total_blobs = 0 # Note that this is set AFTER merging is done, and so is not modified by blobs
     blobswithoutstitches = 0
+    used_ids = np.array([])
+    min_free_id = 0
+
+
+
+
+    def validateID(self, quiet=True):
+        '''
+        Checks that a blob2d's id has not been used, and changes it if it has been
+        :return:
+        '''
+
+        def getNextID():
+            index = Blob2d.min_free_id
+            while(index < len(Blob2d.used_ids) and Blob2d.used_ids[index] == 1):
+                index += 1
+            if index == len(Blob2d.used_ids):
+                Blob2d.used_ids.resize([index + 50]) # NOTE can alter this value, for now expanding by 50, which will be filled with zeros
+            Blob2d.min_free_id = index + 1
+            return index
+
+        if self.id >= len(Blob2d.used_ids):
+            Blob2d.used_ids.resize([self.id + 50]) # NOTE can alter this value, for now expanding by 50, which will be filled with zeros
+            Blob2d.used_ids[self.id] = 1 # 1 for used
+        elif Blob2d.used_ids[self.id] == 1:
+            oldid = self.id
+            self.id = getNextID()
+            if not quiet:
+                print('Updated id from ' + str(oldid) + ' to ' + str(self.id) + '  ' + str(self))
+
+        else:
+            if not quiet:
+                print('Updated entry for ' + str(self.id))
+            Blob2d.used_ids[self.id] = 1
+
+
+
 
     def __init__(self, idnum, list_of_pixels, master_array, slide, offsetx=0, offsety=0):
         self.id = idnum
+        self.validateID() # NOTE NEW
+        Blob2d.total_blobs += 1
+
+
         self.pixels = list_of_pixels
         self.num_pixels = len(list_of_pixels)
         self.assignedto3d = False # Set to true once a blod2d has been added to a list that will be used to construct a blob3d
@@ -23,8 +64,6 @@ class Blob2d:
         self.sum_vals = 0
         self.offsetx = offsetx
         self.offsety = offsety
-
-
         self.master_array = master_array
         self.slide = slide
         self.height = slide.height

@@ -95,6 +95,21 @@ def unPickle(filename, directory=pickledir):
         if 'note' in pickledict:
             print('Included note:' + pickledict['note'])
         setglobaldims(xdim, ydim, zdim)
+        # print('Before unpickle, Blob2d.total_blobs=' + str(Blob2d.total_blobs))
+        for blob3d in blob3dlist:
+            for blob2d in blob3d.blob2ds:
+                blob2d.validateID(quiet=True)
+                Blob2d.total_blobs += 1
+        # for index, val in enumerate(Blob2d.used_ids):
+        #     print('(' + str(index) + ',' + str(val) + ')', end=',')
+        # new_b2ds = [blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds]
+        # print('\nThere is a total of ' + str(len(new_b2ds)) + ' new b2ds')
+        # for b2d in new_b2ds:
+        #     print(b2d.id, end = ',')
+
+        # print('After unpickle, Blob2d.total_blobs=' + str(Blob2d.total_blobs))
+
+
         return blob3dlist
 
 
@@ -336,18 +351,29 @@ def main():
 
         sub_blob2ds_from_slides = [blob2d for slide in both_slides for blob2d in slide.blob2dlist]
         sub_blob2ds_from_blob3ds = [blob2d for blob3d in both_blob3ds for blob2d in blob3d.blob2ds]
+        print('\n\n\nValidating below ids')
+        for blob2d in sub_blob2ds_from_slides:
+            blob2d.validateID(quiet=False)
         excluded_sub_blob2ds = [blob2d for blob2d in sub_blob2ds_from_slides if blob2d not in sub_blob2ds_from_blob3ds]
-        print('A total of ' + str(excluded_sub_blob2ds) + ' sub blob2ds exist in slide but not in any blob3ds')
+        # NOTE HAVE VERIFIED THAT ALL blob2d.id VALUES ARE UNIQUE ACROSS ALL b3ds AND slides
+
+
+
+        print('A total of ' + str(len(excluded_sub_blob2ds)) + ' sub blob2ds exist in slide but not in any blob3ds')
         # THE HOLY DEBUG GRAIL
-        # print('\n\nPLOTTING ALL BLOB2DS, the ones from the original slides, and the generated subslides')
-        # print('Plotting from both_slides')
-        # plotBlob2ds(sub_blob2ds_from_slides, titleNote='These are the blob2ds from both_slides', ids=True)
-        # print('Plotting from both_blob3ds')
-        # plotBlob2ds(sub_blob2ds_from_blob3ds, titleNote='There are the blob2ds from both_blob3ds')
+        print('\n\nPLOTTING ALL BLOB2DS, the ones from the original slides, and the generated subslides')
+        print('Plotting from both_slides')
+        plotBlob2ds(sub_blob2ds_from_slides, titleNote='These are the blob2ds from both_slides', ids=True)
+        print('Plotting from both_blob3ds')
+        plotBlob2ds(sub_blob2ds_from_blob3ds, titleNote='There are the blob2ds from both_blob3ds')
         # NOTE DEBUGGING
         # FROM THE both_slide blob2ds, the following ids (there's more) are expected to have pairings/stitching, but none are visualized
-        NO_STITCHES = 69,70,81,82,83,86
-        STITCHES_DOWN_ONLY = 71,72,73
+
+
+
+
+        NO_STITCHES = [70,81,82,83,86] # NOTE THAT THESE ARE FROM SLIDES
+        STITCHES_DOWN_ONLY = [71,72]
         no_stitch_subblobs = [blob2d for blob2d in sub_blob2ds_from_slides if blob2d.id in NO_STITCHES]
         stitch_down_only_subblobs = [blob2d for blob2d in sub_blob2ds_from_slides if blob2d.id in STITCHES_DOWN_ONLY]
         print('Specified a total of ' + str(len(NO_STITCHES)) + ' no_stitch_subblobs and ' + str(len(STITCHES_DOWN_ONLY)) + ' stitch_down_only_subblobs')
