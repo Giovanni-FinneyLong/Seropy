@@ -57,7 +57,10 @@ class Slide:
             (self.local_xdim, self.local_ydim, self.local_zdim) =  (im_xdim, im_ydim, im_zdim) = imarray.shape[0],imarray.shape[1], self.height
             # setglobaldims(im_xdim * slide_portion, im_ydim * slide_portion, im_zdim * slide_portion) # TODO FIXME, remove when possible
             if not quiet:
-                print('The are ' + str(self.hei) + ' channels')
+                if len(imarray.shape) > 2:
+                    print('The are ' + str(imarray[2]) + ' channels')
+                else:
+                    print('There is one channel')
             image_channels = imagein.split()
             for s in range(len(image_channels)):  # Better to split image and use splits for arrays than to split an array
                 buf = np.array(image_channels[s])
@@ -171,10 +174,23 @@ class Slide:
         debug2ds = kwargs.get('debugforb2ds',[])
         debugging = (debugflag == 1)# debug, set value as desired
 
+        max_height = max(slide.height for slide in slidelist)
+        slides_by_height = [[] for i in range(max_height + 1)]
+        for slide in slidelist:
+            slides_by_height[slide.height].append(slide)
+        for height,slides_at_height in enumerate(slides_by_height[:-1]): # All but the highest slides
+            for slide in slides_at_height:
+                for blob in slide.blob2dlist:
+                    for above_slide in slides_by_height[height + 1]:
+                        blob.setPossiblePartners(above_slide, **kwargs)
 
-        for slide_num, slide in enumerate(slidelist[:-1]): # All but the last slide
-            for blob in slide.blob2dlist:
-                blob.setPossiblePartners(slidelist[slide_num + 1])
+
+        # for slide_num, slide in enumerate(slidelist[:-1]): # All but the last slide
+        #     for blob in slide.blob2dlist:
+        #         blob.setPossiblePartners(slidelist[slide_num + 1], **kwargs)
+
+
+
     @staticmethod
     def setAllShapeContexts(slidelist):
         # Note Use the shape contexts approach from here: http://www.cs.berkeley.edu/~malik/papers/mori-belongie-malik-pami05.pdf
@@ -213,10 +229,6 @@ class Slide:
         # 3 = (-1, 0)
         # 5 = (-1, 1)
         # 1 = (0, -1
-
-        print('DB: Calling firstPass, the value of Blob2d.total_blobs = ' + str(Blob2d.total_blobs))
-
-
 
         local_xdim, local_ydim = local_dim_tuple
         vertical_offsets  = [-1, -1, -1, 0]#[1, 0, -1, -1]#,  0,   1, -1] #, 1, -1, 0, 1]

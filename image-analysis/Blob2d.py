@@ -105,6 +105,10 @@ class Blob2d:
             for curn in neighbors:
                 if(curn != 0 and curn.blob_id != self.id):
                     self.touching_blobs.add(curn.blob_id) # Not added if already in the set.
+                    # HACK TODO not sure why is a list here, perhaps from pickles???
+                    self.slide.equivalency_set = set(self.slide.equivalency_set)
+
+
                     if (curn.blob_id < self.id):
                         self.slide.equivalency_set.add((curn.blob_id, self.id))
                     else:
@@ -121,7 +125,7 @@ class Blob2d:
             pix.blob_id = newid
 
 
-    def setPossiblePartners(self, slide):
+    def setPossiblePartners(self, slide, **kwargs):
         '''
         Finds all blobs in the given slide that COULD overlap with the given blob.
         These blobs could be part of the same blob3D (partners)
@@ -131,9 +135,29 @@ class Blob2d:
         #  minx2 <= (minx1 | max1) <= maxx2
         #  miny2 <= (miny1 | maxy1) <= maxy2
 
+        debugflag = kwargs.get('debugflag', -1)
+        debug2ds = kwargs.get('debugforb2ds',[])
+
+        debug_partners = [247,216,245,262,263]
+
+
+
+        if debugflag == 1 and self.id in debug2ds:
+            print('>Checking the pairings of a blob2d that is being debugged: ' + str(self))
+
+
         # print('DEBUG Checking blob for possible partners:' + str(self) + ' xrange: (' + str(self.minx) + ',' + str(self.maxx) + '), yrange: (' + str(self.miny) + ',' + str(self.maxy) + ')')
         for blob in slide.blob2dlist:
             # print('DEBUG  Comparing against blob:' + str(blob) + ' xrange: (' + str(blob.minx) + ',' + str(blob.maxx) + '), yrange: (' + str(blob.miny) + ',' + str(blob.maxy) + ')')
+            if debugflag == 1 and blob.id in debug2ds:
+                print('====Checking for a pairing with a blob2d that is being debugged: ' + str(blob))
+            if debugflag == 1 and self.id in debug2ds:
+                print(' checking against blob w/id:' + str(blob.id))
+
+            debugging = debugflag == 1 and self.id in debug2ds and blob.id in debug2ds
+
+
+
             inBounds = False
             partnerSmaller = False
 
@@ -148,6 +172,15 @@ class Blob2d:
                         inBounds = True
                         partnerSmaller = True
             # If either of the above was true, then one blob is within the bounding box of the other
+            if debugging:
+                print('Compared:')
+                print(self)
+                print(blob)
+                print('>>InBounds=' + str(inBounds) + ', partnerSmaller=' + str(partnerSmaller))
+                # from serodraw import plotBlob2ds
+                # plotBlob2ds([self, blob], ids=True)
+
+
             if inBounds:
                 self.possible_partners.append(blob)
                 # print('DEBUG  Inspected blob was added to current blob\'s possible partners')
@@ -217,7 +250,10 @@ class Blob2d:
 
 
     def __str__(self):
-        return str('B{id:' + str(self.id) + ', #P:' + str(self.num_pixels)) + ', #EP:' + str(len(self.edge_pixels)) + ', height=' + str(self.height) + ', (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) +') Avg(X,Y):(%.1f' % self.avgx + ',%.1f' % self.avgy + ')}'
+        pairingidsl = [pairing.lowerblob.id for pairing in self.pairings if pairing.lowerblob.id != self.id]
+        pairingidsu = [pairing.upperblob.id for pairing in self.pairings if pairing.upperblob.id != self.id]
+        pairingids = sorted(pairingidsl + pairingidsu)
+        return str('B{id:' + str(self.id) + ', #P:' + str(self.num_pixels)) + ', #EP:' + str(len(self.edge_pixels)) + ', pairedids=' + str(pairingids)  + ', height=' + str(self.height) + ', (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) +') Avg(X,Y):(%.1f' % self.avgx + ',%.1f' % self.avgy + ')}'
 
     __repr__ = __str__
 

@@ -97,8 +97,8 @@ class Blob3d:
             print('Debugging for blob3d:' + str(self))
             print('Targeting blob2ds#:' + str(debug2ds))
             # plotBlob3d(self,coloring='blob2d', b2dids=True)
-            print('DB showing plotting with plotblob2ds')
-            plotBlob2ds(self.blob2ds, ids=True)
+            # print('DB showing plotting with plotblob2ds')
+            # plotBlob2ds(self.blob2ds, ids=True)
 
         display = False
         # /DEBUG

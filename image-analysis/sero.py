@@ -333,7 +333,7 @@ def main():
                 blob3d.recursive_depth = 0
 
         #DEBUG
-        both_filename = 'sub_slides+all_slides__blob3dlist+test_b3ds.pickle'
+        both_filename = 'sub_slides+all_slides__blob3dlist+test_b3ds__NEWSLIDECOMPARISONMETHOD.pickle'
         if not unpickle_exp and not dePickle:
             slide_dict = dict()
             both_slides  = sub_slides + all_slides
@@ -348,6 +348,19 @@ def main():
             both_slides = pickledict['slides']
             both_blob3ds = pickledict['blob3ds']
 
+        #DEBUG
+        # NOTE resetting the possible partners for each blob2d so that the process can be reobserved
+
+        # print("DEBUG---------------------------------")
+        # regen_b2ds = [blob2d for blob3d in test_b3ds for blob2d in blob3d.blob2ds]
+        # print('Plotting blob2ds that have been regen using the new slide comparison..')
+        # plotBlob2ds(regen_b2ds, titleNote='These are the blob2ds from both_slides', ids=True)
+
+
+
+
+
+
 
         sub_blob2ds_from_slides = [blob2d for slide in both_slides for blob2d in slide.blob2dlist]
         sub_blob2ds_from_blob3ds = [blob2d for blob3d in both_blob3ds for blob2d in blob3d.blob2ds]
@@ -359,8 +372,12 @@ def main():
 
 
         print('A total of ' + str(len(excluded_sub_blob2ds)) + ' sub blob2ds exist in slides but not in any blob3ds')
-        # # THE HOLY DEBUG GRAIL
+        # THE HOLY DEBUG GRAIL
         print('\n\nPLOTTING ALL BLOB2DS, the ones from the original slides, and the generated subslides')
+
+        print('Plotting 3d first')
+        plotBlob3ds(both_blob3ds)
+
         print('Plotting from both_slides')
         plotBlob2ds(sub_blob2ds_from_slides, titleNote='These are the blob2ds from both_slides', ids=True)
         print('Plotting from both_blob3ds')
@@ -372,17 +389,39 @@ def main():
 
 
 
-        NO_STITCHES = [70,81,82,83,86] # NOTE THAT THESE ARE FROM SLIDES
-        STITCHES_DOWN_ONLY = [71,72]
-        no_stitch_subblobs = [blob2d for blob2d in sub_blob2ds_from_slides if blob2d.id in NO_STITCHES]
-        stitch_down_only_subblobs = [blob2d for blob2d in sub_blob2ds_from_slides if blob2d.id in STITCHES_DOWN_ONLY]
-        print('Specified a total of ' + str(len(NO_STITCHES)) + ' no_stitch_subblobs and ' + str(len(STITCHES_DOWN_ONLY)) + ' stitch_down_only_subblobs')
-        print('Found ' + str(len(no_stitch_subblobs)) + ' and ' + str(len(stitch_down_only_subblobs)) + ' respectively')
-        print(sorted(no_stitch_subblobs, key=lambda blob2d: blob2d.id))
-        print(sorted(stitch_down_only_subblobs, key=lambda blob2d: blob2d.id))
-        print(sub_blob2ds_from_slides)
+        NO_STITCHES = [250] #[250,251,262,263,264,267] # NOTE THAT THESE ARE FROM SLIDES
+        # EXPECTED PAIRINGS:
+        # 250 with [247,216,245,262,263]
 
+
+        STITCHES_DOWN_ONLY = [252,253]
+        no_stitch_subblobs_slides = [blob2d for blob2d in sub_blob2ds_from_slides if blob2d.id in NO_STITCHES]
+        stitch_down_only_subblobs_slides = [blob2d for blob2d in sub_blob2ds_from_slides if blob2d.id in STITCHES_DOWN_ONLY]
+        no_stitch_subblobs_blob3ds = [blob2d for blob2d in sub_blob2ds_from_slides if blob2d.id in NO_STITCHES]
+        stitch_down_only_subblobs_blob3ds = [blob2d for blob2d in sub_blob2ds_from_slides if blob2d.id in STITCHES_DOWN_ONLY]
+
+
+        print('Specified a total of ' + str(len(NO_STITCHES)) + ' no_stitch_subblobs and ' + str(len(STITCHES_DOWN_ONLY)) + ' stitch_down_only_subblobs')
+        print('Found ' + str(len(no_stitch_subblobs_slides)) + ' and ' + str(len(stitch_down_only_subblobs_slides)) + ' with matching ids from SLIDES respectively')
+        print('Found ' + str(len(no_stitch_subblobs_blob3ds)) + ' and ' + str(len(stitch_down_only_subblobs_blob3ds)) + ' with matching ids from BLOB3DS respectively')
+        print(sorted(no_stitch_subblobs_slides, key=lambda blob2d: blob2d.id))
+        print(sorted(stitch_down_only_subblobs_slides, key=lambda blob2d: blob2d.id))
+        print(sorted(no_stitch_subblobs_blob3ds, key=lambda blob2d: blob2d.id))
+        print(sorted(stitch_down_only_subblobs_blob3ds, key=lambda blob2d: blob2d.id))
         # print('As a set, Found ' + str(len(set(no_stitch_subblobs))) + ' and ' + str(len(set(stitch_down_only_subblobs))) + ' respectively')
+
+        original_slides = [slide for slide in both_slides if not slide.isSubslide]
+        sub_slides = [slide for slide in both_slides if  slide.isSubslide]
+        for slide in sub_slides:
+            for blob2d in slide.blob2dlist:
+                blob2d.pairings = []
+
+
+
+
+    # NOTE NOTE DEBUG FIXME!!! THE ERROR IS BECAUSE EACH SLIDE IS ONLY COMPARED TO THE NEXT SLIDE IN THE LIST
+    # WHAT I NEED TO BE DOING IS SORTING THE SLIDES BY THEIR HEIGHT, AND THEN COMPARING A SLIDE AT ONE HEIGHT TO ALL OTHER SLIDE
+    # WHICH ARE AT THE NEXT HEIGHT
 
 
 
