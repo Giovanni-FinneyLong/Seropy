@@ -92,7 +92,7 @@ def unPickle(filename, directory=pickledir):
         ydim = pickledict['ydim']
         zdim = pickledict['zdim']
         # TODO look for info
-        if 'note' in pickledict:
+        if 'note' in pickledict and pickledict['note'] != '':
             print('Included note:' + pickledict['note'])
         setglobaldims(xdim, ydim, zdim)
         # print('Before unpickle, Blob2d.total_blobs=' + str(Blob2d.total_blobs))
@@ -351,21 +351,21 @@ def main():
 
         sub_blob2ds_from_slides = [blob2d for slide in both_slides for blob2d in slide.blob2dlist]
         sub_blob2ds_from_blob3ds = [blob2d for blob3d in both_blob3ds for blob2d in blob3d.blob2ds]
-        print('\n\n\nValidating below ids')
         for blob2d in sub_blob2ds_from_slides:
-            blob2d.validateID(quiet=False)
+            blob2d.validateID(quiet=True)
         excluded_sub_blob2ds = [blob2d for blob2d in sub_blob2ds_from_slides if blob2d not in sub_blob2ds_from_blob3ds]
         # NOTE HAVE VERIFIED THAT ALL blob2d.id VALUES ARE UNIQUE ACROSS ALL b3ds AND slides
 
 
 
-        print('A total of ' + str(len(excluded_sub_blob2ds)) + ' sub blob2ds exist in slide but not in any blob3ds')
-        # THE HOLY DEBUG GRAIL
+        print('A total of ' + str(len(excluded_sub_blob2ds)) + ' sub blob2ds exist in slides but not in any blob3ds')
+        # # THE HOLY DEBUG GRAIL
         print('\n\nPLOTTING ALL BLOB2DS, the ones from the original slides, and the generated subslides')
         print('Plotting from both_slides')
         plotBlob2ds(sub_blob2ds_from_slides, titleNote='These are the blob2ds from both_slides', ids=True)
         print('Plotting from both_blob3ds')
         plotBlob2ds(sub_blob2ds_from_blob3ds, titleNote='There are the blob2ds from both_blob3ds')
+
         # NOTE DEBUGGING
         # FROM THE both_slide blob2ds, the following ids (there's more) are expected to have pairings/stitching, but none are visualized
 
@@ -380,6 +380,7 @@ def main():
         print('Found ' + str(len(no_stitch_subblobs)) + ' and ' + str(len(stitch_down_only_subblobs)) + ' respectively')
         print(sorted(no_stitch_subblobs, key=lambda blob2d: blob2d.id))
         print(sorted(stitch_down_only_subblobs, key=lambda blob2d: blob2d.id))
+        print(sub_blob2ds_from_slides)
 
         # print('As a set, Found ' + str(len(set(no_stitch_subblobs))) + ' and ' + str(len(set(stitch_down_only_subblobs))) + ' respectively')
 
