@@ -23,6 +23,9 @@ from serodraw import *
 
 
 
+
+
+
 def munkresCompare(blob1, blob2):
     '''
     Uses the Hungarian Algorithm implementation from the munkres package to find an optimal combination of points
@@ -61,7 +64,7 @@ def munkresCompare(blob1, blob2):
     return total_cost, indeces
 
 
-def doPickle(blob3dlist, filename, directory='', note=''):
+def doPickle(blob3dlist, filename, directory='pickles', note=''):
     pickledict = dict()
     pickledict['blob3ds'] = blob3dlist
     pickledict['xdim'] = xdim
@@ -225,35 +228,15 @@ def expDistance():
 
 def main():
 
-    sys.setrecursionlimit(3000) # HACK
+    sys.setrecursionlimit(7000) # HACK
 
     # expDistance()
     # debug()
     note = 'Was created by setting distance cost log to base 2 instead of 10, and multiplying by contour_cost'
     if test_instead_of_data:
-         ## picklefile = 'pickletest_testsnip3.pickle'
-         ## picklefile = 'pickletest_testsnip2.pickle' # Done logbase 2 for distance, +
-
-         # picklefile = 'pickletest_refactor.pickle' # THIS IS DONE +, and log distance base 10
-         #picklefile = 'pickletest_refactor2.pickle' # THIS IS DONE *, and log distance base 2
-         # picklefile = 'pickletest_refactor3.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 50
-        # doPickle(test_b3ds + primary_blobs, directory='H:/Dropbox/Serotonin/pickles/recursive/', filename='depth1_subset_of_b3ds.pickle', note=picklenote)
          picklefile = 'pickletest_refactor4.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
-
-
     else:
-        picklefile = 'pickledata.pickle'
-
-    # NOTE: pickledata.pickle holds the pickle data from all primary b3ds that were created without the additional consideration
-    # For the distance between points (not counting the log scaling applied to bins
-    # Experiment9.pickle holds the results of pickling on the 'special b3ds' designated below, and does include consideration for distance
-        #picklefile = 'pickledata_distance.pickle'
-
-    # DEBUG FLAGS #
-    experimenting = False
-    unpickle_exp = True
-    pickle_exp = True # Only done if not unpickling
-
+        picklefile = 'all_data_regen_after_stitches_refactored_to_pairing_log2_times.pickle'
     if not dePickle:
         setMasterStartTime()
         if test_instead_of_data:
@@ -265,11 +248,13 @@ def main():
         all_images = glob.glob(dir + extension)
         #
         # # HACK
-        # if not test_instead_of_data:
-        #     all_images = all_images[:3]
-
+        if not test_instead_of_data:
+            all_images = all_images[:3]
+        # # HACK
+        #
         print(all_images)
         all_slides = []
+
         for imagefile in all_images:
             all_slides.append(Slide(imagefile)) # Pixel computations are done here, as the slide is created.
         # Note now that all slides are generated, and blobs are merged, time to start mapping blobs upward, to their possible partners
@@ -277,7 +262,7 @@ def main():
         Slide.setAllPossiblePartners(all_slides)
         Slide.setAllShapeContexts(all_slides)
         t_start_munkres = time.time()
-        stitchlist = Pairing.stitchAllBlobs(all_slides)
+        stitchlist = Pairing.stitchAllBlobs(all_slides, debug=False)
         t_finish_munkres = time.time()
         print('Done stitching together blobs, total time for all: ', end='')
         printElapsedTime(t_start_munkres, t_finish_munkres)
@@ -303,81 +288,33 @@ def main():
         # blob3dlist = unPickle(directory='H:/Dropbox/Serotonin/pickles/recursive/', filename='depth1_subset_of_b3ds.pickle'))
         blob3dlist = unPickle(picklefile)
 
+    # plotBlob3ds(blob3dlist)
 
 
-    if experimenting:
-        # NOTE Blob3dlist[3].blob2ds[6] should be divided into subblobs
-        # NOTE [3][1] is also good
+    for blob3d in blob3dlist: # HACK
+        blob3d.recursive_depth = 0
 
-        exp_pickle = 'pickletest_subblobs.pickle' # 2,3 working #6 working except height, 7 working except stitch height, 8 works!!!
-
-        primary_blobs = blob3dlist #[blob3dlist[3], blob3dlist[8], blob3dlist[40]]
-        if unpickle_exp:
-            test_b3ds = unPickle(exp_pickle)
+    if False:
+        print('Before:' + str(len(blob3dlist)))
+        Blob3d.generateSublobs(blob3dlist)
+        print('After:' + str(len(blob3dlist)))
+        if test_instead_of_data:
+            doPickle(blob3dlist, 'all_test_blobs_and_subblobs.pickle')
         else:
-            # primary_blobs = blob3dlist
-            test_b3ds = []
-            sub_slides = []
-            for b3d_num, b3d in enumerate(primary_blobs):
-                print('DB GENERATING SUBBLOBS For B3d #' + str(b3d_num) + ' / ' + str(len(primary_blobs)))
-                buf = b3d.gen_subblob3ds(debugflag=b3d_num, debugforb2ds=[4,15])#b3d_num)# DEBUG was [5,9,11]
-                test_b3ds = test_b3ds + buf[0] # buf[0] b/c currently returning b3ds,stitchlist, slides # TODO need to return slides
-                sub_slides = sub_slides + buf[2]
-                # print('Derived a total of ' + str(len(buf[0])) + ' subblob3ds from primary b3d:' + str(b3d))
-            if pickle_exp:
-                doPickle(test_b3ds, exp_pickle)
-                #doPickle(primary_blobs, picklefile) # Note this will cause an error if run more than once
+            doPickle(blob3dlist, 'all_data_blobs_and_subblobs.pickle')
 
-        # picklenote = "These were generated from a few interesting blob3ds from the full list of blob3ds\nThere has been one level of recursion performed"
-        # doPickle(test_b3ds + primary_blobs, directory='H:/Dropbox/Serotonin/pickles/recursive/', filename='depth1_subset_of_b3ds.pickle', note=picklenote)
-        for blob3d in primary_blobs: # FIXME repairing old pickles
-            if not hasattr(blob3d, 'recursive_depth'):
-                blob3d.recursive_depth = 0
-
-    #DEBUG
-    both_filename = 'sub_slides+all_slides__blob3dlist+test_b3ds__NEWSLIDECOMPARISONMETHOD.pickle'
-    if not unpickle_exp and not dePickle:
-        slide_dict = dict()
-        both_slides  = sub_slides + all_slides
-        both_blob3ds = blob3dlist + test_b3ds
-        slide_dict['slides'] = both_slides
-        slide_dict['blob3ds'] = both_blob3ds
-        print('Writing slide pickle')
-        pickle.dump(slide_dict, open(both_filename, "wb"))
     else:
-        print('Loading from pickle:' + str(both_filename))
-        pickledict = pickle.load(open(both_filename, "rb"))
-        both_slides = pickledict['slides']
-        both_blob3ds = pickledict['blob3ds']
+        if test_instead_of_data:
+            blob3dlist = unPickle('all_test_blobs_and_subblobs.pickle')
+        else:
+            blob3dlist = unPickle('all_data_blobs_and_subblobs.pickle')
 
-    #DEBUG
-        # NOTE resetting the possible partners for each blob2d so that the process can be reobserved
-
-
-
-    sub_blob2ds_from_slides = [blob2d for slide in both_slides for blob2d in slide.blob2dlist]
-    sub_blob2ds_from_blob3ds = [blob2d for blob3d in both_blob3ds for blob2d in blob3d.blob2ds]
-    subblob3ds = [blob3d for blob3d in both_blob3ds if blob3d.isSubblob]
-
-    plotBlob3ds(both_blob3ds, titleNote='Plotting all blob3ds', coloring='blob', lineColoring='blob3d')
-    plotBlob3ds(blob3dlist, titleNote='Plotting only the original blob3ds')
-    plotBlob3ds(subblob3ds, titleNote='Plotting only the subblobs')
-
-
-    plotBlob2ds(sub_blob2ds_from_slides, ids=True)
-    for blob2d in sub_blob2ds_from_slides:
-        blob2d.validateID(quiet=True)
-    excluded_sub_blob2ds = [blob2d for blob2d in sub_blob2ds_from_slides if blob2d not in sub_blob2ds_from_blob3ds]
-    # NOTE HAVE VERIFIED THAT ALL blob2d.id VALUES ARE UNIQUE ACROSS ALL b3ds AND slides
+    Blob3d.tagBlobsSingular(blob3dlist)
+    plotBlob3ds(blob3dlist, coloring='singular')
+    plotBlob3ds(blob3dlist, coloring='depth')
 
 
 
-
-    # # GOOD BLOBS FOR RECURSIVE TESTING:
-    # # 3,8,40!
-    # plotSlidesVC(all_slides, stitchlist, pairings=True, polygons=False, edges=True, color='slides', subpixels=False, midpoints=False, context=False, animate=False, orders=anim_orders, canvas_size=(1000, 1000), gif_size=(400,400))#, color=None)
-    # NOTE: Interesting blob3ds:
-    # 3: Very complex, mix of blobs, irregular stitching example, even including a seperate group (blob3d)
     # NOTE temp: in the original 20 swellshark scans, there are ~ 11K blobs, ~9K pairings
     # blob3dlist[2].blob2ds[0].saveImage('test2.jpg')
     # Note, current plan is to find all blob3d's that exists with singular pairings between each 2d blob
@@ -386,7 +323,6 @@ def main():
     # Or computing a new cost based on the displacements between stitched pixelsS
     # Note: Without endcap mod (3 instead of 2), had 549 singular blobs, 900 non-singular
     # Note: Ignoring endcaps, and setting general threshold to 3 instead of 2, get 768 songular, and 681 non-singular
-
 
 if __name__ == '__main__':
     main()  # Run the main function

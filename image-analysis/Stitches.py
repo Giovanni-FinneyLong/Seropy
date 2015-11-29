@@ -2,7 +2,7 @@ import math
 import numpy as np
 from munkres import Munkres
 from myconfig import *
-# from serodraw import debug
+from serodraw import debug, progressBarUpdate
 # import Pixel
 import time
 class Pairing:
@@ -159,18 +159,26 @@ class Pairing:
         pairlist = []
         if not quiet:
             print('Beginning to stitch together blobs')
+
+
+
+        # total_edge_pixels = sum(len(blob2d.edge_pixels) for slide in slidelist for blob2d in slide.blob2dlist)
+        # updateStatus = 0
+        # pixels_processed = 0
         for slide_num, slide in enumerate(slidelist):
             if not quiet or (debug and slide.debugFlag is True):
-                print('Starting slide #' + str(slide_num) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds')
+                print('Starting slide #' + str(slide_num) + '/' + str(len(slidelist)) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds')
 
             for blob1 in slide.blob2dlist:
                 if len(blob1.possible_partners) > 0:
-                    if not quiet or (debug and blob1.debugFlag is True):
+                    if debug and blob1.debugFlag is True:
                         print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
                 # print('  Blob1 current parter_costs:' + str(blob1.partner_costs))
 
+                sub_start_time = time.time()
+
                 for b2_num, blob2 in enumerate(blob1.possible_partners):
-                    if not quiet or (debug and (blob1.debugFlag is True or blob2.debugFlag is True)):
+                    if debug and (blob1.debugFlag is True or blob2.debugFlag is True):
                         print('   Comparing to blob2:' + str(blob2))
                     t0 = time.time()
                     bufStitch = Pairing(blob1, blob2, 1.1, 36, quiet=quiet)
@@ -183,6 +191,12 @@ class Pairing:
                             printElapsedTime(t0, tf, pad='    ')
                     elif (debug and (blob1.debugFlag is True or blob2.debugFlag is True)):
                         print('    -Blobs not connected')
+                # updateStatus = progressBarUpdate(pixels_processed, total_edge_pixels, last_update=updateStatus, steps=100)
+                # pixels_processed += len(blob1.edge_pixels)
+
+
+
+
         return pairlist
 
     def __str__(self):

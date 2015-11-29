@@ -106,6 +106,34 @@ def debug():
     pdb.set_trace()
 # NOTE  ##########################
 
+def progressBarUpdate(value, max, min=0, last_update=0, steps=10):
+    '''
+    Run like so:
+    updateStatus = 0
+    for num in range(100):
+        updateStatus = progressBarUpdate(num, 100, last_update=updateStatus)
+    :param value:
+    :param max:
+    :param min:
+    :param last_update:
+    :param steps:
+    :return:
+    '''
+    if value == min:
+        print('.', end='')
+    else:
+        # print('DB last_update=' + str(last_update) + ' val=' + str(value))
+        # print(str((value - last_update)) + ' vs ' + str(((max-min) / steps)))
+        if last_update < max:
+            if (value - last_update) >= ((max-min) / steps):
+                last_update = value;
+                print('Diff=' + str((value - last_update)) + ' stepsize:' + str(((max-min) / steps)))
+                print('Val' + str(value))
+                # for i in range( math.ceil((value - last_update) / ((max-min) / steps))):
+                print('.', end='')
+        # if value >= max:
+        #     print('', end='\n')
+    return last_update
 
 def setMasterStartTime():
     master_start_time = time.time() # FIXME!

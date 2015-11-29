@@ -1,8 +1,8 @@
-from Slide import Slide, SubSlide
+from Slide import Slide, SubSlide, printElapsedTime
 from Stitches import Pairing
 from sero import doPickle
 from serodraw import plotBlob3d, showSlide, showBlob2d, plotBlob2ds
-
+import time
 class Blob3d:
     '''
     A group of blob2ds that chain together with pairings into a 3d shape
@@ -55,7 +55,7 @@ class Blob3d:
             sb = str(self.recursive_depth)
         else:
             sb = '0'
-        return str('B3D(' + str(sb) + '): lowslideheight=' + str(self.lowslideheight) + ' highslideheight=' + str(self.highslideheight) + ' #edgepixels=' + str(len(self.edge_pixels)) + ' #pixels=' + str(len(self.pixels)) + ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) + ')')
+        return str('B3D(' + str(sb) + '): #b2ds:' + str(len(self.blob2ds)) + ', r_depth:' + str(self.recursive_depth) + ' lowslideheight=' + str(self.lowslideheight) + ' highslideheight=' + str(self.highslideheight) + ' #edgepixels=' + str(len(self.edge_pixels)) + ' #pixels=' + str(len(self.pixels)) + ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) + ')')
 
     def add_note(self, str):
         if hasattr(self, 'note'):
@@ -84,6 +84,45 @@ class Blob3d:
                 non_singular_count += 1
         if not quiet:
             print('There are ' + str(singular_count) + ' singular 3d-blobs and ' + str(non_singular_count) + ' non-singular 3d-blobs')
+
+    @staticmethod
+    def generateSublobs(blob3dlist, slidelist=None, quiet=False):
+        '''
+        :param blob3dlist:
+        :param slidelist: Optional, a list of slides which generated slides are added to
+        :return: Updates blob3dlist, and optionally slide list with the next layer of recursively generated subblob3ds / subslides
+        '''
+        # return b3ds, test_pairings, test_slides
+        all_new_b3ds = []
+        all_new_pairings = []
+        all_new_slides = []
+        edge_pixel_total = sum(len(blob2d.edge_pixels) for blob3d in blob3dlist for blob2d in blob3d.blob2ds)
+        edge_pixels_processed = 0
+
+        start_gen_time = time.time()
+
+
+        if not quiet:
+            print('Pairing together ' + str(len(blob3dlist)) + ' blob3ds with ' + str(sum(len(blob3d.blob2ds) for blob3d in blob3dlist)) + ' blob2ds and ' + str(edge_pixel_total) + ' edge_pixels')
+
+        for blob_num, blob3d in enumerate(blob3dlist):
+            if not quiet:
+                print(' Generating sublobs for b3d #' + str(blob_num) + '/' + str(len(blob3dlist)) + ': ' + str(blob3d))
+            new_b3ds, new_pairings, new_slides = blob3d.gen_subblob3ds()
+            if not quiet:
+                edge_pixels_processed += sum(len(blob2d.edge_pixels) for blob2d in blob3d.blob2ds)
+                print('  Generated ' + str(len(new_b3ds)) + ' new subblob3ds, %.2f' % (edge_pixels_processed * 100 / edge_pixel_total ) + '%% done with generating subblobs for all blob3ds at this depth', end='\n   ')
+                printElapsedTime(start_gen_time, time.time())
+
+            all_new_b3ds = all_new_b3ds + new_b3ds
+            if slidelist is not None:
+                all_new_slides = all_new_slides + new_slides
+        blob3dlist += all_new_b3ds
+        if slidelist is not None:
+            slidelist += all_new_slides
+        print('Total ', end='')
+        printElapsedTime(start_gen_time, time.time())
+
 
 
 
@@ -209,12 +248,6 @@ class Blob3d:
                 if len(inter_buf) != 0:
                     print(' Found ' + str(len(inter_buf)) + ' blob2ds within a blob3d. The blob2ds are:' + str(inter_buf))
             print('>>>>The debug_blob2ds_sublobs are:' + str(debug_blob2ds_sublobs))
-
-
-
-
-
-
 
         if save:
             doPickle(b3ds, filename)

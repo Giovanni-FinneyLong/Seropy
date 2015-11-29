@@ -58,7 +58,7 @@ class Slide:
             # setglobaldims(im_xdim * slide_portion, im_ydim * slide_portion, im_zdim * slide_portion) # TODO FIXME, remove when possible
             if not quiet:
                 if len(imarray.shape) > 2:
-                    print('The are ' + str(imarray[2]) + ' channels')
+                    print('The are ' + str(imarray.shape[2]) + ' channels')
                 else:
                     print('There is one channel')
             image_channels = imagein.split()
