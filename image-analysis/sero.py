@@ -86,7 +86,7 @@ def doPickle(blob3dlist, filename, directory='pickles', note=''):
         pass
 
 
-def unPickle(filename, directory=pickledir):
+def unPickle(filename, directory=PICKLEDIR):
         filename = directory + '/' + filename
         print('Loading from pickle:' + str(filename))
         pickledict = pickle.load(open(filename, "rb"))

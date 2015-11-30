@@ -46,7 +46,7 @@ if remoteExecution: # Set up for execution on TS140
   DATA_DIR =  'H:/Dropbox/Serotonin/data/'
   TEST_DIR = 'H:/Dropbox/Serotonin/data/Tests/'
   IMAGEMAGICK_CONVERT_EXEC = 'C:/Program Files/ImageMagick-6.9.1-Q8/'
-  pickledir = 'C:/Users/gio/Documents/Programming/serotonin/image-analysis/pickles/' # Can be relative
+  PICKLEDIR = 'C:/Users/gio/Documents/Programming/serotonin/image-analysis/pickles/' # Can be relative
 
 else:
   ### Folders ###
@@ -54,7 +54,7 @@ else:
   DATA_DIR =  ''
   TEST_DIR = ''
   IMAGEMAGICK_CONVERT_EXEC = ''
-  pickledir = '' # Can be relative
+  PICKLEDIR = '' # Can be relative
 
 
 
