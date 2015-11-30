@@ -230,8 +230,6 @@ def main():
 
     sys.setrecursionlimit(7000) # HACK
 
-    # expDistance()
-    # debug()
     note = 'Was created by setting distance cost log to base 2 instead of 10, and multiplying by contour_cost'
     if test_instead_of_data:
          picklefile = 'pickletest_refactor4.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
@@ -290,10 +288,8 @@ def main():
 
     # plotBlob3ds(blob3dlist)
 
-
     for blob3d in blob3dlist: # HACK
         blob3d.recursive_depth = 0
-
     if False:
         print('Before:' + str(len(blob3dlist)))
         Blob3d.generateSublobs(blob3dlist)
@@ -310,8 +306,9 @@ def main():
             blob3dlist = unPickle('all_data_blobs_and_subblobs.pickle')
 
     Blob3d.tagBlobsSingular(blob3dlist)
-    plotBlob3ds(blob3dlist, coloring='singular')
-    plotBlob3ds(blob3dlist, coloring='depth')
+    # plotBlob3ds(blob3dlist, coloring='singular')
+    plotBlob3ds(blob3dlist, coloring='blob')
+    showColors()
 
 
 

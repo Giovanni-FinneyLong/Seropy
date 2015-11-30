@@ -80,16 +80,76 @@ def vispy_tests():
 if mayPlot:
     colors = vispy.color.get_color_names() # ALl possible colors
     # note getting rid of annoying colors
-    colors.remove('antiquewhite')
+    rejectwords = ['dark', 'light', 'slate', 'grey', 'white', 'pale', 'medium']
+    removewords = []
+    for knum, key in enumerate(colors):
+        for word in rejectwords:
+            if len(key) == 1:
+                removewords.append(key)
+                break
+            elif key.find(word) != -1: # found
+                removewords.append(key)
+                break
+    colors = list(set(colors) - set(removewords))
+    colors = sorted(colors)
     colors.remove('aliceblue')
     colors.remove('azure')
     colors.remove('blanchedalmond')
-    colors.remove('b')
     colors.remove('aquamarine')
     colors.remove('beige')
     colors.remove('bisque')
     colors.remove('black')
-
+    colors.remove('brown')
+    colors.remove('burlywood')
+    colors.remove('cadetblue')
+    colors.remove('chocolate')
+    colors.remove('cornsilk')
+    colors.remove('cornflowerblue')
+    colors.remove('chartreuse')
+    colors.remove('cyan')
+    colors.remove('dimgray')
+    colors.remove('dodgerblue')
+    colors.remove('forestgreen')
+    colors.remove('fuchsia')
+    colors.remove('gainsboro')
+    colors.remove('goldenrod')
+    colors.remove('gray')
+    colors.remove('honeydew')
+    colors.remove('indigo')
+    colors.remove('ivory')
+    colors.remove('khaki')
+    colors.remove('lavender')
+    colors.remove('lavenderblush')
+    colors.remove('lawngreen')
+    colors.remove('lemonchiffon')
+    colors.remove('linen')
+    colors.remove('olivedrab')
+    colors.remove('limegreen')
+    colors.remove('midnightblue')
+    colors.remove('mintcream')
+    colors.remove('mistyrose')
+    colors.remove('orangered')
+    colors.remove('papayawhip')
+    colors.remove('peachpuff')
+    colors.remove('peru')
+    colors.remove('pink')
+    colors.remove('powderblue')
+    colors.remove('plum')
+    colors.remove('rosybrown')
+    colors.remove('saddlebrown')
+    colors.remove('sandybrown')
+    colors.remove('seashell')
+    colors.remove('silver')
+    colors.remove('sienna')
+    colors.remove('tan')
+    colors.remove('teal')
+    colors.remove('thistle')
+    colors.remove('snow')
+    colors.remove('steelblue')
+    colors.remove('violet')
+    colors.remove('wheat')
+    colors.remove('yellowgreen')
+    print('There are a total of ' + str(len(colors)) + ' colors available for plotting')
 
 
 
@@ -100,7 +160,28 @@ xdim = -1
 ydim = -1
 zdim = -1
 
-# master_start_time = 0 # Set at the start of main # FIXME!
+
+def showColors(canvas_size=(800,800)):
+    global canvas
+    global view
+    global colors
+    canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size)
+    view = canvas.central_widget.add_view()
+    view.camera = 'turntable'  # or try 'arcball'
+    view.camera.elevation = -55
+    view.camera.azimuth = 1
+    view.camera.distance = .5
+    axis = visuals.XYZAxis(parent=view.scene)
+    print(colors)
+    print('There are a total of ' + str(len(colors)) + ' colors used for plotting')
+
+    for i,color in enumerate(colors):
+        view.add(visuals.Text(color, pos=np.reshape([0, 0, 1-(i / len(colors))], (1,3)), color=color, bold=True))
+    vispy.app.run()
+
+
+
+
 
 def debug():
     pdb.set_trace()
@@ -139,8 +220,7 @@ def setMasterStartTime():
     master_start_time = time.time() # FIXME!
 
 
-
-def plotBlob3d(blob3d, coloring='', b2dids=False, **kwargs):
+def plotBlob3d(blob3d, coloring='', b2dids=False,canvas_size=(800,800), **kwargs):
     global canvas
     global view
     global colors
