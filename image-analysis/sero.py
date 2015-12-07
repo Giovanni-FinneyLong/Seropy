@@ -284,12 +284,13 @@ def main():
     else:
 
         # blob3dlist = unPickle(directory='H:/Dropbox/Serotonin/pickles/recursive/', filename='depth1_subset_of_b3ds.pickle'))
-        blob3dlist = unPickle(picklefile)
+        # blob3dlist = unPickle(picklefile)
+        pass
 
     # plotBlob3ds(blob3dlist)
 
-    for blob3d in blob3dlist: # HACK
-        blob3d.recursive_depth = 0
+    # for blob3d in blob3dlist: # HACK
+    #     blob3d.recursive_depth = 0
     if False:
         print('Before:' + str(len(blob3dlist)))
         Blob3d.generateSublobs(blob3dlist)

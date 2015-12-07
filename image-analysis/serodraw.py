@@ -510,15 +510,43 @@ def plotBlob3ds(blob3dlist, coloring=None, lineColoring=None, costs=0, b2dmidpoi
 
 
     if coloring == 'blob': # Note: This is very graphics intensive.
-        for blob_num, blob3d in enumerate(blob3dlist):
-            edge_pixel_arrays.append(np.zeros([len(blob3d.edge_pixels), 3]))
-            for (p_num, pixel) in enumerate(blob3d.edge_pixels):
-                edge_pixel_arrays[-1][p_num] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * total_slides)]
-            # midpoints[blob_num] = [blob3d.avgx, blob3d.avgy, blob3d.avgz]
-            markerlist.append(visuals.Markers())
-            markerlist[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[blob_num % len(colors)], size=8)
-            print('DB blob #' + str(blob3d.id) + ' is colored ' + str(colors[blob_num % len(colors)]))
-            view.add(markerlist[-1])
+        # TODO changing to plot all of the same color at once
+        markers_per_color = [0] * min(len(colors), len(blob3dlist))
+        offsets = [0] * min(len(colors), len(blob3dlist))
+        for blobnum, blob3d in enumerate(blob3dlist):
+            print('Blobnum:' + str(blobnum) + ' #EP:' + str(len(blob3d.edge_pixels)) + ' added to index: ' + str(blobnum % len(markers_per_color) ))
+            markers_per_color[blobnum % len(markers_per_color)] += len(blob3d.edge_pixels)
+        #TODO markers per color is not becoming the correct size
+        for num,i in enumerate(markers_per_color):
+            print('Appending epa with len:' + str(i) + ' for index:' + str(num))
+            edge_pixel_arrays.append(np.zeros([i, 3]))
+        print('Markers per color: ' + str(list(enumerate(markers_per_color))))
+        for n,ep in enumerate(edge_pixel_arrays):
+            print('EP array #' + str(n) + ' = ' + str(len(ep)))
+
+        for blobnum, blo3d in enumerate(blob3dlist):
+            index = blobnum % len(markers_per_color)
+            print('Index:' + str(index) + ', blobnum:' + str(blobnum))
+            print(' offsets[index]' + str(offsets[index]))
+            print(' Length of edge_pixel_array at index: ' + str(len(edge_pixel_arrays[index])))
+            print(' About to iterate through ' + str(len(blob3d.edge_pixels)) + ' pixels')
+
+            for p_num, pixel in enumerate(blob3d.edge_pixels):
+                edge_pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * total_slides)]
+            offsets[index] += len(blob3d.edge_pixels)
+        for color_num, edge_array in enumerate(edge_pixel_arrays):
+            view.add(visuals.Markers(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 ))
+        print('DEBUG ADDED: ' + str(len(edge_pixel_arrays)) + ' marker arrays for ' + str(len(blob3dlist)) + ' blob3ds')
+
+        # for blob_num, blob3d in enumerate(blob3dlist):
+        #     edge_pixel_arrays.append(np.zeros([len(blob3d.edge_pixels), 3]))
+        #     for (p_num, pixel) in enumerate(blob3d.edge_pixels):
+        #         edge_pixel_arrays[-1][p_num] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * total_slides)]
+        #     # midpoints[blob_num] = [blob3d.avgx, blob3d.avgy, blob3d.avgz]
+        #     markerlist.append(visuals.Markers())
+        #     markerlist[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[blob_num % len(colors)], size=8)
+        #     print('DB blob #' + str(blob3d.id) + ' is colored ' + str(colors[blob_num % len(colors)]))
+        #     view.add(markerlist[-1])
 
     elif coloring == 'singular':
         total_singular_points = 0
