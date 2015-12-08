@@ -454,7 +454,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
     vispy.app.run()
 
 
-def plotBlob3ds(blob3dlist, coloring=None, lineColoring=None, costs=0, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800,800), b2d_midpoint_values=0, titleNote=''):
+def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None, costs=0, maxcolors=-1, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800,800), b2d_midpoint_values=0, titleNote=''):
     global canvas
     global view
     global xdim
@@ -464,7 +464,8 @@ def plotBlob3ds(blob3dlist, coloring=None, lineColoring=None, costs=0, b2dmidpoi
     # canvas_size = kwargs.get('canvas_size', (800,800))
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size,
                                      title='plotBlob3ds(' + str(len(blob3dlist)) + '-Blob3ds, coloring=' + str(coloring) + ', canvas_size=' + str(canvas_size) + ') ' + titleNote)
-
+    if maxcolors > 0 and maxcolors < len(colors):
+        colors = colors[:maxcolors]
 
     # Finding the maximal slide, so that the vertical dimension of the plot can be evenly divided
     total_slides = 0
@@ -507,36 +508,22 @@ def plotBlob3ds(blob3dlist, coloring=None, lineColoring=None, costs=0, b2dmidpoi
 
     lineendpoints = 0
 
-
+    colors = colors[::2] # HACK
 
     if coloring == 'blob': # Note: This is very graphics intensive.
-        # TODO changing to plot all of the same color at once
-        markers_per_color = [0] * min(len(colors), len(blob3dlist))
+        markers_per_color = [0 for i in range(min(len(colors), len(blob3dlist)))]
         offsets = [0] * min(len(colors), len(blob3dlist))
         for blobnum, blob3d in enumerate(blob3dlist):
-            print('Blobnum:' + str(blobnum) + ' #EP:' + str(len(blob3d.edge_pixels)) + ' added to index: ' + str(blobnum % len(markers_per_color) ))
             markers_per_color[blobnum % len(markers_per_color)] += len(blob3d.edge_pixels)
-        #TODO markers per color is not becoming the correct size
         for num,i in enumerate(markers_per_color):
-            print('Appending epa with len:' + str(i) + ' for index:' + str(num))
             edge_pixel_arrays.append(np.zeros([i, 3]))
-        print('Markers per color: ' + str(list(enumerate(markers_per_color))))
-        for n,ep in enumerate(edge_pixel_arrays):
-            print('EP array #' + str(n) + ' = ' + str(len(ep)))
-
-        for blobnum, blo3d in enumerate(blob3dlist):
+        for blobnum, blob3d in enumerate(blob3dlist):
             index = blobnum % len(markers_per_color)
-            print('Index:' + str(index) + ', blobnum:' + str(blobnum))
-            print(' offsets[index]' + str(offsets[index]))
-            print(' Length of edge_pixel_array at index: ' + str(len(edge_pixel_arrays[index])))
-            print(' About to iterate through ' + str(len(blob3d.edge_pixels)) + ' pixels')
-
             for p_num, pixel in enumerate(blob3d.edge_pixels):
                 edge_pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * total_slides)]
             offsets[index] += len(blob3d.edge_pixels)
         for color_num, edge_array in enumerate(edge_pixel_arrays):
             view.add(visuals.Markers(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 ))
-        print('DEBUG ADDED: ' + str(len(edge_pixel_arrays)) + ' marker arrays for ' + str(len(blob3dlist)) + ' blob3ds')
 
         # for blob_num, blob3d in enumerate(blob3dlist):
         #     edge_pixel_arrays.append(np.zeros([len(blob3d.edge_pixels), 3]))
@@ -640,43 +627,41 @@ def plotBlob3ds(blob3dlist, coloring=None, lineColoring=None, costs=0, b2dmidpoi
             view.add(visuals.Text(textStr, pos=midpoints[index], color='yellow'))
 
 
-    if lineColoring == 'blob3d':
-        line_location_lists = []
-        stitch_lines = []
-        for blob_num, blob3d in enumerate(blob3dlist):
-            lineendpoints = 2 * sum(len(pairing.indeces) for blob3d in blob3dlist for pairing in blob3d.pairings)
-            line_location_lists.append(np.zeros([lineendpoints, 3]))
+    if showStitches:
+        if lineColoring == 'blob3d':
+            line_location_lists = []
+            stitch_lines = []
+            for blob_num, blob3d in enumerate(blob3dlist):
+                lineendpoints = 2 * sum(len(pairing.indeces) for blob3d in blob3dlist for pairing in blob3d.pairings)
+                line_location_lists.append(np.zeros([lineendpoints, 3]))
+                line_index = 0
+                for pairing in blob3d.pairings:
+                    for stitch in pairing.stitches:
+                        lowerpixel = stitch.lowerpixel
+                        upperpixel = stitch.upperpixel
+                        line_location_lists[-1][line_index] = [lowerpixel.x / xdim, lowerpixel.y / ydim, (pairing.lowerslidenum ) / ( z_compression * total_slides)]
+                        line_location_lists[-1][line_index + 1] = [upperpixel.x / xdim, upperpixel.y / ydim, (pairing.upperslidenum ) / ( z_compression * total_slides)]
+                        line_index += 2
+                stitch_lines.append(visuals.Line(method=linemethod))
+                stitch_lines[-1].set_data(pos=line_location_lists[-1], connect='segments', color=colors[blob_num % len(colors)])
+                view.add(stitch_lines[-1])
+        else:
             line_index = 0
-            for pairing in blob3d.pairings:
-                for stitch in pairing.stitches:
-                    lowerpixel = stitch.lowerpixel
-                    upperpixel = stitch.upperpixel
-                    line_location_lists[-1][line_index] = [lowerpixel.x / xdim, lowerpixel.y / ydim, (pairing.lowerslidenum ) / ( z_compression * total_slides)]
-                    line_location_lists[-1][line_index + 1] = [upperpixel.x / xdim, upperpixel.y / ydim, (pairing.upperslidenum ) / ( z_compression * total_slides)]
-                    line_index += 2
-            stitch_lines.append(visuals.Line(method=linemethod))
-            stitch_lines[-1].set_data(pos=line_location_lists[-1], connect='segments', color=colors[blob_num % len(colors)])
-            view.add(stitch_lines[-1])
-
-
-
-    else:
-        line_index = 0
-        for blob_num, blob3d in enumerate(blob3dlist):
-            for stitch in blob3d.pairings:
-                lineendpoints += (2 * len(stitch.indeces)) # 2 as each line has 2 endpoints
-        line_locations = np.zeros([lineendpoints, 3])
-        for blob3d in blob3dlist:
-            for pairing in blob3d.pairings:
-                for stitch in pairing.stitches:
-                    lowerpixel = stitch.lowerpixel
-                    upperpixel = stitch.upperpixel
-                    line_locations[line_index] = [lowerpixel.x / xdim, lowerpixel.y / ydim, (pairing.lowerslidenum ) / ( z_compression * total_slides)]
-                    line_locations[line_index + 1] = [upperpixel.x / xdim, upperpixel.y / ydim, (pairing.upperslidenum ) / ( z_compression * total_slides)]
-                    line_index += 2
-        stitch_lines = visuals.Line(method=linemethod)
-        stitch_lines.set_data(pos=line_locations, connect='segments')
-        view.add(stitch_lines)
+            for blob_num, blob3d in enumerate(blob3dlist):
+                for stitch in blob3d.pairings:
+                    lineendpoints += (2 * len(stitch.indeces)) # 2 as each line has 2 endpoints
+            line_locations = np.zeros([lineendpoints, 3])
+            for blob3d in blob3dlist:
+                for pairing in blob3d.pairings:
+                    for stitch in pairing.stitches:
+                        lowerpixel = stitch.lowerpixel
+                        upperpixel = stitch.upperpixel
+                        line_locations[line_index] = [lowerpixel.x / xdim, lowerpixel.y / ydim, (pairing.lowerslidenum ) / ( z_compression * total_slides)]
+                        line_locations[line_index + 1] = [upperpixel.x / xdim, upperpixel.y / ydim, (pairing.upperslidenum ) / ( z_compression * total_slides)]
+                        line_index += 2
+            stitch_lines = visuals.Line(method=linemethod)
+            stitch_lines.set_data(pos=line_locations, connect='segments')
+            view.add(stitch_lines)
 
 
 

@@ -308,8 +308,8 @@ def main():
 
     Blob3d.tagBlobsSingular(blob3dlist)
     # plotBlob3ds(blob3dlist, coloring='singular')
-    plotBlob3ds(blob3dlist, coloring='blob')
-    showColors()
+    plotBlob3ds(blob3dlist, coloring='blob', showStitches=False)
+    # showColors()
 
 
 
