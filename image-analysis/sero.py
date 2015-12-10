@@ -232,26 +232,52 @@ def main():
             blob3dlist = unPickle('all_data_blobs_and_subblobs.pickle')
 
 
+    # blob3dlist = sorted(blob3dlist, key=lambda b3d: b3d.pixels, reverse=True) # Sorting for biggest first
+    allb2ds = sorted([blob2d for blob3d in [blob3dlist[0]] for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
+    print('Number of b2ds=' + str(len(allb2ds)))
 
-    allb2ds = sorted([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
-    #DEBUG
-    allb2ds = [allb2ds[30]]
-    # print(allb2ds)
-    #DEBUG
-    for bnum, b2d in enumerate(allb2ds):
+
+
+    no_bloom_b2ds = []
+    all_gen_b2ds = []
+    for bnum, blob2d in enumerate(allb2ds):
         # showBlob2d(b2d)
-        print('Blooming b2d: ' + str(bnum) + '/' + str(len(allb2ds)) + ' = ' + str(b2d) )
-        bloomstages = bloomInwards(b2d) # NOTE will have len 0 if no blooming can be done
-        plotPixelLists(bloomstages)
+        print('Blooming b2d: ' + str(bnum) + '/' + str(len(allb2ds)) + ' = ' + str(blob2d) )
+        bloomstages = bloomInwards(blob2d) # NOTE will have len 0 if no blooming can be done
 
-        print(' Showing blooming, stages=' + str(len(bloomstages)))
+        # print(' Showing blooming, stages=' + str(len(bloomstages)))
+        # plotPixelLists(bloomstages)
+
+        if len(bloomstages) == 0:
+            print('Didnt derive any bloomstages for b2d:' + str(blob2d))
+            # plotBlob2ds([blob2d], stitches=False)
+            no_bloom_b2ds.append(blob2d)
         #TODO now need to analyze the stages of blooming
         blob2dlists_by_stage = []
         for snum, stage in enumerate(bloomstages):
-            print('  Stage #' + str(snum) + ' = '+ str(stage))
-            print('--------')
-            b2ds = Blob2d.pixels_to_blob2ds(stage)
-            print('  ' + str(b2ds))
+            b2ds = Blob2d.pixels_to_blob2ds(stage, modify=False) # NOTE making new pixels, rather than messing with existing
+            blob2dlists_by_stage.append(b2ds)
+        b2ds_from_b2d = [b2d for blob2dlist in blob2dlists_by_stage for b2d in blob2dlist]
+        all_gen_b2ds = all_gen_b2ds + b2ds_from_b2d
+        print(' Generated ' + str(len(b2ds_from_b2d)) + ' blob2ds from b2d:' + str(blob2d))
+        if False: # Visualizing results of b2d => stages => blob2ds
+            print('Blob2d:' + str(blob2d) + ' generated ' + str(len(bloomstages)) + ' bloom stages')
+            print('Bloomstages:')
+            plotPixelLists(bloomstages)
+            print('Plotting all b2ds generated from b2d:' + str(blob2d) + ' a total of: ' + str(len(b2ds_from_b2d)))
+            allpixels = [b2d.pixels for b2d in b2ds_from_b2d]
+            print('Plotting pixel lists from generated blob2ds')
+            # for pixel in blob2d.pixels:
+            #     pixel.z -= 2
+            # allpixels.append(blob2d.pixels)
+            plotPixelLists(allpixels)
+    print('Generated a total of ' + str(len(all_gen_b2ds)) + ' blob2ds')
+    for b2d in all_gen_b2ds:
+        print(b2d)
+    allpixellists = [b2d.pixels for b2d in all_gen_b2ds]
+    # plotBlob2ds(all_gen_b2ds)
+    plotPixelLists(allpixellists)
+
 
 
 

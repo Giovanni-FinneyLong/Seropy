@@ -79,12 +79,14 @@ class Blob2d:
         self.min_nzn_pixel = min(pixel.nz_neighbors for pixel in self.pixels)
         # Note for now, will use the highest non-zero-neighbor count pixel
         self.setEdge()
-        self.setTouchingBlobs()
+        # self.setTouchingBlobs()
         self.max_width = self.maxx-self.minx + 1 # Note +1 to include both endcaps
         self.max_height = self.maxy-self.miny + 1 # Note +1 to include both endcaps
 
     def setEdge(self):
-        self.edge_pixels = [pixel for pixel in self.pixels if pixel.nz_neighbors < 8]
+        pixeldict = Pixel.pixelstodict(self.pixels)
+        # self.edge_pixels = [pixel for pixel in self.pixels if pixel.nz_neighbors < 8]
+        self.edge_pixels = [pixel for pixel in self.pixels if len(pixel.neighborsfromdict(pixeldict)) < 8]
         self.edge_pixels.sort()
 
 
@@ -435,25 +437,46 @@ class Blob2d:
 
 
     @staticmethod
-    def pixels_to_blob2ds(pixellist):
+    def pixels_to_blob2ds(pixellist, modify=False): # Modify true if we want to modify the pixels passed, otherwise make new ones
         #HACK
+        if modify:
+            pixelistcopy = pixellist
+        else:
+            pixelistcopy = []# = pixellist #HACK
+            for pixel in pixellist:
+                pixelistcopy.append(Pixel(pixel.val, pixel.x, pixel.y, pixel.z))
+
         alonepixels = []
-        for pixel in pixellist:
+        for pixel in pixelistcopy:
             pixel.blob_id = -1
         #hack
-        alive = set(pixellist)
+        alive = set(pixelistcopy)
         blob2dlists = []
         while len(alive):
+            # print('   db looping, len(alive):' + str(len(alive)))
             alivedict = Pixel.pixelstodict(alive)
             pixel = next(iter(alive)) # Basically alive[0]
             neighbors = set(pixel.neighborsfromdict(alivedict))
             index = 1
             done = False
-            while len(neighbors) == 0 or not done:
-                # print('Index:' + str(index) + ' len of neighbors:' + str(len(neighbors)) + ' len of alive:' + str(len(alive)))
+            while (len(neighbors) == 0 or not done) and len(alive) > 0:
+                # print('    Index:' + str(index) + ' len of neighbors:' + str(len(neighbors)) + ' len of alive:' + str(len(alive)))
                 if index < len(alive):
-                    pixel = list(alive)[index] # Basically alive[0] # TODO fix this to get the index set to the next iteration
-                    index += 1
+                    #DEBUG
+                    # print('    db assigning pixel in try')
+
+                    try:
+                        pixel = list(alive)[index] # Basically alive[0] # TODO fix this to get the index set to the next iteration
+                        index += 1
+                    except:
+                        print('Error encountered')
+                        print('Index:' + str(index))
+                        print('Length of alive:' + str(len(alive)))
+                        pass #DEBUG
+                        import pbt
+                        pbt.set_trace()
+
+
                 else:
                     done = True
                     # Note this needs testing!!!!
@@ -464,8 +487,11 @@ class Blob2d:
                     alive = alive - set([pixel])
                     alonepixels.append(pixel)
                     index = index - 1 # Incase we damaged the index
+                    if index < 0: # HACK
+                        index = 0
             oldneighbors = set() # TODO can make this more efficient
             while len(oldneighbors) != len(neighbors):
+                # print('     db looping in neighbors')
                 oldneighbors = set(neighbors)
                 newneighbors = set(neighbors)
                 # print(' Iterating through: ' + str(len(neighbors)) + ' neighbors to cursor pixel & its found neighbors')
@@ -481,6 +507,7 @@ class Blob2d:
         #     print('  ' + str(b2dlist))
         # # TODO
         # Ids will be validated
-        b2ds = [Blob2d(0, blob2dlist, blob2dlist[0].z) for blob2dlist in blob2dlists]
-        # print(' As b2ds:' + str(b2ds))
+        # print('Incoming pixellist:' + str(pixellist))
+        # print('Blob2dlists:' + str(blob2dlists))
+        b2ds = [Blob2d(0, blob2dlist, blob2dlist[0].z) for blob2dlist in blob2dlists if len(blob2dlist) > 0]
         return b2ds

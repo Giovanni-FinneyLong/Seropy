@@ -446,6 +446,77 @@ def contrastSaturatedBlob2ds(blob2ds, minimal_edge_pixels=350):
         else:
             print('Skipping, as blob2d had only: ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
 
+# def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches=True, titleNote=''):
+#     global canvas
+#     global view
+#     global colors
+#
+#     xmin = min(blob2d.minx for blob2d in blob2ds)
+#     ymin = min(blob2d.miny for blob2d in blob2ds)
+#     xmax = max(blob2d.maxx for blob2d in blob2ds)
+#     ymax = max(blob2d.maxy for blob2d in blob2ds)
+#     zmin = min(blob2d.height for blob2d in blob2ds)
+#     zmax = max(blob2d.height for blob2d in blob2ds)
+#
+#     xdim = xmax - xmin + 1
+#     ydim = ymax - ymin + 1
+#     zdim = zmax - zmin + 1
+#
+#     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size,
+#                                      title='plotBlob2ds(' + str(len(blob2ds)) + '-Blob2ds, coloring=' + str(coloring) + ' canvas_size=' + str(canvas_size) + ') ' + titleNote)
+#     view = canvas.central_widget.add_view()
+#     edge_pixel_arrays = []
+#     markers = []
+#     for b2d_num, blob2d in enumerate(blob2ds):
+#         edge_pixel_arrays.append(np.zeros([len(blob2d.edge_pixels), 3]))
+#         markers.append(visuals.Markers())
+#         for (p_num, pixel) in enumerate(blob2d.edge_pixels):
+#             #TODO fix for pickles..
+#             if not hasattr(blob2d, 'offsetx'):
+#                 blob2d.offsetx = 0
+#                 blob2d.offsety = 0
+#
+#             edge_pixel_arrays[-1][p_num] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, pixel.z /  (z_compression * zdim)]
+#         markers[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[b2d_num % len(colors)], size=8)
+#         view.add(markers[-1])
+#
+#     if ids is True:
+#         midpoints = []
+#         midpoints.append(np.zeros([1,3]))
+#         for b2d_num, b2d in enumerate(blob2ds): #FIXME! For some reason overloads the ram.
+#             midpoints[-1] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, b2d.height / (z_compression * zdim)]
+#             textStr = str(b2d.id)
+#             if coloring == '' or coloring == 'blob2d':
+#                 color = colors[b2d_num % len(colors)]
+#             else:
+#                 color = 'yellow'
+#             view.add(visuals.Text(textStr, pos=midpoints[-1], color=color, font_size=15, bold=True))
+#     if stitches:
+#         lineendpoints = 0
+#         for blob2d in blob2ds:
+#             for pairing in blob2d.pairings:
+#                 lineendpoints += (2 * len(pairing.indeces))
+#         line_index = 0
+#         line_locations = np.zeros([lineendpoints, 3])
+#         for blob2d in blob2ds:
+#             for pairing in blob2d.pairings:
+#                 for lowerpnum, upperpnum in pairing.indeces:
+#                     lowerpixel = pairing.lowerpixels[lowerpnum]
+#                     upperpixel = pairing.upperpixels[upperpnum]
+#                     line_locations[line_index] = [(lowerpixel.x - xmin) / xdim, (lowerpixel.y - ymin) / ydim, (pairing.lowerslidenum) / ( z_compression * zdim)]
+#                     line_locations[line_index + 1] = [(upperpixel.x - xmin) / xdim, (upperpixel.y - ymin) / ydim, (pairing.upperslidenum) / ( z_compression * zdim)]
+#                     line_index += 2
+#         stitch_lines = visuals.Line(method=linemethod)
+#         stitch_lines.set_data(pos=line_locations, connect='segments')
+#         view.add(stitch_lines)
+#     axis = visuals.XYZAxis(parent=view.scene)
+#
+#     view.camera = 'turntable'  # or try 'arcball'
+#     view.camera.elevation = -55
+#     view.camera.azimuth = 1
+#     view.camera.distance = .5
+#     vispy.app.run()
+
 def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches=True, titleNote=''):
     global canvas
     global view
@@ -458,9 +529,10 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
     zmin = min(blob2d.height for blob2d in blob2ds)
     zmax = max(blob2d.height for blob2d in blob2ds)
 
-    xdim = xmax - xmin
-    ydim = ymax - ymin
-    zdim = zmax - zmin
+    xdim = xmax - xmin + 1
+    ydim = ymax - ymin + 1
+    zdim = zmax - zmin + 1
+    # print((xdim, ydim, zdim))
 
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size,
                                      title='plotBlob2ds(' + str(len(blob2ds)) + '-Blob2ds, coloring=' + str(coloring) + ' canvas_size=' + str(canvas_size) + ') ' + titleNote)
@@ -510,12 +582,18 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
         stitch_lines.set_data(pos=line_locations, connect='segments')
         view.add(stitch_lines)
 
+
+
+
+
+
     view.camera = 'turntable'  # or try 'arcball'
     view.camera.elevation = -55
     view.camera.azimuth = 1
     view.camera.distance = .5
     axis = visuals.XYZAxis(parent=view.scene)
     vispy.app.run()
+
 
 
 def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None, costs=0, maxcolors=-1, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800,800), b2d_midpoint_values=0, titleNote=''):
