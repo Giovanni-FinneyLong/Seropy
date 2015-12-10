@@ -196,8 +196,41 @@ def showPixels(pixellist, canvas_size=(800,800)):
         edge_pixel_array[p_num] = [(pixel.x - xmin) / len(pixellist), (pixel.y - ymin) / len(pixellist), pixel.z /  (z_compression * len(pixellist))]
     view.add(visuals.Markers(pos=edge_pixel_array, edge_color=None, face_color=colors[0 % len(colors)], size=8))
     axis = visuals.XYZAxis(parent=view.scene)
-
     vispy.app.run()
+
+def showPixelLists(pixellists, canvas_size=(800,800)): # NOTE works well to show bloom results
+    canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size,
+                                     title='')
+    view = canvas.central_widget.add_view()
+    view.camera = 'turntable'  # or try 'arcball'
+    view.camera.elevation = -55
+    view.camera.azimuth = 1
+    view.camera.distance = .1
+    xmin = min(pixel.x for pixellist in pixellists for pixel in pixellist)
+    ymin = min(pixel.y for pixellist in pixellists for pixel in pixellist)
+    xmax = max(pixel.x for pixellist in pixellists for pixel in pixellist)
+    ymax = max(pixel.y for pixellist in pixellists for pixel in pixellist)
+    zmin = min(pixel.z for pixellist in pixellists for pixel in pixellist)
+    zmax = max(pixel.z for pixellist in pixellists for pixel in pixellist)
+    xdim = xmax - xmin
+    ydim = ymax - ymin
+    zdim = zmax - zmin
+
+    total_pixels = sum(len(pixellist) for pixellist in pixellists)
+    edge_pixel_arrays = []
+    markers = []
+
+    for list_num, pixellist in enumerate(pixellists):
+        edge_pixel_arrays.append(np.zeros([len(pixellist), 3]))
+        markers.append(visuals.Markers())
+        for (p_num, pixel) in enumerate(pixellist):
+            edge_pixel_arrays[-1][p_num] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, pixel.z /  (z_compression * zdim)]
+        markers[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[list_num % len(colors)], size=8)
+        view.add(markers[-1])
+    axis = visuals.XYZAxis(parent=view.scene)
+    vispy.app.run()
+
+
 
 def isInside(pixel_in, blob2d):
     if pixel_in in blob2d.pixels:
@@ -211,7 +244,7 @@ def isInside(pixel_in, blob2d):
 
 
         # NOTE will be able to sort this later, to effectively send lines in two directions horizontally
-def plotBloomInwards(blob2d):
+def bloomInwards(blob2d):
     # TODO this will require a method to determine if a point is inside a polygon
     # See: https://en.wikipedia.org/wiki/Point_in_polygon
 
@@ -233,15 +266,11 @@ def plotBloomInwards(blob2d):
         # showPixels(blob2d.edge_pixels)
         # showPixels(edge_neighbors)
         # showPixels(livepix)
-    print(bloomstages)
-    print('Iterations:' + str(len(bloomstages)))
+    # print(bloomstages)
+    # print('Iterations:' + str(len(bloomstages)))
 
-    bloomedpix = []
-    for i in range(len(bloomstages)):
-        for pix in bloomstages[i]:
-            pix.z = 2 * i
-            bloomedpix.append(pix)
-    showPixels(bloomedpix)
+
+    return bloomstages
 
 
 

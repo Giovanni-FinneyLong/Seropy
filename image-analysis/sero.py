@@ -307,7 +307,15 @@ def main():
             blob3dlist = unPickle('all_data_blobs_and_subblobs.pickle')
 
     b2d = blob3dlist[0].blob2ds[0]
-    plotBloomInwards(b2d)
+    bloomstages = bloomInwards(b2d)
+    print('Showing blooming')
+
+    for i in range(len(bloomstages)):
+        for pix in bloomstages[i]:
+            pix.z = 2 * i
+    showPixelLists(bloomstages)
+
+
 
 
 
