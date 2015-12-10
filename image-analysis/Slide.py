@@ -113,7 +113,7 @@ class Slide:
         self.blob2dlist = [] # Note that blobs in the blob list are ordered by number of pixels, not id, this makes merging faster
 
         for (blobnum, blobslist) in enumerate(id_lists):
-            self.blob2dlist.append(Blob2d(blobslist[0].blob_id, blobslist, alive_pixel_array, self))
+            self.blob2dlist.append(Blob2d(blobslist[0].blob_id, blobslist, self.height))
 
         # Note that we can now sort the Blob2d.equivalency_set b/c all blobs have been sorted
         self.equivalency_set = sorted(self.equivalency_set)

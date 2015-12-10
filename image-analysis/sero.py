@@ -231,124 +231,27 @@ def main():
         else:
             blob3dlist = unPickle('all_data_blobs_and_subblobs.pickle')
 
-    b2d = blob3dlist[1].blob2ds[0]
 
 
     allb2ds = sorted([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
-    tempids = 0
-    for b2d in allb2ds:
+    #DEBUG
+    allb2ds = [allb2ds[30]]
+    # print(allb2ds)
+    #DEBUG
+    for bnum, b2d in enumerate(allb2ds):
         # showBlob2d(b2d)
-        # print('Blooming b2d:' + str(b2d))
+        print('Blooming b2d: ' + str(bnum) + '/' + str(len(allb2ds)) + ' = ' + str(b2d) )
         bloomstages = bloomInwards(b2d) # NOTE will have len 0 if no blooming can be done
-        print('Showing blooming, stages=' + str(len(bloomstages)))
+        plotPixelLists(bloomstages)
 
-        # if len(bloomstages) != 0:
-        #     for i in range(len(bloomstages)): # THis is debug visualizaiton
-        #         for pix in bloomstages[i]:
-        #             pix.z = 2 * i
-        #         print(' Bloomstage:' + str(i) + ' has ' + str(len(bloomstages[i])) + 'pixels')
-            # plotPixelLists(bloomstages)
-
-    #TODO now need to analyze the stages of blooming
-        print(len(bloomstages))
-
-        alonepixels = []
-        # print('Plotting all:' + str(len(bloomstages)) + ' stages of blooming')
-        # plotPixelLists(bloomstages)
+        print(' Showing blooming, stages=' + str(len(bloomstages)))
+        #TODO now need to analyze the stages of blooming
         blob2dlists_by_stage = []
-        for stage in bloomstages:
-            #HACK
-            for pixel in stage:
-                pixel.blob_id = -1
-            #hack
-            arr, offsetx, offsety = Pixel.pixelsToArray(stage)
-
-
-            nextid=0
-            alive = set(stage)
-            blob2dlists = []
-            # print('ORIGINAL LENGTH OF ALIVE:' + str(len(alive)))
-
-
-            while len(alive):
-                # print('OUTER LOOP')
-                alivedict = Pixel.pixelstodict(alive)
-                neighbors = set()
-                pixel = next(iter(alive)) # Basically alive[0]
-                neighbors = set(pixel.neighborsfromdict(alivedict))
-
-                index = 1
-                done = False
-                while len(neighbors) == 0 or not done:
-                    # print('Index:' + str(index) + ' len of neighbors:' + str(len(neighbors)) + ' len of alive:' + str(len(alive)))
-                    if index < len(alive):
-                        pixel = list(alive)[index] # Basically alive[0] # TODO fix this to get the index set to the next iteration
-                        index += 1
-                    else:
-                        # print('>>Set done to true')
-                        done = True
-                        #Note this needs testing!!!!
-                        #Assuming that all the remaing pixels are their own blob2ds essentiall, and so are removed
-                    neighbors = set(pixel.neighborsfromdict(alivedict))
-                    if len(neighbors) == 0:
-                        print('   Found a blob with no neighbors, removing')
-                        print('   Size of alive before:' + str(len(alive)))
-                        print('   pixel:' + str(pixel))
-                        alive = alive - set([pixel])
-                        alonepixels.append(pixel)
-                        index = index - 1 # Incase we damaged the index
-                        print('   after:' + str(len(alive)))
-
-
-                oldneighbors = set() # TODO can make this more efficient
-                while len(oldneighbors) != len(neighbors):
-                    oldneighbors = set(neighbors)
-                    newneighbors = set(neighbors)
-                    # print(' Iterating through: ' + str(len(neighbors)) + ' neighbors to cursor pixel & its found neighbors')
-                    for pixel in neighbors:
-                        newneighbors = newneighbors | set(pixel.neighborsfromdict(alivedict))
-                    neighbors = newneighbors
-                    # print('  Plotting the currently found neighbors to the seed:')
-                    # plotPixels(list(neighbors))
-
-                # print(' DB found a group which make up a blob2d:' + str(neighbors) + ' \n  consisting of ' + str(len(neighbors)) + ' pixels')
-                blob2dlists.append(list(neighbors))
-                alive = alive - neighbors
-                # print(' Len of alive:' + str(len(alive)))
-            # print('Plotting results of finding 2ds from stage:' )
-            # print('Stage:' + str(stage))
-            # print('len(blob2dlists):', end='')
-            # print(len(blob2dlists))
-            # print(blob2dlists)
-            # print(blob2dlists[0])
-            # plotPixels(stage)
-            # plotPixelLists(blob2dlists)
-            # print('Plotting all blob2ds from this stage')
-            # plotPixelLists(blob2dlists)
-            print('Found blob2dlists for stage:' + str(blob2dlists))
-
-            blob2dlists_by_stage.append(blob2dlists)
-        #TODO TODO TODFO TODO TODO TODO TODO
-        # print('Figured out blob2dlists by stage:')
-        # print(len(blob2dlists))
-        # NOTE am not keeping 'alone pixels', instead just tossing them..
-
-        allfoundb2ds = [b2d for blob2dlist in blob2dlists_by_stage for b2d in blob2dlist]
-        # print('Plotting singular pixels which were never assigned')
-        # plotPixels(alonepixels)
-
-        # print(allfoundb2ds)
-        # print(len(allfoundb2ds))
-        # print(len(alonepixels))
-        # plotPixels(alonepixels)
-
-        # allfoundb2ds.append(alonepixels)
-
-        print('Plotting all blob2ds all stages')
-        plotPixelLists(allfoundb2ds)
-
-
-
+        for snum, stage in enumerate(bloomstages):
+            print('  Stage #' + str(snum) + ' = '+ str(stage))
+            print('--------')
+            b2ds = Blob2d.pixels_to_blob2ds(stage)
+            print('  ' + str(b2ds))
 
 
 

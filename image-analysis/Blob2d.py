@@ -1,6 +1,7 @@
 from myconfig import *
 import numpy as np
 import math
+from Pixel import Pixel
 if mayPlot:
     from scipy import misc as scipy_misc
 
@@ -49,9 +50,7 @@ class Blob2d:
             Blob2d.used_ids[self.id] = 1
 
 
-
-
-    def __init__(self, idnum, list_of_pixels, master_array, slide, offsetx=0, offsety=0):
+    def __init__(self, idnum, list_of_pixels, height, offsetx=0, offsety=0): # CHANGED to height from slide, removed master_array
         self.id = idnum
         self.validateID() # NOTE NEW
         Blob2d.total_blobs += 1
@@ -62,9 +61,9 @@ class Blob2d:
         self.sum_vals = 0
         self.offsetx = offsetx
         self.offsety = offsety
-        self.master_array = master_array
-        self.slide = slide
-        self.height = slide.height
+        # self.master_array = master_array
+        # self.slide = slide
+        self.height = height
         self.possible_partners = [] # A list of blobs which MAY be part of the same blob3d as this blob2d
         self.partner_costs = [] # The minimal cost for the corresponding blob2d in possible_partners
         self.partner_subpixels = [] # Each element is a list of pixels, corresponding to a subset of the edge pixels from the partner blob
@@ -432,3 +431,56 @@ class Blob2d:
         # At this stage, the entire array is reversed, so will invert the value (not an array inv)
         saturated = abs(saturated - hard_max_pixel_value)
         return saturated
+
+
+
+    @staticmethod
+    def pixels_to_blob2ds(pixellist):
+        #HACK
+        alonepixels = []
+        for pixel in pixellist:
+            pixel.blob_id = -1
+        #hack
+        alive = set(pixellist)
+        blob2dlists = []
+        while len(alive):
+            alivedict = Pixel.pixelstodict(alive)
+            pixel = next(iter(alive)) # Basically alive[0]
+            neighbors = set(pixel.neighborsfromdict(alivedict))
+            index = 1
+            done = False
+            while len(neighbors) == 0 or not done:
+                # print('Index:' + str(index) + ' len of neighbors:' + str(len(neighbors)) + ' len of alive:' + str(len(alive)))
+                if index < len(alive):
+                    pixel = list(alive)[index] # Basically alive[0] # TODO fix this to get the index set to the next iteration
+                    index += 1
+                else:
+                    done = True
+                    # Note this needs testing!!!!
+                    # Assuming that all the remaining pixels are their own blob2ds essentiall, and so are removed
+                neighbors = set(pixel.neighborsfromdict(alivedict))
+                if len(neighbors) == 0:
+                    # print('   Found a blob with no neighbors, removing')
+                    alive = alive - set([pixel])
+                    alonepixels.append(pixel)
+                    index = index - 1 # Incase we damaged the index
+            oldneighbors = set() # TODO can make this more efficient
+            while len(oldneighbors) != len(neighbors):
+                oldneighbors = set(neighbors)
+                newneighbors = set(neighbors)
+                # print(' Iterating through: ' + str(len(neighbors)) + ' neighbors to cursor pixel & its found neighbors')
+                for pixel in neighbors:
+                    newneighbors = newneighbors | set(pixel.neighborsfromdict(alivedict))
+                neighbors = newneighbors
+            # print(' DB found a group which make up a blob2d:' + str(neighbors) + ' \n  consisting of ' + str(len(neighbors)) + ' pixels')
+            blob2dlists.append(list(neighbors))
+            alive = alive - neighbors
+            # print(' Len of alive:' + str(len(alive)))
+        # print('Found blob2dlists for stage:' + str(blob2dlists))
+        # for b2dlist in blob2dlists:
+        #     print('  ' + str(b2dlist))
+        # # TODO
+        # Ids will be validated
+        b2ds = [Blob2d(0, blob2dlist, blob2dlist[0].z) for blob2dlist in blob2dlists]
+        # print(' As b2ds:' + str(b2ds))
+        return b2ds
