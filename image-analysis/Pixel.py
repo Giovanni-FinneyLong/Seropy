@@ -78,11 +78,11 @@ class Pixel:
         for pixel in pixellist:
             d[pixel.x, pixel.y] = pixel
         return d
-    @staticmethod
-    def neighborsfromdict(dictin, pixel):
+
+    def neighborsfromdict(self, dictin):
         found = []
-        x=pixel.x
-        y=pixel.y
+        x=self.x
+        y=self.y
         found.append(dictin.get((x+1, y)))
         found.append(dictin.get((x, y+1)))
         found.append(dictin.get((x+1, y+1)))
@@ -93,3 +93,24 @@ class Pixel:
         found.append(dictin.get((x+1, y-1)))
         found = [val for val in found if val is not None]
         return found
+
+    @staticmethod
+    def pixelsToArray(pixels):
+        '''
+        :param pixels:
+        :return: [The generated array, offsetx, offsety]
+        '''
+        # Note this does not group pixels that haven't been
+        minx = min(pixel.x for pixel in pixels)
+        maxx = max(pixel.x for pixel in pixels)
+        miny = min(pixel.y for pixel in pixels)
+        maxy = max(pixel.y for pixel in pixels)
+
+        arr = np.zeros((maxx - minx + 1, maxy - miny + 1))
+        for pixel in pixels:
+            try:
+                arr[pixel.x - minx][pixel.y - miny] = pixel.val
+            except:
+                print('Pixel:' + str(pixel))
+        return [arr, minx, miny]
+

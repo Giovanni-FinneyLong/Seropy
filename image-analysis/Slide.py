@@ -103,7 +103,7 @@ class Slide:
         alive_pixel_array = np.zeros([self.local_xdim, self.local_ydim], dtype=object)
         for pixel in self.alive_pixels:
             alive_pixel_array[pixel.x][pixel.y] = pixel
-        (derived_ids, derived_count, num_ids_equiv) = self.firstPass(self.alive_pixels, (self.local_xdim, self.local_ydim), not self.isSubslide) # Note only printing when primary slide
+        (derived_ids, derived_count, num_ids_equiv) = self.assignPixelsToIds(self.alive_pixels, not self.isSubslide) # Note only printing when primary slide
         counter = collections.Counter(derived_ids)
         total_ids = len(counter.items())
         if not quiet:
@@ -161,8 +161,6 @@ class Slide:
         for (blobnum, blobslist) in enumerate(self.blob2dlist):
             edge_lists.append(self.blob2dlist[blobnum].edge_pixels)
             self.edge_pixels.extend(self.blob2dlist[blobnum].edge_pixels)
-        # if matrix is not None:
-        #     Blob2d.total_blobs += len(self.blob2dlist)
         if not quiet:
             self.tf = time.time()
             printElapsedTime(self.t0, self.tf)
@@ -183,13 +181,6 @@ class Slide:
                 for blob in slide.blob2dlist:
                     for above_slide in slides_by_height[height + 1]:
                         blob.setPossiblePartners(above_slide, **kwargs)
-
-
-        # for slide_num, slide in enumerate(slidelist[:-1]): # All but the last slide
-        #     for blob in slide.blob2dlist:
-        #         blob.setPossiblePartners(slidelist[slide_num + 1], **kwargs)
-
-
 
     @staticmethod
     def setAllShapeContexts(slidelist):
@@ -213,7 +204,8 @@ class Slide:
         ''' Allows access to class vars without class declaration'''
         return Slide.total_slides
 
-    def firstPass(self, pixel_list, local_dim_tuple, print_info):
+    @staticmethod
+    def assignPixelsToIds(pixel_list, print_info=False):
 
         # NOTE Vertical increases downwards, horizontal increases to the right. (Origin top left)
         # Order of neighboring pixels visitation:
@@ -230,7 +222,11 @@ class Slide:
         # 5 = (-1, 1)
         # 1 = (0, -1
 
-        local_xdim, local_ydim = local_dim_tuple
+        local_xdim = max(pixel.x for pixel in pixel_list) + 1
+        local_ydim = max(pixel.y for pixel in pixel_list) + 1
+
+
+        # local_xdim, local_ydim = local_dim_tuple
         vertical_offsets  = [-1, -1, -1, 0]#[1, 0, -1, -1]#,  0,   1, -1] #, 1, -1, 0, 1]
         horizontal_offsets = [-1, 0, 1, -1]#[-1, -1, -1, 0]#, 1, 1,  0] #, 0, 1, 1, 1]
 
@@ -294,11 +290,13 @@ class Slide:
         if debug_pixel_ops:
             print('EQUIVALENT LABELS: ' + str(equivalent_labels))
         # Time to clean up the first member of each id group-as they are skipped from the remapping
-        if print_info:
-            print('Number of initial pixel ids before deriving equivalencies:' + str(self.id_num))
         id_to_reuse = []
 
-        for id in range(self.id_num):
+        maxid = max(pixel.blob_id for pixel in pixel_list)
+        # for id in range(self.id_num): # NOTE CHANGED 12/9/15 to allow compatibility without needing slide # TODO
+        print('Max id:' + str(maxid))
+
+        for id in range(maxid):
             if id not in equivalent_labels:
                 if debug_blob_ids:
                     print('ID #' + str(id) + ' wasnt in the list, adding to ids_to _replace')
@@ -317,6 +315,7 @@ class Slide:
                 print('New equiv labels:' + str(equivalent_labels))
 
         for pixel in pixel_list:
+            # print('DB:' + str(pixel.blob_id) + ' len el:' + str(len(equivalent_labels)))
             pixel.blob_id = equivalent_labels[pixel.blob_id]
         for id in range(len(derived_ids)):
             derived_ids[id] = equivalent_labels[derived_ids[id]]

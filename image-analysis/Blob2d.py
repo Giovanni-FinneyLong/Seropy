@@ -55,8 +55,6 @@ class Blob2d:
         self.id = idnum
         self.validateID() # NOTE NEW
         Blob2d.total_blobs += 1
-
-
         self.pixels = list_of_pixels
         self.num_pixels = len(list_of_pixels)
         self.assignedto3d = False # Set to true once a blod2d has been added to a list that will be used to construct a blob3d
@@ -85,9 +83,6 @@ class Blob2d:
         self.setTouchingBlobs()
         self.max_width = self.maxx-self.minx + 1 # Note +1 to include both endcaps
         self.max_height = self.maxy-self.miny + 1 # Note +1 to include both endcaps
-        # self.edge_radius = sum(math.sqrt(math.pow(pixel.x - self.avgx, 2) + math.pow(pixel.y - self.avgy, 2))
-        #                        for pixel in self.pixels)
-
 
     def setEdge(self):
         self.edge_pixels = [pixel for pixel in self.pixels if pixel.nz_neighbors < 8]
@@ -274,9 +269,6 @@ class Blob2d:
             OR [] if this blob has already been formed into a chain, and cannot be used as a seed.
         '''
         # TODO update this documentation
-
-
-
         def followstitches(cursorblob, blob2dlist):
             '''
             Recursive support function for getconnectedblob2ds
@@ -295,17 +287,6 @@ class Blob2d:
                             followstitches(blob, blob2dlist)
             else:
                  Blob2d.blobswithoutstitches += 1
-            #     print('Skipping blob: ' + str(cursorblob) + ' because it has no stitching')
-
-
-
-        # if debug and self.debugFlag:
-        #     print('--Called getconnectedblob2ds on a debugBlob:' + str(self))
-        #     print('---Has assignedto3d:' + str(hasattr(self, 'assignedto3d')))
-
-        #DEBUG use assigned to 3d to check for errors in recursive tracing
-        # Note use assignedto3d to avoid using a blob as
-
         if hasattr(self, 'assignedto3d') and self.assignedto3d is True: # hasattr included to deal with outdate pickle files
             # Has already been assigned to a blob3d group, so no need to use as a seed
             return []
@@ -400,18 +381,12 @@ class Blob2d:
         buffer = kwargs.get('buffer', 0) # Number of pixels to leave around the outside, good when operating on image
 
         if compensate_for_offset:
-            offsetx = self.minx - buffer # HACK + 1 FIXME
-            offsety = self.miny - buffer# HACK + 1 FIXME
+            offsetx = self.minx - buffer
+            offsety = self.miny - buffer
         else:
             offsetx = 0
             offsety = 0
-        # print('DB: ' + str(self.edge_pixels))
-        # print('DB max_width: ' + str(self.max_width) + ' max_height: ' + str(self.max_height))
-        # print('DB maxx-minx: ' + str(self.maxx - self.minx) + ' maxy-miny: ' + str(self.maxy - self.miny))
-        # print('DB Offset(x,y): ' + str(offsetx) + ' ' + str(offsety))
-
         # TODO FIXME PICKLE!!!! This below +1 has been fixed on 10/8, but the pickle files needs to be regen.
-
         arr = np.zeros((self.max_width + buffer + 1, self.max_height + buffer + 1))
         for pixel in self.edge_pixels:
             arr[pixel.x - offsetx][pixel.y - offsety] = pixel.val
@@ -451,7 +426,6 @@ class Blob2d:
 
         xy_sat = [(x, y) for x in range(width) for y in range(height)
                   if body_arr[y][x] == 0] # HACK TODO
-        # Note: DEBUG working to here, now use these found x,y coordinates to fill in an edgearray
         saturated = self.edgeToArray()
         for x,y in xy_sat:
             saturated[y][x] = hard_max_pixel_value

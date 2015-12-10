@@ -32,20 +32,9 @@ class Blob3d:
         self.maxy = max(blob.maxy for blob in self.blob2ds)
         self.miny = min(blob.miny for blob in self.blob2ds)
         self.minx = min(blob.minx for blob in self.blob2ds)
-        # self.avgx = sum(blob.avgx * len(blob.pixels) for blob in self.blob2ds) / len(self.pixels) # FIXME this is faster is more accurate, but not working correctly..
-        # self.avgy = sum(blob.avgx * len(blob.pixels) for blob in self.blob2ds) / len(self.pixels)
         self.avgx = sum(blob.avgx for blob in self.blob2ds) / len(self.blob2ds)
         self.avgy = sum(blob.avgy for blob in self.blob2ds) / len(self.blob2ds)
-
-
-        # self.avgx = sum(pixel.x for blob in self.blob2ds for pixel in blob.edge_pixels) / len(self.pixels)
-        # self.avgy = sum(pixel.y for blob in self.blob2ds for pixel in blob.edge_pixels) / len(self.pixels)
-
-        # print('DB avg x,y,x2,y2=' + str([self.avgx, self.avgy, self.avgx2, self.avgy2]))
         self.avgz = (self.lowslideheight + self.highslideheight) / 2
-
-
-
         self.isSingular = False
         self.subblobs = []
         self.note = '' # This is a note that can be manually added for identifying certain characteristics..
@@ -94,13 +83,11 @@ class Blob3d:
         '''
         # return b3ds, test_pairings, test_slides
         all_new_b3ds = []
-        all_new_pairings = []
         all_new_slides = []
         edge_pixel_total = sum(len(blob2d.edge_pixels) for blob3d in blob3dlist for blob2d in blob3d.blob2ds)
         edge_pixels_processed = 0
 
         start_gen_time = time.time()
-
 
         if not quiet:
             print('Pairing together ' + str(len(blob3dlist)) + ' blob3ds with ' + str(sum(len(blob3d.blob2ds) for blob3d in blob3dlist)) + ' blob2ds and ' + str(edge_pixel_total) + ' edge_pixels')
@@ -124,13 +111,10 @@ class Blob3d:
         printElapsedTime(start_gen_time, time.time())
 
 
-
-
     def gen_subblob3ds(self, save=False, filename='', **kwargs):
 
         debugflag = kwargs.get('debugflag', -1)
         debug2ds = kwargs.get('debugforb2ds',[])
-        # DEBUG
         debugging = (debugflag == 1)
         if debugging:
             print('Debugging for blob3d:' + str(self))
@@ -140,21 +124,9 @@ class Blob3d:
             # plotBlob2ds(self.blob2ds, ids=True)
 
         display = False
-        # /DEBUG
-
         test_slides = []
-        # # HACK
-        # self.blob2ds = sorted(self.blob2ds, key=lambda b2d: len(b2d.pixels), reverse=True)
-        # #HACK
-
-        # DEBUG
-        # debug2ds = [5,9,11]
         slides_from_debug_blob2ds = []
         debug_blob2ds_sublobs = []
-
-        # /DEBUG
-
-
         for b2d_num,blob2d in enumerate(self.blob2ds):
             if debugging and b2d_num in debug2ds and display:
                 print('From blob2d #' + str(b2d_num) + ':' + str(blob2d))
@@ -171,11 +143,7 @@ class Blob3d:
                     print('---Now showing the ' + str(len(test_slides[-1].blob2dlist)) + ' blob2ds which have been generated')
                     for subb2d in test_slides[-1].blob2dlist:
                         showBlob2d(subb2d)
-        # DEBUG
-        # NOTE finding the correspond slide_nums and blob_nums so that they can be identified and observed within the below static Slide methods
-        # TODO TODO TODO Continue tracking the source of the issue
-
-        if debugging: #DEBUG
+        if debugging:
             debug_blob2ds = [blob2d for b2d_num, blob2d in enumerate(self.blob2ds) if b2d_num in debug2ds]
             print('> Found the following ' + str(len(debug_blob2ds)) + ' blob2ds which are being debugged: ' + str(debug_blob2ds))
             # Now need to find slides that derived from debug_blob2ds
@@ -192,8 +160,6 @@ class Blob3d:
         if debugging:
             for b2d_num,b2d in enumerate(debug_blob2ds_sublobs):
                 print('Possible partners of b2d #' + str(b2d_num) + ':' + str(b2d.possible_partners))
-        # DEBUG to here, everything ok Seems to be finding possible_partners ok
-
 
         Slide.setAllShapeContexts(test_slides)
         test_pairings = Pairing.stitchAllBlobs(test_slides, quiet=True, debug=False)
@@ -207,14 +173,11 @@ class Blob3d:
         list3ds = []
         for slide_num, slide in enumerate(test_slides):
             for blob in slide.blob2dlist:
-                buf = blob.getconnectedblob2ds(debug=True) # DEBUG
+                buf = blob.getconnectedblob2ds(debug=True)
                 if len(buf) != 0:
                     list3ds.append((buf, slide))
-
-        #DEBUG
         if debugging:
             print('>>>>The debug_blob2ds_sublobs are:' + str(debug_blob2ds_sublobs))
-
             print("There are a total of " + str(len(list3ds)) + ' lists of blob2ds, each of which will make a blob2d')
             for list2dblobs, sourcesubslide in list3ds:
                 inter_buf = list(set(list2dblobs).intersection(debug_blob2ds_sublobs))
@@ -225,22 +188,10 @@ class Blob3d:
                 if pairing.lowerblob in debug_blob2ds_sublobs or pairing.upperblob in debug_blob2ds_sublobs:
                     print(' Found a stitch containing a debug_subblob:' + str(pairing))
 
-
-        original_b2ds = [blob2d for blob2d in self.blob2ds]
-        sub_b2ds = [blob2d for slide in test_slides for blob2d in slide.blob2dlist]
-        # DEBUG DEBUG DEBUG
-        # plotBlob2ds(original_b2ds + sub_b2ds)
-        #DEBUG
-
-
-        # NOTE currently found the generated subblobs (which arent showing up), within test_pairings and list3ds
         # Now need to check if they are making it into the 3d blobs
-        # DEBUG DEBUG The debug b2ds are not showing up in the above lists. SO they are not getting added correctly in .getconnectedblob2ds()
         b3ds = []
         for (blob2dlist, sourceSubSlide) in list3ds:
             b3ds.append(SubBlob3d(blob2dlist, self))
-
-         # DEBUG
         if debugging:
             print("There are a total of " + str(len(b3ds)) + ' blob3ds')
             for b3d in b3ds:
@@ -251,10 +202,7 @@ class Blob3d:
 
         if save:
             doPickle(b3ds, filename)
-        # print('Derived a total of ' + str(len(test_b3ds)) + ' 3d blobs')
         Blob3d.tagBlobsSingular(b3ds, quiet=True)
-        if not hasattr(self, 'subblobs'): # HACK FIXME once regen pickle
-            self.subblobs = []
         self.subblobs = self.subblobs + b3ds
         return b3ds, test_pairings, test_slides
 
@@ -283,14 +231,11 @@ class SubBlob3d(Blob3d):
 
     '''
     def __init__(self, blob2dlist, parentB3d):
-
-
         super().__init__(blob2dlist, True)
         if type(parentB3d) is Blob3d: # Not subblob3d
             self.recursive_depth = 1
         else:
             self.recursive_depth = parentB3d.recursive_depth + 1
-
         self.parent = parentB3d
         # These subblobs need to have offsets, so that they can be correctly placed within their corresponding b3ds when plotting
         # NOTE minx,miny,maxx,maxy are all set in Blob3d.__init__
@@ -298,7 +243,3 @@ class SubBlob3d(Blob3d):
         self.offsety = self.miny
         self.width = self.maxx - self.minx
         self.height = self.maxy - self.miny
-        # print('DB creating a new subblob3d')
-        # for blob_num, b2d in enumerate(blob2dlist):
-        #     print('  B2d: ' + str(blob_num) + ' / ' + str(len(blob2dlist)) + ' = ' + str(b2d))
-        #     print("  Minx:" + str(b2d.minx) + ' Maxx:' + str(b2d.maxx) + ' Miny:' + str(b2d.miny) + ' Maxy:' + str(b2d.maxy))

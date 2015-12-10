@@ -2,7 +2,6 @@ __author__ = 'gio'
 
 
 from myconfig import *
-
 from Stitches import *
 import munkres as Munkres
 from Slide import *
@@ -10,17 +9,6 @@ from Blob3d import *
 import pickle # Note uses cPickle automatically ONLY IF python 3
 from Stitches import Pairing
 from serodraw import *
-# from skimage import filters
-# from skimage import segmentation
-# from PIL import ImageFilter
-# from collections import OrderedDict
-# import readline
-# import code
-# import rlcompleter
-# from pympler import asizeof
-# from scipy import misc as scipy_misc
-# import threading
-
 
 
 
@@ -135,96 +123,6 @@ def segment_horizontal(blob3d):
             plotBlob3d(blob3d)
 
 
-def experiment():
-    from skimage import measure
-
-
-    # Construct some test data
-    x, y = np.ogrid[-np.pi:np.pi:100j, -np.pi:np.pi:100j]
-    # print('x:' + str(x))
-    # print('y:' + str(y))
-    rr = np.sin(np.exp((np.sin(x)**3 + np.cos(y)**2))) # Has shape (100,100)
-    print('r:' + str(rr))
-    debug()
-    # Find contours at a constant value of 0.8
-    contours = measure.find_contours(rr, 0.8)
-
-    # Display the image and plot all contours found
-    fig, ax = plt.subplots()
-    ax.imshow(r, interpolation='nearest', cmap=plt.cm.gray)
-
-    for n, contour in enumerate(contours):
-        ax.plot(contour[:, 1], contour[:, 0], linewidth=2)
-
-    ax.axis('image')
-    ax.set_xticks([])
-    ax.set_yticks([])
-    plt.show()
-
-
-def expDistance():
-
-    save2ds = False
-    repickle = False
-    offsetx = 000
-    offsety = 400
-    if repickle:
-        b3ds = unPickle('pickledata.pickle')
-        b3dds = unPickle('pickledata_distance.pickle')
-
-        interests = [b3ds[3], b3dds[3]]
-        for pixel in interests[0].pixels:
-            pixel.x += offsetx
-            pixel.y += offsety
-        for b2d in interests[0].blob2ds:
-            b2d.minx += offsetx
-            b2d.maxx += offsetx
-            b2d.miny += offsety
-            b2d.maxy += offsety
-
-        doPickle(interests, 'experiment.pickle')
-    else:
-        interests = unPickle('experiment.pickle')
-
-    regen3list = unPickle('pickletest.pickle')
-    regen3listlog2 = unPickle('pickletest_logbase2.pickle')
-
-    for regen3 in regen3list:
-        for pixel in regen3.pixels:
-            pixel.x += 2 * offsetx
-            pixel.y += 2 *offsety
-        for b2d in regen3.blob2ds:
-            b2d.minx += 2 *offsetx
-            b2d.maxx += 2 *offsetx
-            b2d.miny += 2 *offsety
-            b2d.maxy += 2 *offsety
-    for regen3 in regen3listlog2:
-        for pixel in regen3.pixels:
-            pixel.x += 3 * offsetx
-            pixel.y += 3 *offsety
-        for b2d in regen3.blob2ds:
-            b2d.minx += 3 *offsetx
-            b2d.maxx += 3 *offsetx
-            b2d.miny += 3 *offsety
-            b2d.maxy += 3 *offsety
-
-
-
-    if save2ds:
-        image_based_name = 'bloblist(3)b2ds_'
-        interests[1].save2d(image_based_name)
-
-
-    interests[0].isSingular = True # GREEN FOR SINGULAR
-    interests[1].isSingular = False # RED FOR NOT SINGULAR
-
-    # for stitch in interests[0].pairings:
-    #     for lowerpnum, upperpnum in stitch.indeces:
-    #         stitch.lowerpixels[lowerpnum]
-    #         stitch.upperpixels[upperpnum]
-
-    plotBlob3ds(interests + regen3list + regen3listlog2, color='singular')
-
 
 def bloomInwards(blob2d):
     # TODO this will require a method to determine if a point is inside a polygon
@@ -240,14 +138,14 @@ def bloomInwards(blob2d):
         alldict = Pixel.pixelstodict(livepix)
         edge_neighbors = set()
         for pixel in last_edge:
-            edge_neighbors = edge_neighbors | set(Pixel.neighborsfromdict(alldict, pixel)) # - set(blob2d.edge_pixels)
+            edge_neighbors = edge_neighbors | set(pixel.neighborsfromdict(alldict)) # - set(blob2d.edge_pixels)
         edge_neighbors = edge_neighbors - last_edge
         bloomstages.append(list(edge_neighbors))
         last_edge = edge_neighbors
         livepix = livepix - edge_neighbors
-        # showPixels(blob2d.edge_pixels)
-        # showPixels(edge_neighbors)
-        # showPixels(livepix)
+        # plotPixels(blob2d.edge_pixels)
+        # plotPixels(edge_neighbors)
+        # plotPixels(livepix)
     # print(bloomstages)
     # print('Iterations:' + str(len(bloomstages)))
     return bloomstages
@@ -333,24 +231,130 @@ def main():
         else:
             blob3dlist = unPickle('all_data_blobs_and_subblobs.pickle')
 
-    b2d = blob3dlist[0].blob2ds[0]
+    b2d = blob3dlist[1].blob2ds[0]
 
 
     allb2ds = sorted([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
+    tempids = 0
     for b2d in allb2ds:
         # showBlob2d(b2d)
         # print('Blooming b2d:' + str(b2d))
         bloomstages = bloomInwards(b2d) # NOTE will have len 0 if no blooming can be done
         print('Showing blooming, stages=' + str(len(bloomstages)))
 
-        if len(bloomstages) != 0:
-            for i in range(len(bloomstages)): # THis is debug visualizaiton
-                for pix in bloomstages[i]:
-                    pix.z = 2 * i
-                print(' Bloomstage:' + str(i) + ' has ' + str(len(bloomstages[i])) + 'pixels')
-            showPixelLists(bloomstages)
+        # if len(bloomstages) != 0:
+        #     for i in range(len(bloomstages)): # THis is debug visualizaiton
+        #         for pix in bloomstages[i]:
+        #             pix.z = 2 * i
+        #         print(' Bloomstage:' + str(i) + ' has ' + str(len(bloomstages[i])) + 'pixels')
+            # plotPixelLists(bloomstages)
 
     #TODO now need to analyze the stages of blooming
+        print(len(bloomstages))
+
+        alonepixels = []
+        # print('Plotting all:' + str(len(bloomstages)) + ' stages of blooming')
+        # plotPixelLists(bloomstages)
+        blob2dlists_by_stage = []
+        for stage in bloomstages:
+            #HACK
+            for pixel in stage:
+                pixel.blob_id = -1
+            #hack
+            arr, offsetx, offsety = Pixel.pixelsToArray(stage)
+
+
+            nextid=0
+            alive = set(stage)
+            blob2dlists = []
+            # print('ORIGINAL LENGTH OF ALIVE:' + str(len(alive)))
+
+
+            while len(alive):
+                # print('OUTER LOOP')
+                alivedict = Pixel.pixelstodict(alive)
+                neighbors = set()
+                pixel = next(iter(alive)) # Basically alive[0]
+                neighbors = set(pixel.neighborsfromdict(alivedict))
+
+                index = 1
+                done = False
+                while len(neighbors) == 0 or not done:
+                    # print('Index:' + str(index) + ' len of neighbors:' + str(len(neighbors)) + ' len of alive:' + str(len(alive)))
+                    if index < len(alive):
+                        pixel = list(alive)[index] # Basically alive[0] # TODO fix this to get the index set to the next iteration
+                        index += 1
+                    else:
+                        # print('>>Set done to true')
+                        done = True
+                        #Note this needs testing!!!!
+                        #Assuming that all the remaing pixels are their own blob2ds essentiall, and so are removed
+                    neighbors = set(pixel.neighborsfromdict(alivedict))
+                    if len(neighbors) == 0:
+                        print('   Found a blob with no neighbors, removing')
+                        print('   Size of alive before:' + str(len(alive)))
+                        print('   pixel:' + str(pixel))
+                        alive = alive - set([pixel])
+                        alonepixels.append(pixel)
+                        index = index - 1 # Incase we damaged the index
+                        print('   after:' + str(len(alive)))
+
+
+                oldneighbors = set() # TODO can make this more efficient
+                while len(oldneighbors) != len(neighbors):
+                    oldneighbors = set(neighbors)
+                    newneighbors = set(neighbors)
+                    # print(' Iterating through: ' + str(len(neighbors)) + ' neighbors to cursor pixel & its found neighbors')
+                    for pixel in neighbors:
+                        newneighbors = newneighbors | set(pixel.neighborsfromdict(alivedict))
+                    neighbors = newneighbors
+                    # print('  Plotting the currently found neighbors to the seed:')
+                    # plotPixels(list(neighbors))
+
+                # print(' DB found a group which make up a blob2d:' + str(neighbors) + ' \n  consisting of ' + str(len(neighbors)) + ' pixels')
+                blob2dlists.append(list(neighbors))
+                alive = alive - neighbors
+                # print(' Len of alive:' + str(len(alive)))
+            # print('Plotting results of finding 2ds from stage:' )
+            # print('Stage:' + str(stage))
+            # print('len(blob2dlists):', end='')
+            # print(len(blob2dlists))
+            # print(blob2dlists)
+            # print(blob2dlists[0])
+            # plotPixels(stage)
+            # plotPixelLists(blob2dlists)
+            # print('Plotting all blob2ds from this stage')
+            # plotPixelLists(blob2dlists)
+            print('Found blob2dlists for stage:' + str(blob2dlists))
+
+            blob2dlists_by_stage.append(blob2dlists)
+        #TODO TODO TODFO TODO TODO TODO TODO
+        # print('Figured out blob2dlists by stage:')
+        # print(len(blob2dlists))
+        # NOTE am not keeping 'alone pixels', instead just tossing them..
+
+        allfoundb2ds = [b2d for blob2dlist in blob2dlists_by_stage for b2d in blob2dlist]
+        # print('Plotting singular pixels which were never assigned')
+        # plotPixels(alonepixels)
+
+        # print(allfoundb2ds)
+        # print(len(allfoundb2ds))
+        # print(len(alonepixels))
+        # plotPixels(alonepixels)
+
+        # allfoundb2ds.append(alonepixels)
+
+        print('Plotting all blob2ds all stages')
+        plotPixelLists(allfoundb2ds)
+
+
+
+
+
+
+
+    # NOTE: Idea to test: keep looking through bloom stages until all blob2ds less than a certain size. Then stitch with the original
+
     # I expect this will involve creating groups of touching pixels
     # This can be done most efficicently by using just the layers of bloom that have been returned; as there is no need
     # Need to find cases where 2 groups are separated exclusively by the previous layer's pixels
@@ -359,7 +363,10 @@ def main():
     # b) Can plot internals with blob2d methods
     # c) Can loop recursively only on larger blob2ds instead of whole layer
 
-
+    #todo STRATEGY
+    # Will make blob2ds out of layers of bloom, by casting each layer to an array
+    # Then find the possible partners across bloom layers
+    # Then, instead of doing munkres, look between levels for blob2ds which have a min and max x,y to be within the min and max x,y of the earlier bloom
 
 
 

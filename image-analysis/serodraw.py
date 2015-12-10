@@ -179,7 +179,7 @@ def showColors(canvas_size=(800,800)):
         view.add(visuals.Text(color, pos=np.reshape([0, 0, 1-(i / len(colors))], (1,3)), color=color, bold=True))
     vispy.app.run()
 
-def showPixels(pixellist, canvas_size=(800,800)):
+def plotPixels(pixellist, canvas_size=(800, 800)):
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size,
                                      title='')
     view = canvas.central_widget.add_view()
@@ -194,11 +194,17 @@ def showPixels(pixellist, canvas_size=(800,800)):
     edge_pixel_array = np.zeros([len(pixellist), 3])
     for (p_num, pixel) in enumerate(pixellist):
         edge_pixel_array[p_num] = [(pixel.x - xmin) / len(pixellist), (pixel.y - ymin) / len(pixellist), pixel.z /  (z_compression * len(pixellist))]
-    view.add(visuals.Markers(pos=edge_pixel_array, edge_color=None, face_color=colors[0 % len(colors)], size=8))
+    marker = visuals.Markers()
+    marker.set_data(edge_pixel_array, edge_color=None, face_color=colors[0 % len(colors)], size=8)
+    view.add(marker)
+
+            # view.add(visuals.Markers(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 ))
+
+
     axis = visuals.XYZAxis(parent=view.scene)
     vispy.app.run()
 
-def showPixelLists(pixellists, canvas_size=(800,800)): # NOTE works well to show bloom results
+def plotPixelLists(pixellists, canvas_size=(800, 800)): # NOTE works well to show bloom results
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size,
                                      title='')
     view = canvas.central_widget.add_view()
@@ -233,6 +239,7 @@ def showPixelLists(pixellists, canvas_size=(800,800)): # NOTE works well to show
 
 
 def isInside(pixel_in, blob2d):
+    #NOTE this requires that the blob2d has pixels and edge_pixels fully populated
     if pixel_in in blob2d.pixels:
         if pixel_in in blob2d.edge_pixels:
             return False
@@ -242,29 +249,7 @@ def isInside(pixel_in, blob2d):
         return False
     # May need to optimize this, not sure how slow the above is
 
-
-        # NOTE will be able to sort this later, to effectively send lines in two directions horizontally
-
-
-
-
-    # neighbors = Pixel.neighborsfromdict(xy, blob2d.pixels[0])
-
-    # layers = []
-    # while len(livepix):
-
-
-
-
-
-
-
-
-    # getNextXY(x,y,dx,dy):
-        # NOTE: X,Y probably shouldnt be integers, unless they are the starting point
-
-
-
+    # NOTE will be able to sort this later, to effectively send lines in two directions horizontally
 
 
 def debug():
@@ -524,11 +509,6 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
         stitch_lines = visuals.Line(method=linemethod)
         stitch_lines.set_data(pos=line_locations, connect='segments')
         view.add(stitch_lines)
-
-
-
-
-
 
     view.camera = 'turntable'  # or try 'arcball'
     view.camera.elevation = -55
@@ -1410,10 +1390,6 @@ def plotSlides(slide_list):
     # plt.savefig("3D.png")
     print('Now displaying rendering @' + str(time.ctime()))
     plt.show()
-
-
-
-
 
 
 # NOTE: all marker types:
