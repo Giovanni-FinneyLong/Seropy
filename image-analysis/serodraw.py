@@ -212,9 +212,9 @@ def showPixelLists(pixellists, canvas_size=(800,800)): # NOTE works well to show
     ymax = max(pixel.y for pixellist in pixellists for pixel in pixellist)
     zmin = min(pixel.z for pixellist in pixellists for pixel in pixellist)
     zmax = max(pixel.z for pixellist in pixellists for pixel in pixellist)
-    xdim = xmax - xmin
-    ydim = ymax - ymin
-    zdim = zmax - zmin
+    xdim = xmax - xmin + 1
+    ydim = ymax - ymin + 1
+    zdim = zmax - zmin + 1
 
     total_pixels = sum(len(pixellist) for pixellist in pixellists)
     edge_pixel_arrays = []
@@ -244,33 +244,7 @@ def isInside(pixel_in, blob2d):
 
 
         # NOTE will be able to sort this later, to effectively send lines in two directions horizontally
-def bloomInwards(blob2d):
-    # TODO this will require a method to determine if a point is inside a polygon
-    # See: https://en.wikipedia.org/wiki/Point_in_polygon
 
-    usedpix = set(blob2d.edge_pixels)
-    livepix = set(set(blob2d.pixels) - set(blob2d.edge_pixels))
-
-    bloomstages = []
-    last_edge = set(blob2d.edge_pixels)
-
-    while(len(livepix) > 1):
-        alldict = Pixel.pixelstodict(livepix)
-        edge_neighbors = set()
-        for pixel in last_edge:
-            edge_neighbors = edge_neighbors | set(Pixel.neighborsfromdict(alldict, pixel)) # - set(blob2d.edge_pixels)
-        edge_neighbors = edge_neighbors - last_edge
-        bloomstages.append(list(edge_neighbors))
-        last_edge = edge_neighbors
-        livepix = livepix - edge_neighbors
-        # showPixels(blob2d.edge_pixels)
-        # showPixels(edge_neighbors)
-        # showPixels(livepix)
-    # print(bloomstages)
-    # print('Iterations:' + str(len(bloomstages)))
-
-
-    return bloomstages
 
 
 

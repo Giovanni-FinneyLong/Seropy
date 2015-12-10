@@ -226,6 +226,33 @@ def expDistance():
     plotBlob3ds(interests + regen3list + regen3listlog2, color='singular')
 
 
+def bloomInwards(blob2d):
+    # TODO this will require a method to determine if a point is inside a polygon
+    # See: https://en.wikipedia.org/wiki/Point_in_polygon
+
+    usedpix = set(blob2d.edge_pixels)
+    livepix = set(set(blob2d.pixels) - set(blob2d.edge_pixels))
+
+    bloomstages = []
+    last_edge = set(blob2d.edge_pixels)
+
+    while(len(livepix) > 1):
+        alldict = Pixel.pixelstodict(livepix)
+        edge_neighbors = set()
+        for pixel in last_edge:
+            edge_neighbors = edge_neighbors | set(Pixel.neighborsfromdict(alldict, pixel)) # - set(blob2d.edge_pixels)
+        edge_neighbors = edge_neighbors - last_edge
+        bloomstages.append(list(edge_neighbors))
+        last_edge = edge_neighbors
+        livepix = livepix - edge_neighbors
+        # showPixels(blob2d.edge_pixels)
+        # showPixels(edge_neighbors)
+        # showPixels(livepix)
+    # print(bloomstages)
+    # print('Iterations:' + str(len(bloomstages)))
+    return bloomstages
+
+
 def main():
 
     sys.setrecursionlimit(7000) # HACK
@@ -307,23 +334,32 @@ def main():
             blob3dlist = unPickle('all_data_blobs_and_subblobs.pickle')
 
     b2d = blob3dlist[0].blob2ds[0]
-    bloomstages = bloomInwards(b2d)
-    print('Showing blooming')
-
-    for i in range(len(bloomstages)):
-        for pix in bloomstages[i]:
-            pix.z = 2 * i
-    showPixelLists(bloomstages)
 
 
+    allb2ds = sorted([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
+    for b2d in allb2ds:
+        # showBlob2d(b2d)
+        # print('Blooming b2d:' + str(b2d))
+        bloomstages = bloomInwards(b2d) # NOTE will have len 0 if no blooming can be done
+        print('Showing blooming, stages=' + str(len(bloomstages)))
+
+        if len(bloomstages) != 0:
+            for i in range(len(bloomstages)): # THis is debug visualizaiton
+                for pix in bloomstages[i]:
+                    pix.z = 2 * i
+                print(' Bloomstage:' + str(i) + ' has ' + str(len(bloomstages[i])) + 'pixels')
+            showPixelLists(bloomstages)
+
+    #TODO now need to analyze the stages of blooming
+    # I expect this will involve creating groups of touching pixels
+    # This can be done most efficicently by using just the layers of bloom that have been returned; as there is no need
+    # Need to find cases where 2 groups are separated exclusively by the previous layer's pixels
+    # NOTE that the avdvantage to this is
+    # a) Can setup bloom to work on blob2ds
+    # b) Can plot internals with blob2d methods
+    # c) Can loop recursively only on larger blob2ds instead of whole layer
 
 
-
-
-    # plotBlob3ds(blob3dlist, coloring='blob', showStitches=True)
-    # showColors()
-    # TODO TODO USE BLOOMING INWARD TECHNIQUE (ONLY ON EXISTING PIXELS),
-    # Look for the first collision, keep track of generator pixel, so that can assume that they came from other directions
 
 
 
