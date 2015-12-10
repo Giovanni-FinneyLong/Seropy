@@ -72,3 +72,24 @@ class Pixel:
     @staticmethod
     def distancebetween(pixel1, pixel2):
         return math.sqrt(math.pow(pixel1.x - pixel2.x, 2) + math.pow(pixel1.y - pixel2.y, 2))
+    @staticmethod
+    def pixelstodict(pixellist):
+        d = dict()
+        for pixel in pixellist:
+            d[pixel.x, pixel.y] = pixel
+        return d
+    @staticmethod
+    def neighborsfromdict(dictin, pixel):
+        found = []
+        x=pixel.x
+        y=pixel.y
+        found.append(dictin.get((x+1, y)))
+        found.append(dictin.get((x, y+1)))
+        found.append(dictin.get((x+1, y+1)))
+        found.append(dictin.get((x-1, y)))
+        found.append(dictin.get((x, y-1)))
+        found.append(dictin.get((x-1, y-1)))
+        found.append(dictin.get((x-1, y+1)))
+        found.append(dictin.get((x+1, y-1)))
+        found = [val for val in found if val is not None]
+        return found

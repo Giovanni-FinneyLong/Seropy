@@ -306,10 +306,17 @@ def main():
         else:
             blob3dlist = unPickle('all_data_blobs_and_subblobs.pickle')
 
-    Blob3d.tagBlobsSingular(blob3dlist)
-    # plotBlob3ds(blob3dlist, coloring='singular')
-    plotBlob3ds(blob3dlist, coloring='blob', showStitches=False)
+    b2d = blob3dlist[0].blob2ds[0]
+    plotBloomInwards(b2d)
+
+
+
+
+    # plotBlob3ds(blob3dlist, coloring='blob', showStitches=True)
     # showColors()
+    # TODO TODO USE BLOOMING INWARD TECHNIQUE (ONLY ON EXISTING PIXELS),
+    # Look for the first collision, keep track of generator pixel, so that can assume that they came from other directions
+
 
 
 
