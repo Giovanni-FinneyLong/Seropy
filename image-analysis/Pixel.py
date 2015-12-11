@@ -45,12 +45,11 @@ class Pixel:
 
     def __lt__(self, other): # Used for sorting; 'less than'
         # Sort by y then x, so that (1,0) comes before (0,1) (x,y)
-        if self.y < other.y:
-            return True
-        elif self.y == other.y:
+
+        if self.y == other.y:
             return self.x < other.x
-        else:
-            return False
+        return self.y < other.y
+
 
     def getNeighbors(self, master_array): # TODO depreciated
         neighbors = []

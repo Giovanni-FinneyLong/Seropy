@@ -209,34 +209,35 @@ def main():
     else:
 
         # blob3dlist = unPickle(directory='H:/Dropbox/Serotonin/pickles/recursive/', filename='depth1_subset_of_b3ds.pickle'))
-        # blob3dlist = unPickle(picklefile)
-        pass
+        blob3dlist = unPickle(picklefile)
 
     # plotBlob3ds(blob3dlist)
 
+
     # for blob3d in blob3dlist: # HACK
     #     blob3d.recursive_depth = 0
-    if False:
-        print('Before:' + str(len(blob3dlist)))
-        Blob3d.generateSublobs(blob3dlist)
-        print('After:' + str(len(blob3dlist)))
-        if test_instead_of_data:
-            doPickle(blob3dlist, 'all_test_blobs_and_subblobs.pickle')
-        else:
-            doPickle(blob3dlist, 'all_data_blobs_and_subblobs.pickle')
+    # if False:
+    #     print('Before:' + str(len(blob3dlist)))
+    #     Blob3d.generateSublobs(blob3dlist)
+    #     print('After:' + str(len(blob3dlist)))
+    #     if test_instead_of_data:
+    #         doPickle(blob3dlist, 'all_test_blobs_and_subblobs.pickle')
+    #     else:
+    #         doPickle(blob3dlist, 'all_data_blobs_and_subblobs.pickle')
+    #
+    # else:
+    #     if test_instead_of_data:
+    #         blob3dlist = unPickle('all_test_blobs_and_subblobs.pickle')
+    #     else:
+    #         blob3dlist = unPickle('all_data_blobs_and_subblobs.pickle')
 
-    else:
-        if test_instead_of_data:
-            blob3dlist = unPickle('all_test_blobs_and_subblobs.pickle')
-        else:
-            blob3dlist = unPickle('all_data_blobs_and_subblobs.pickle')
-
-
+    # plotBlob2ds(blob3dlist[0].blob2ds) # DEBUG no issue plotting b2ds here
     # blob3dlist = sorted(blob3dlist, key=lambda b3d: b3d.pixels, reverse=True) # Sorting for biggest first
-    allb2ds = sorted([blob2d for blob3d in [blob3dlist[0]] for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
+    allb2ds = sorted([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
     print('Number of b2ds=' + str(len(allb2ds)))
-
-
+    print('Original b2ds:')
+    prepixellists = [b2d.pixels for b2d in allb2ds]
+    plotPixelLists(prepixellists)
 
     no_bloom_b2ds = []
     all_gen_b2ds = []
@@ -272,10 +273,15 @@ def main():
             # allpixels.append(blob2d.pixels)
             plotPixelLists(allpixels)
     print('Generated a total of ' + str(len(all_gen_b2ds)) + ' blob2ds')
-    for b2d in all_gen_b2ds:
-        print(b2d)
+    # for b2d in all_gen_b2ds:
+    #     print(b2d)
     allpixellists = [b2d.pixels for b2d in all_gen_b2ds]
     # plotBlob2ds(all_gen_b2ds)
+    # print('RETESTING plotblob2ds')
+    # plotBlob2ds(blob3dlist[0].blob2ds) # DEBUG
+    # plotBlob2ds([all_gen_b2ds[0]]) # DEBUG
+    # plotBlob3d(blob3dlist[0])
+
     plotPixelLists(allpixellists)
 
 
