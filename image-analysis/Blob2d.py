@@ -50,7 +50,7 @@ class Blob2d:
             Blob2d.used_ids[self.id] = 1
 
 
-    def __init__(self, idnum, list_of_pixels, height, offsetx=0, offsety=0, recursive_depth=0, parentID=-1, direct_children=[]): # CHANGED to height from slide, removed master_array
+    def __init__(self, idnum, list_of_pixels, height, offsetx=0, offsety=0, recursive_depth=0, parentID=-1, direct_child_ids=[]): # CHANGED to height from slide, removed master_array
         assert(recursive_depth == 0 or parentID != -1)
 
         self.id = idnum
@@ -65,7 +65,7 @@ class Blob2d:
         self.offsety = offsety
         self.recursive_depth = recursive_depth
         self.parentID = parentID
-        self.children = direct_children
+        self.children = direct_child_ids
 
         # self.master_array = master_array
         # self.slide = slide
@@ -255,7 +255,7 @@ class Blob2d:
         pairingidsl = [pairing.lowerblob.id for pairing in self.pairings if pairing.lowerblob.id != self.id]
         pairingidsu = [pairing.upperblob.id for pairing in self.pairings if pairing.upperblob.id != self.id]
         pairingids = sorted(pairingidsl + pairingidsu)
-        return str('B{id:' + str(self.id) + ', #P=' + str(self.num_pixels)) + ', #EP=' + str(len(self.edge_pixels)) + ', recur_depth=' + str(self.recursive_depth) + ', parentID=' + str(self.parentID) + ', children=' + str(self.children) + ', pairedids=' + str(pairingids)  + ', height=' + str(self.height) + ', (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) +'), Avg(X,Y):(%.1f' % self.avgx + ',%.1f' % self.avgy + ')}'
+        return str('B{id:' + str(self.id) + ', #P=' + str(self.num_pixels)) + ', #EP=' + str(len(self.edge_pixels)) + ', recur_depth=' + str(self.recursive_depth) + ', parentID=' + str(self.parentID) + ', pairedids=' + str(pairingids)  + ', height=' + str(self.height) + ', (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) +'), Avg(X,Y):(%.1f' % self.avgx + ',%.1f' % self.avgy + ', children=' + str(self.children) +')}'
 
     __repr__ = __str__
 

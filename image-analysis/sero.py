@@ -260,8 +260,6 @@ def main():
         # plotPixelLists(bloomstages)
 
         if len(bloomstages) == 0:
-            print('Didnt derive any bloomstages for b2d:' + str(blob2d))
-            # plotBlob2ds([blob2d], stitches=False)
             no_bloom_b2ds.append(blob2d)
         #TODO now need to analyze the stages of blooming
         blob2dlists_by_stage = []
@@ -269,9 +267,8 @@ def main():
 
         for snum, stage in enumerate(bloomstages):
             b2ds = Blob2d.pixels_to_blob2ds(stage, parentID=blob2d.id, recursive_depth=blob2d.recursive_depth+1+snum, modify=False) # NOTE making new pixels, rather than messing with existing
+            blob2d.children = blob2d.children + [blob2d.id for blob2d in b2ds]
             # TODO UPDATE CHILDREN OF BLOB2d
-
-
             blob2dlists_by_stage.append(b2ds)
         b2ds_from_b2d = [b2d for blob2dlist in blob2dlists_by_stage for b2d in blob2dlist]
         all_gen_b2ds = all_gen_b2ds + b2ds_from_b2d
@@ -290,7 +287,9 @@ def main():
     print('Generated a total of ' + str(len(all_gen_b2ds)) + ' blob2ds, from the original' + str(len(allb2ds)))
     # plotBlob2ds(all_gen_b2ds, stitches=True, coloring='depth')
 
-
+    print('Printing all original blob2ds:')
+    for b2d in allb2ds:
+        print(b2d)
 
     plotBlob2ds(all_gen_b2ds + allb2ds, stitches=True, coloring='depth')
     allpixellists = [b2d.pixels for b2d in all_gen_b2ds]
