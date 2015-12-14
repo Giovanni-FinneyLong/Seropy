@@ -50,7 +50,9 @@ class Blob2d:
             Blob2d.used_ids[self.id] = 1
 
 
-    def __init__(self, idnum, list_of_pixels, height, offsetx=0, offsety=0): # CHANGED to height from slide, removed master_array
+    def __init__(self, idnum, list_of_pixels, height, offsetx=0, offsety=0, recursive_depth=0, parentID=-1, direct_children=[]): # CHANGED to height from slide, removed master_array
+        assert(recursive_depth == 0 or parentID != -1)
+
         self.id = idnum
         self.validateID() # NOTE NEW
         Blob2d.total_blobs += 1
@@ -61,6 +63,10 @@ class Blob2d:
         self.sum_vals = 0
         self.offsetx = offsetx
         self.offsety = offsety
+        self.recursive_depth = recursive_depth
+        self.parentID = parentID
+        self.children = direct_children
+
         # self.master_array = master_array
         # self.slide = slide
         self.height = height
@@ -97,7 +103,7 @@ class Blob2d:
         '''
         self.touching_blobs = set()
         for pixel in self.edge_pixels:
-            neighbors = pixel.getNeighbors(self.master_array)
+            neighbors = pixel.getNeighbors(self.master_array) # TODO NEED TO FIX THIS FOR DICTS
             for curn in neighbors:
                 if(curn != 0 and curn.blob_id != self.id):
                     self.touching_blobs.add(curn.blob_id) # Not added if already in the set.
@@ -249,7 +255,7 @@ class Blob2d:
         pairingidsl = [pairing.lowerblob.id for pairing in self.pairings if pairing.lowerblob.id != self.id]
         pairingidsu = [pairing.upperblob.id for pairing in self.pairings if pairing.upperblob.id != self.id]
         pairingids = sorted(pairingidsl + pairingidsu)
-        return str('B{id:' + str(self.id) + ', #P:' + str(self.num_pixels)) + ', #EP:' + str(len(self.edge_pixels)) + ', pairedids=' + str(pairingids)  + ', height=' + str(self.height) + ', (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) +') Avg(X,Y):(%.1f' % self.avgx + ',%.1f' % self.avgy + ')}'
+        return str('B{id:' + str(self.id) + ', #P=' + str(self.num_pixels)) + ', #EP=' + str(len(self.edge_pixels)) + ', recur_depth=' + str(self.recursive_depth) + ', parentID=' + str(self.parentID) + ', children=' + str(self.children) + ', pairedids=' + str(pairingids)  + ', height=' + str(self.height) + ', (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) +'), Avg(X,Y):(%.1f' % self.avgx + ',%.1f' % self.avgy + ')}'
 
     __repr__ = __str__
 
@@ -315,6 +321,8 @@ class Blob2d:
                 if blob2.id == blob1.id:
                     if debug_set_merge:
                         print('   Found blobs to merge: ' + str(blob1) + ' & ' + str(blob2))
+                    if blob1.recursive_depth != blob2.recursive_depth:
+                        print('WARNING merging two blobs of different recursive depths:' + str(blob1) + ' & ' + str(blob2))
                     merged = True
                     newpixels = newpixels + blob2.pixels
             if merged == False:
@@ -336,7 +344,7 @@ class Blob2d:
                         del copylist[index]
                         index -= 1
                     index += 1
-                newlist.append(Blob2d(blob1.id, blob1.pixels + newpixels, blob1.master_array, blob1.slide))
+                newlist.append(Blob2d(blob1.id, blob1.pixels + newpixels, blob1.master_array, blob1.slide, recursive_depth=blob1.recursive_depth, parentID=min(blob1.parentID, blob2.parentID), direct_children=blob1.children + blob2.children))
                 if debug_set_merge:
                     print(' Merging, newlist-post:' + str(newlist))
                     print(' Merging, copylist-post:' + str(copylist))
@@ -437,8 +445,12 @@ class Blob2d:
 
 
     @staticmethod
-    def pixels_to_blob2ds(pixellist, modify=False): # Modify true if we want to modify the pixels passed, otherwise make new ones
+    def pixels_to_blob2ds(pixellist, parentID=-1, recursive_depth=0, modify=False): # Modify true if we want to modify the pixels passed, otherwise make new ones
         #HACK
+
+        print('DB called pixels to blob2ds, parentID:' + str(parentID) + ' rd:' + str(recursive_depth))
+
+
         if modify:
             pixelistcopy = pixellist
         else:
@@ -509,5 +521,5 @@ class Blob2d:
         # Ids will be validated
         # print('Incoming pixellist:' + str(pixellist))
         # print('Blob2dlists:' + str(blob2dlists))
-        b2ds = [Blob2d(0, blob2dlist, blob2dlist[0].z) for blob2dlist in blob2dlists if len(blob2dlist) > 0]
+        b2ds = [Blob2d(0, blob2dlist, blob2dlist[0].z, parentID=parentID, recursive_depth=recursive_depth) for blob2dlist in blob2dlists if len(blob2dlist) > 0]
         return b2ds

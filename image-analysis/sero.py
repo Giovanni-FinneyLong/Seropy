@@ -123,7 +123,6 @@ def segment_horizontal(blob3d):
             plotBlob3d(blob3d)
 
 
-
 def bloomInwards(blob2d):
     # TODO this will require a method to determine if a point is inside a polygon
     # See: https://en.wikipedia.org/wiki/Point_in_polygon
@@ -211,6 +210,8 @@ def main():
         # blob3dlist = unPickle(directory='H:/Dropbox/Serotonin/pickles/recursive/', filename='depth1_subset_of_b3ds.pickle'))
         blob3dlist = unPickle(picklefile)
 
+    # b2ds = [b2d for b3d in blob3dlist for b2d in b3d.blob2ds]
+    # plotBlob2ds(b2ds) #TODO need to remove stitches from blob2ds?
     # plotBlob3ds(blob3dlist)
 
 
@@ -226,7 +227,7 @@ def main():
     #         doPickle(blob3dlist, 'all_data_blobs_and_subblobs.pickle')
     #
     # else:
-    #     if test_instead_of_data:
+    #     if test_instead_of_dat0a:
     #         blob3dlist = unPickle('all_test_blobs_and_subblobs.pickle')
     #     else:
     #         blob3dlist = unPickle('all_data_blobs_and_subblobs.pickle')
@@ -234,10 +235,19 @@ def main():
     # plotBlob2ds(blob3dlist[0].blob2ds) # DEBUG no issue plotting b2ds here
     # blob3dlist = sorted(blob3dlist, key=lambda b3d: b3d.pixels, reverse=True) # Sorting for biggest first
     allb2ds = sorted([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
-    print('Number of b2ds=' + str(len(allb2ds)))
-    print('Original b2ds:')
-    prepixellists = [b2d.pixels for b2d in allb2ds]
-    plotPixelLists(prepixellists)
+
+    #picklefix
+    for b2d in allb2ds:
+        b2d.recursive_depth = 0
+        b2d.parentID = -1
+        b2d.children = []
+
+
+
+    # print('Number of b2ds=' + str(len(allb2ds)))
+    # print('Original b2ds:')
+    # prepixellists = [b2d.pixels for b2d in allb2ds]
+    # plotPixelLists(prepixellists)
 
     no_bloom_b2ds = []
     all_gen_b2ds = []
@@ -255,8 +265,13 @@ def main():
             no_bloom_b2ds.append(blob2d)
         #TODO now need to analyze the stages of blooming
         blob2dlists_by_stage = []
+
+
         for snum, stage in enumerate(bloomstages):
-            b2ds = Blob2d.pixels_to_blob2ds(stage, modify=False) # NOTE making new pixels, rather than messing with existing
+            b2ds = Blob2d.pixels_to_blob2ds(stage, parentID=blob2d.id, recursive_depth=blob2d.recursive_depth+1+snum, modify=False) # NOTE making new pixels, rather than messing with existing
+            # TODO UPDATE CHILDREN OF BLOB2d
+
+
             blob2dlists_by_stage.append(b2ds)
         b2ds_from_b2d = [b2d for blob2dlist in blob2dlists_by_stage for b2d in blob2dlist]
         all_gen_b2ds = all_gen_b2ds + b2ds_from_b2d
@@ -272,9 +287,12 @@ def main():
             #     pixel.z -= 2
             # allpixels.append(blob2d.pixels)
             plotPixelLists(allpixels)
-    print('Generated a total of ' + str(len(all_gen_b2ds)) + ' blob2ds')
-    # for b2d in all_gen_b2ds:
-    #     print(b2d)
+    print('Generated a total of ' + str(len(all_gen_b2ds)) + ' blob2ds, from the original' + str(len(allb2ds)))
+    # plotBlob2ds(all_gen_b2ds, stitches=True, coloring='depth')
+
+
+
+    plotBlob2ds(all_gen_b2ds + allb2ds, stitches=True, coloring='depth')
     allpixellists = [b2d.pixels for b2d in all_gen_b2ds]
     # plotBlob2ds(all_gen_b2ds)
     # print('RETESTING plotblob2ds')
@@ -282,7 +300,7 @@ def main():
     # plotBlob2ds([all_gen_b2ds[0]]) # DEBUG
     # plotBlob3d(blob3dlist[0])
 
-    plotPixelLists(allpixellists)
+    # plotPixelLists(allpixellists)
 
 
 
