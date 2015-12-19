@@ -14,15 +14,27 @@ class Blob2d:
     # equivalency_set = set() # Used to keep track of touching blobs, which can then be merged.
     total_blobs = 0 # Note that this is set AFTER merging is done, and so is not modified by blobs
     blobswithoutstitches = 0
-    used_ids = np.array([])
+    used_ids = []
     min_free_id = 0
 
+    all = dict() # A dictionary containing ALL Blob2ds. A blob2d's key is it's id
 
+    @staticmethod
+    def get(id):
+        return Blob2d.all.get(id)
 
+    @staticmethod
+    def getall():
+        return Blob2d.all.values()
+
+    @staticmethod
+    def getkeys():
+        return Blob2d.all.keys()
 
     def validateID(self, quiet=True):
         '''
-        Checks that a blob2d's id has not been used, and changes it if it has been
+        Checks that a blob2d's id has not been used, and it's id if it has been used
+        It then adds the blob to the Blob2d master dictionary 'all'
         :return:
         '''
 
@@ -31,30 +43,53 @@ class Blob2d:
             while(index < len(Blob2d.used_ids) and Blob2d.used_ids[index] == 1):
                 index += 1
             if index == len(Blob2d.used_ids):
-                Blob2d.used_ids.resize([index + 50]) # NOTE can alter this value, for now expanding by 50, which will be filled with zeros
-            Blob2d.min_free_id = index + 1
+                Blob2d.used_ids.append(0) # NOTE can alter this value, for now expanding by 50, which will be filled with zeros
+            Blob2d.min_free_id = len(Blob2d.used_ids)
             return index
+
+        db_len = len(Blob2d.used_ids)
+        db = 0
+
 
         if self.id >= len(Blob2d.used_ids):
             Blob2d.used_ids.resize([self.id + 50]) # NOTE can alter this value, for now expanding by 50, which will be filled with zeros
-            Blob2d.used_ids[self.id] = 1 # 1 for used
-        elif Blob2d.used_ids[self.id] == 1:
+            Blob2d.used_ids[self.id] = 1 # 1 for used, no need to check if the value has been used as we are in a new range
+            Blob2d.all[self.id] = self
+
+            db = 1
+        elif self.id < 0 or Blob2d.used_ids[self.id] == 1: # This id has already been used
             oldid = self.id
             self.id = getNextID()
             if not quiet:
                 print('Updated id from ' + str(oldid) + ' to ' + str(self.id) + '  ' + str(self))
-
-        else:
+            Blob2d.all[self.id] = self
+            Blob2d.used_ids[self.id] = 1
+            db = 2
+        else: # Fill this id entry for the first time
             if not quiet:
                 print('Updated entry for ' + str(self.id))
+            #DEBUG
+            if self.id == 0:
+                print("DB UPDATING ID 0")
+            db = 3
             Blob2d.used_ids[self.id] = 1
+            Blob2d.all[self.id] = self
+        # print('DB validated the id:' + str(self.id) + ' db value is:' + str(db))
+        #DEBUG
+        if self.id == 0:
+            print('ID was 0, b2dids:' + str(Blob2d.getkeys()))
+            print('Old len of used ids:' + str(db_len))
+            print('Current:' + str(len(Blob2d.used_ids)))
+            print('DB:' + str(db))
+            print('Blob2d.all[id]:' + str(Blob2d.all.get(self.id)))
+            print(Blob2d.used_ids)
+            pass
 
 
-    def __init__(self, idnum, list_of_pixels, height, offsetx=0, offsety=0, recursive_depth=0, parentID=-1, direct_child_ids=[]): # CHANGED to height from slide, removed master_array
+    def __init__(self, list_of_pixels, height, offsetx=0, offsety=0, recursive_depth=0, parentID=-1, direct_child_ids=[]): # CHANGED to height from slide, removed master_array
         assert(recursive_depth == 0 or parentID != -1)
 
-        self.id = idnum
-        self.validateID() # NOTE NEW
+
         Blob2d.total_blobs += 1
         self.pixels = list_of_pixels
         self.num_pixels = len(list_of_pixels)
@@ -88,6 +123,8 @@ class Blob2d:
         # self.setTouchingBlobs()
         self.max_width = self.maxx-self.minx + 1 # Note +1 to include both endcaps
         self.max_height = self.maxy-self.miny + 1 # Note +1 to include both endcaps
+        self.id = -1
+        self.validateID() # self is added to Blob2d.all dict here
 
     def setEdge(self):
         pixeldict = Pixel.pixelstodict(self.pixels)
@@ -116,15 +153,31 @@ class Blob2d:
                     else:
                         self.slide.equivalency_set.add((self.id, curn.blob_id))
 
-
-    def updateid(self, newid):
+    @staticmethod
+    def updateid(oldid, newid):
         '''
         Update the blob's id and the id of all pixels in the blob
         Better this was, as we dont have to check each pixel's id, just each blobs (externally!) before chaging pixels
         '''
-        self.id = newid
-        for pix in self.pixels:
+
+        print(' DB updating the id for:' + str(Blob2d.all[oldid]) + ' to new id' + str(newid))
+        #TODO
+        Blob2d.used_ids[oldid] = 0
+        Blob2d.used_ids[newid] = 1
+        buf = Blob2d.all[oldid]
+        for pix in buf.pixels:
             pix.blob_id = newid
+        buf.id = newid
+
+        Blob2d.all[newid] = buf
+        Blob2d.all[oldid] = None
+        print(' DB updated to' + str(Blob2d.all[newid]))
+
+
+
+        # self.id = newid
+        # for pix in self.pixels:
+        #     pix.blob_id = newid
 
 
     def setPossiblePartners(self, slide, **kwargs):
@@ -158,7 +211,8 @@ class Blob2d:
 
             debugging = debugflag == 1 and self.id in debug2ds and blob.id in debug2ds
 
-
+            # Grabbing static entry:
+            blob = Blob2d.get(blob)
 
             inBounds = False
             partnerSmaller = False
@@ -184,7 +238,7 @@ class Blob2d:
 
 
             if inBounds:
-                self.possible_partners.append(blob)
+                self.possible_partners.append(blob.id)
                 # print('DEBUG  Inspected blob was added to current blob\'s possible partners')
                 # TODFO here we find a subset of the edge pixels from the potential partner that correspond to the area
                 # NOTE use self.avgx, self.avgy
@@ -318,13 +372,13 @@ class Blob2d:
             if debug_set_merge:
                 print('**Curblob:' + str(blob1))
             for (index2, blob2) in enumerate(copylist[1:]):
-                if blob2.id == blob1.id:
+                if blob2 == blob1:
                     if debug_set_merge:
                         print('   Found blobs to merge: ' + str(blob1) + ' & ' + str(blob2))
-                    if blob1.recursive_depth != blob2.recursive_depth:
+                    if Blob2d.get(blob1).recursive_depth != Blob2d.get(blob2).recursive_depth:
                         print('WARNING merging two blobs of different recursive depths:' + str(blob1) + ' & ' + str(blob2))
                     merged = True
-                    newpixels = newpixels + blob2.pixels
+                    newpixels = newpixels + Blob2d.get(blob2).pixels
             if merged == False:
                 if debug_set_merge:
                     print('--Never merged on blob:' + str(blob1))
@@ -338,13 +392,13 @@ class Blob2d:
                 while index < len(copylist):
                     if debug_set_merge:
                         print(' Checking to delete:' + str(copylist[index]))
-                    if copylist[index].id == blob1.id:
+                    if copylist[index] == blob1:
                         if debug_set_merge:
                             print('  Deleting:' + str(copylist[index]))
                         del copylist[index]
                         index -= 1
                     index += 1
-                newlist.append(Blob2d(blob1.id, blob1.pixels + newpixels, blob1.master_array, blob1.slide, recursive_depth=blob1.recursive_depth, parentID=min(blob1.parentID, blob2.parentID), direct_children=blob1.children + blob2.children))
+                newlist.append(Blob2d(Blob2d.get(blob1).pixels + newpixels, Blob2d.get(blob1).master_array, Blob2d.get(blob1).slide, recursive_depth=Blob2d.get(blob1).recursive_depth, parentID=min(Blob2d.get(blob1).parentID, Blob2d.get(blob2).parentID), direct_children=Blob2d.get(blob1).children + Blob2d.get(blob2).children))
                 if debug_set_merge:
                     print(' Merging, newlist-post:' + str(newlist))
                     print(' Merging, copylist-post:' + str(copylist))
@@ -448,8 +502,6 @@ class Blob2d:
     def pixels_to_blob2ds(pixellist, parentID=-1, recursive_depth=0, modify=False): # Modify true if we want to modify the pixels passed, otherwise make new ones
         #HACK
 
-        print('DB called pixels to blob2ds, parentID:' + str(parentID) + ' rd:' + str(recursive_depth))
-
 
         if modify:
             pixelistcopy = pixellist
@@ -521,5 +573,5 @@ class Blob2d:
         # Ids will be validated
         # print('Incoming pixellist:' + str(pixellist))
         # print('Blob2dlists:' + str(blob2dlists))
-        b2ds = [Blob2d(0, blob2dlist, blob2dlist[0].z, parentID=parentID, recursive_depth=recursive_depth) for blob2dlist in blob2dlists if len(blob2dlist) > 0]
+        b2ds = [Blob2d(blob2dlist, blob2dlist[0].z, parentID=parentID, recursive_depth=recursive_depth) for blob2dlist in blob2dlists if len(blob2dlist) > 0]
         return b2ds

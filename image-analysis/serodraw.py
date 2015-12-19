@@ -522,6 +522,8 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
             for p_num, pixel in enumerate(blob2d.edge_pixels):
                 edge_pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * zdim)]
             offsets[index] += len(blob2d.edge_pixels)
+        print('----DB adding edge_array:' + str(edge_pixel_arrays))
+
         for color_num, edge_array in enumerate(edge_pixel_arrays):
             view.add(visuals.Markers(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 ))
 
@@ -567,12 +569,11 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
 
 
 
-
+    axis = visuals.XYZAxis(parent=view.scene)
     view.camera = 'turntable'  # or try 'arcball'
     view.camera.elevation = -55
     view.camera.azimuth = 1
     view.camera.distance = .5
-    axis = visuals.XYZAxis(parent=view.scene)
     vispy.app.run()
 
 def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None, costs=0, maxcolors=-1, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800,800), b2d_midpoint_values=0, titleNote=''):

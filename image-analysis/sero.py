@@ -52,15 +52,21 @@ def munkresCompare(blob1, blob2):
     return total_cost, indeces
 
 
-def doPickle(blob3dlist, filename, directory='pickles', note=''):
+def doPickle(blob3dlist, filename, directory=PICKLEDIR, note=''):
     pickledict = dict()
     pickledict['blob3ds'] = blob3dlist
     pickledict['xdim'] = xdim
     pickledict['ydim'] = ydim
     pickledict['zdim'] = zdim
+    pickledict['allb2ds'] = Blob2d.all
+    pickledict['usedb2ds'] = Blob2d.used_ids
     pickledict['note'] = note # TODO use info to rememeber info about different pickles
     if directory != '':
-        filename = directory + '/' + filename
+        if directory[-1] not in ['/', '\\']:
+            slash = '/'
+        else:
+            slash = ''
+        filename = directory + slash + filename
     try:
         print('Saving to pickle:'+ str(filename))
         if note != '':
@@ -75,32 +81,28 @@ def doPickle(blob3dlist, filename, directory='pickles', note=''):
 
 
 def unPickle(filename, directory=PICKLEDIR):
-        filename = directory + '/' + filename
+        if directory[-1] not in ['/', '\\']:
+            slash = '/'
+        else:
+            slash = ''
+        filename = directory + slash + filename
         print('Loading from pickle:' + str(filename))
         pickledict = pickle.load(open(filename, "rb"))
         blob3dlist = pickledict['blob3ds']
         xdim = pickledict['xdim']
         ydim = pickledict['ydim']
         zdim = pickledict['zdim']
+
+        Blob2d.all = pickledict['allb2ds']
+        Blob2d.used_ids = pickledict['usedb2ds']
         # TODO look for info
         if 'note' in pickledict and pickledict['note'] != '':
             print('Included note:' + pickledict['note'])
         setglobaldims(xdim, ydim, zdim)
-        # print('Before unpickle, Blob2d.total_blobs=' + str(Blob2d.total_blobs))
         for blob3d in blob3dlist:
             for blob2d in blob3d.blob2ds:
-                blob2d.validateID(quiet=True)
+                Blob2d.all[blob2d].validateID(quiet=True) # NOTE by validating the id here, we are adding the blob2d to the master array
                 Blob2d.total_blobs += 1
-        # for index, val in enumerate(Blob2d.used_ids):
-        #     print('(' + str(index) + ',' + str(val) + ')', end=',')
-        # new_b2ds = [blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds]
-        # print('\nThere is a total of ' + str(len(new_b2ds)) + ' new b2ds')
-        # for b2d in new_b2ds:
-        #     print(b2d.id, end = ',')
-
-        # print('After unpickle, Blob2d.total_blobs=' + str(Blob2d.total_blobs))
-
-
         return blob3dlist
 
 
@@ -156,7 +158,9 @@ def main():
 
     note = 'Was created by setting distance cost log to base 2 instead of 10, and multiplying by contour_cost'
     if test_instead_of_data:
-         picklefile = 'pickletest_refactor4.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
+         # picklefile = 'pickletest_refactor4.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
+         # picklefile = 'pickletest_converting_blob2ds_to_static.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
+         picklefile = 'pickletest_envy.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
     else:
         picklefile = 'all_data_regen_after_stitches_refactored_to_pairing_log2_times.pickle'
     if not dePickle:
@@ -184,20 +188,39 @@ def main():
         Slide.setAllPossiblePartners(all_slides)
         Slide.setAllShapeContexts(all_slides)
         t_start_munkres = time.time()
+
+
+        # #DEBUG
+        for key, val in Blob2d.all.items():
+            print(val)
+        #     print('Before: ' + str(val.debugFlag) + ' ' + str(val))
+        #     val.debugFlag = True
+        #     print('After : ' + str(val.debugFlag) + ' ' + str(val))
+
+        # debug()
+
         stitchlist = Pairing.stitchAllBlobs(all_slides, debug=False)
         t_finish_munkres = time.time()
         print('Done stitching together blobs, total time for all: ', end='')
         printElapsedTime(t_start_munkres, t_finish_munkres)
 
+        # DEBUG
+        # slide_b2ds = [b2d for slide in all_slides for b2d in slide.blob2dlist]
+        # print('Slide b2ds:' + str(slide_b2ds)) # TODO make these integers
+        # print('Used ids:' + str(Blob2d.used_ids))
+        # print('All raw: ' + str(Blob2d.all))
+        # debug()
+
         print('About to merge 2d blobs into 3d')
         list3ds = []
         for slide_num, slide in enumerate(all_slides):
             for blob in slide.blob2dlist:
-                buf = blob.getconnectedblob2ds()
+                buf = Blob2d.get(blob).getconnectedblob2ds()
                 if len(buf) != 0:
-                    list3ds.append(buf)
+                    list3ds.append([b2d.id for b2d in buf])
         blob3dlist = []
         for blob2dlist in list3ds:
+            # print('DB Creating b3d from blob2dlist:' + str(blob2dlist))
             blob3dlist.append(Blob3d(blob2dlist))
         print('There are a total of ' + str(len(blob3dlist)) + ' blob3ds')
         Blob3d.tagBlobsSingular(blob3dlist) # TODO improve the simple classification
@@ -209,6 +232,7 @@ def main():
 
         # blob3dlist = unPickle(directory='H:/Dropbox/Serotonin/pickles/recursive/', filename='depth1_subset_of_b3ds.pickle'))
         blob3dlist = unPickle(picklefile)
+
 
     # b2ds = [b2d for b3d in blob3dlist for b2d in b3d.blob2ds]
     # plotBlob2ds(b2ds) #TODO need to remove stitches from blob2ds?
@@ -234,18 +258,10 @@ def main():
 
     # plotBlob2ds(blob3dlist[0].blob2ds) # DEBUG no issue plotting b2ds here
     # blob3dlist = sorted(blob3dlist, key=lambda b3d: b3d.pixels, reverse=True) # Sorting for biggest first
-    allb2ds = sorted([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
-
-    #picklefix
-    for b2d in allb2ds:
-        b2d.recursive_depth = 0
-        b2d.parentID = -1
-        b2d.children = []
 
 
+    allb2ds = sorted([Blob2d.get(blob2d) for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
 
-    # print('Number of b2ds=' + str(len(allb2ds)))
-    # print('Original b2ds:')
     # prepixellists = [b2d.pixels for b2d in allb2ds]
     # plotPixelLists(prepixellists)
 
@@ -284,22 +300,11 @@ def main():
             #     pixel.z -= 2
             # allpixels.append(blob2d.pixels)
             plotPixelLists(allpixels)
-    print('Generated a total of ' + str(len(all_gen_b2ds)) + ' blob2ds, from the original' + str(len(allb2ds)))
-    # plotBlob2ds(all_gen_b2ds, stitches=True, coloring='depth')
+    print('Generated a total of ' + str(len(all_gen_b2ds)) + ' blob2ds, from the original ' + str(len(allb2ds)))
+    print(all_gen_b2ds)
+    plotBlob2ds(all_gen_b2ds, stitches=False, coloring='blob2d')
 
-    print('Printing all original blob2ds:')
-    for b2d in allb2ds:
-        print(b2d)
 
-    plotBlob2ds(all_gen_b2ds + allb2ds, stitches=True, coloring='depth')
-    allpixellists = [b2d.pixels for b2d in all_gen_b2ds]
-    # plotBlob2ds(all_gen_b2ds)
-    # print('RETESTING plotblob2ds')
-    # plotBlob2ds(blob3dlist[0].blob2ds) # DEBUG
-    # plotBlob2ds([all_gen_b2ds[0]]) # DEBUG
-    # plotBlob3d(blob3dlist[0])
-
-    # plotPixelLists(allpixellists)
 
 
 
