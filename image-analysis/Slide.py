@@ -113,7 +113,8 @@ class Slide:
         self.blob2dlist = [] # Note that blobs in the blob list are ordered by number of pixels, not id, this makes merging faster
 
         for (blobnum, blobslist) in enumerate(id_lists):
-            self.blob2dlist.append(Blob2d(blobslist[0].blob_id, blobslist, self.height))
+            newb2d = Blob2d(blobslist, self.height)
+            self.blob2dlist.append(newb2d.id)
 
         # Note that we can now sort the Blob2d.equivalency_set b/c all blobs have been sorted
         self.equivalency_set = sorted(self.equivalency_set)
@@ -149,18 +150,27 @@ class Slide:
 
         # Sets to lists for indexing,
         # Note that in python, sets are always unordered, and so a derivative list must be sorted.
-        for (index,stl) in enumerate(equiv_sets):
+
+        db_blob2d_list = [Blob2d.get(b2d) for b2d in self.blob2dlist]
+
+        print('DB working on slide, w/ blob2list: ' + str(db_blob2d_list))
+
+        for (index,stl) in enumerate(equiv_sets): # TODO this can be changed to be faster after b2ds are statically indexed
             equiv_sets[index] = sorted(stl) # See note
         for blob in self.blob2dlist: # NOTE Merging sets
             for equivlist in equiv_sets:
-                if blob.id != equivlist[0] and blob.id in equivlist: # Not the base and in the list
-                    blob.updateid(equivlist[0])
+                if blob != equivlist[0] and blob in equivlist: # Not the base and in the list
+                    # blob.updateid(equivlist[0])
+                    Blob2d.updateid(blob , equivlist[0])
+
+
+
         self.blob2dlist = Blob2d.mergeblobs(self.blob2dlist) # NOTE, by assigning the returned Blob2d list to a new var, the results of merging can be demonstrated
         self.edge_pixels = []
         edge_lists = []
         for (blobnum, blobslist) in enumerate(self.blob2dlist):
-            edge_lists.append(self.blob2dlist[blobnum].edge_pixels)
-            self.edge_pixels.extend(self.blob2dlist[blobnum].edge_pixels)
+            edge_lists.append(Blob2d.get(self.blob2dlist[blobnum]).edge_pixels)
+            self.edge_pixels.extend(Blob2d.get(self.blob2dlist[blobnum]).edge_pixels)
         if not quiet:
             self.tf = time.time()
             printElapsedTime(self.t0, self.tf)
@@ -180,7 +190,7 @@ class Slide:
             for slide in slides_at_height:
                 for blob in slide.blob2dlist:
                     for above_slide in slides_by_height[height + 1]:
-                        blob.setPossiblePartners(above_slide, **kwargs)
+                        Blob2d.get(blob).setPossiblePartners(above_slide, **kwargs)
 
     @staticmethod
     def setAllShapeContexts(slidelist):
@@ -188,7 +198,7 @@ class Slide:
         # Note The paper uses 'Representative Shape Contexts' to do inital matching; I will do away with this in favor of checking bounds for possible overlaps
         for slide in slidelist:
             for blob in slide.blob2dlist:
-                blob.setShapeContexts(36)
+                Blob2d.get(blob).setShapeContexts(36)
 
 
     def getNextBlobId(self):

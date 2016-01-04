@@ -1,8 +1,9 @@
 from Slide import Slide, SubSlide, printElapsedTime
 from Stitches import Pairing
 from sero import doPickle
-from serodraw import plotBlob3d, showSlide, showBlob2d, plotBlob2ds
+from serodraw import plotBlob3d, showSlide, showBlob2d, plotBlob2ds, debug
 import time
+from Blob2d import Blob2d
 class Blob3d:
     '''
     A group of blob2ds that chain together with pairings into a 3d shape
@@ -17,23 +18,32 @@ class Blob3d:
         # Now find my pairings
         self.isSubblob = subblob # T/F
         self.pairings = []
-        self.lowslideheight = min(blob.slide.height for blob in self.blob2ds)
-        self.highslideheight = max(blob.slide.height for blob in self.blob2ds)
+        self.lowslideheight = min(Blob2d.get(blob).height for blob in self.blob2ds)
+        self.highslideheight = max(Blob2d.get(blob).height for blob in self.blob2ds)
         self.pixels = []
         self.edge_pixels = []
         self.recursive_depth = 0
-        for blob in self.blob2ds:
+        for blobid in self.blob2ds:
+            blob = Blob2d.get(blobid)
+            if blob is None:
+                print('WARNING got None when looking for a blob2d with id:' + str(blobid))
+                print('All:' + str(Blob2d.getall()))
+                print('Used ids:' + str(Blob2d.used_ids))
+                print('All raw: ' + str(Blob2d.all))
+                buf = Blob2d.all
+                debug()
+
             self.pixels += blob.pixels
             self.edge_pixels += blob.edge_pixels
             for stitch in blob.pairings:
                 if stitch not in self.pairings: # TODO set will be faster
                     self.pairings.append(stitch)
-        self.maxx = max(blob.maxx for blob in self.blob2ds)
-        self.maxy = max(blob.maxy for blob in self.blob2ds)
-        self.miny = min(blob.miny for blob in self.blob2ds)
-        self.minx = min(blob.minx for blob in self.blob2ds)
-        self.avgx = sum(blob.avgx for blob in self.blob2ds) / len(self.blob2ds)
-        self.avgy = sum(blob.avgy for blob in self.blob2ds) / len(self.blob2ds)
+        self.maxx = max(Blob2d.get(blob).maxx for blob in self.blob2ds)
+        self.maxy = max(Blob2d.get(blob).maxy for blob in self.blob2ds)
+        self.miny = min(Blob2d.get(blob).miny for blob in self.blob2ds)
+        self.minx = min(Blob2d.get(blob).minx for blob in self.blob2ds)
+        self.avgx = sum(Blob2d.get(blob).avgx for blob in self.blob2ds) / len(self.blob2ds)
+        self.avgy = sum(Blob2d.get(blob).avgy for blob in self.blob2ds) / len(self.blob2ds)
         self.avgz = (self.lowslideheight + self.highslideheight) / 2
         self.isSingular = False
         self.subblobs = []
@@ -62,7 +72,7 @@ class Blob3d:
             singular = True
             for blob2d_num, blob2d in enumerate(blob3d.blob2ds):
                 if blob2d_num != 0 or blob2d_num != len(blob3d.blob2ds): # Endcap exceptions due to texture
-                    if len(blob3d.pairings) > 3: # Note ideally if > 2
+                    if len(blob3d.pairings) > 3: # Note ideally if > 2 # FIXME strange..
                         singular = False
                         break
             blob3d.isSingular = singular
@@ -127,7 +137,8 @@ class Blob3d:
         test_slides = []
         slides_from_debug_blob2ds = []
         debug_blob2ds_sublobs = []
-        for b2d_num,blob2d in enumerate(self.blob2ds):
+        for b2d_num,blob2did in enumerate(self.blob2ds):
+            blob2d = Blob2d.get(blob2did)
             if debugging and b2d_num in debug2ds and display:
                 print('From blob2d #' + str(b2d_num) + ':' + str(blob2d))
                 showBlob2d(blob2d)
@@ -165,7 +176,8 @@ class Blob3d:
         test_pairings = Pairing.stitchAllBlobs(test_slides, quiet=True, debug=False)
         if debugging:
             print('Done stitching all blob2ds')
-            for b2d in debug_blob2ds_sublobs:
+            for blob2did in debug_blob2ds_sublobs:
+                b2d = Blob2d.get(blob2did)
                 print(' B2D:' + str(b2d) + ' has ' + str(len(b2d.possible_partners)) + ' possible partners')
                 # print('  Connectedb2ds:' + str(b2d.getconnectedblob2ds()))
                 print('  # Pairings:' + str(len(b2d.pairings)))

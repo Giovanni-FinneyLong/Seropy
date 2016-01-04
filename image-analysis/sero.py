@@ -9,7 +9,7 @@ from Blob3d import *
 import pickle # Note uses cPickle automatically ONLY IF python 3
 from Stitches import Pairing
 from serodraw import *
-
+import glob
 
 
 
@@ -52,15 +52,21 @@ def munkresCompare(blob1, blob2):
     return total_cost, indeces
 
 
-def doPickle(blob3dlist, filename, directory='pickles', note=''):
+def doPickle(blob3dlist, filename, directory=PICKLEDIR, note=''):
     pickledict = dict()
     pickledict['blob3ds'] = blob3dlist
     pickledict['xdim'] = xdim
     pickledict['ydim'] = ydim
     pickledict['zdim'] = zdim
+    pickledict['allb2ds'] = Blob2d.all
+    pickledict['usedb2ds'] = Blob2d.used_ids
     pickledict['note'] = note # TODO use info to rememeber info about different pickles
     if directory != '':
-        filename = directory + '/' + filename
+        if directory[-1] not in ['/', '\\']:
+            slash = '/'
+        else:
+            slash = ''
+        filename = directory + slash + filename
     try:
         print('Saving to pickle:'+ str(filename))
         if note != '':
@@ -75,32 +81,28 @@ def doPickle(blob3dlist, filename, directory='pickles', note=''):
 
 
 def unPickle(filename, directory=PICKLEDIR):
-        filename = directory + '/' + filename
+        if directory[-1] not in ['/', '\\']:
+            slash = '/'
+        else:
+            slash = ''
+        filename = directory + slash + filename
         print('Loading from pickle:' + str(filename))
         pickledict = pickle.load(open(filename, "rb"))
         blob3dlist = pickledict['blob3ds']
         xdim = pickledict['xdim']
         ydim = pickledict['ydim']
         zdim = pickledict['zdim']
+
+        Blob2d.all = pickledict['allb2ds']
+        Blob2d.used_ids = pickledict['usedb2ds']
         # TODO look for info
         if 'note' in pickledict and pickledict['note'] != '':
             print('Included note:' + pickledict['note'])
         setglobaldims(xdim, ydim, zdim)
-        # print('Before unpickle, Blob2d.total_blobs=' + str(Blob2d.total_blobs))
         for blob3d in blob3dlist:
             for blob2d in blob3d.blob2ds:
-                blob2d.validateID(quiet=True)
+                Blob2d.all[blob2d].validateID(quiet=True) # NOTE by validating the id here, we are adding the blob2d to the master array
                 Blob2d.total_blobs += 1
-        # for index, val in enumerate(Blob2d.used_ids):
-        #     print('(' + str(index) + ',' + str(val) + ')', end=',')
-        # new_b2ds = [blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds]
-        # print('\nThere is a total of ' + str(len(new_b2ds)) + ' new b2ds')
-        # for b2d in new_b2ds:
-        #     print(b2d.id, end = ',')
-
-        # print('After unpickle, Blob2d.total_blobs=' + str(Blob2d.total_blobs))
-
-
         return blob3dlist
 
 
@@ -121,7 +123,6 @@ def segment_horizontal(blob3d):
             display = True
         if display:
             plotBlob3d(blob3d)
-
 
 
 def bloomInwards(blob2d):
@@ -157,7 +158,9 @@ def main():
 
     note = 'Was created by setting distance cost log to base 2 instead of 10, and multiplying by contour_cost'
     if test_instead_of_data:
-         picklefile = 'pickletest_refactor4.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
+         # picklefile = 'pickletest_refactor4.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
+         # picklefile = 'pickletest_converting_blob2ds_to_static.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
+         picklefile = 'pickletest_envy.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
     else:
         picklefile = 'all_data_regen_after_stitches_refactored_to_pairing_log2_times.pickle'
     if not dePickle:
@@ -189,16 +192,16 @@ def main():
         t_finish_munkres = time.time()
         print('Done stitching together blobs, total time for all: ', end='')
         printElapsedTime(t_start_munkres, t_finish_munkres)
-
         print('About to merge 2d blobs into 3d')
         list3ds = []
         for slide_num, slide in enumerate(all_slides):
             for blob in slide.blob2dlist:
-                buf = blob.getconnectedblob2ds()
+                buf = Blob2d.get(blob).getconnectedblob2ds()
                 if len(buf) != 0:
-                    list3ds.append(buf)
+                    list3ds.append([b2d.id for b2d in buf])
         blob3dlist = []
         for blob2dlist in list3ds:
+            # print('DB Creating b3d from blob2dlist:' + str(blob2dlist))
             blob3dlist.append(Blob3d(blob2dlist))
         print('There are a total of ' + str(len(blob3dlist)) + ' blob3ds')
         Blob3d.tagBlobsSingular(blob3dlist) # TODO improve the simple classification
@@ -212,36 +215,16 @@ def main():
         blob3dlist = unPickle(picklefile)
 
     # plotBlob3ds(blob3dlist)
+    allb2ds = sorted([Blob2d.get(blob2d) for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
+    # plotBlob2ds(allb2ds, stitches=True, coloring='depth')
+    # exit()
 
-
-    # for blob3d in blob3dlist: # HACK
-    #     blob3d.recursive_depth = 0
-    # if False:
-    #     print('Before:' + str(len(blob3dlist)))
-    #     Blob3d.generateSublobs(blob3dlist)
-    #     print('After:' + str(len(blob3dlist)))
-    #     if test_instead_of_data:
-    #         doPickle(blob3dlist, 'all_test_blobs_and_subblobs.pickle')
-    #     else:
-    #         doPickle(blob3dlist, 'all_data_blobs_and_subblobs.pickle')
-    #
-    # else:
-    #     if test_instead_of_data:
-    #         blob3dlist = unPickle('all_test_blobs_and_subblobs.pickle')
-    #     else:
-    #         blob3dlist = unPickle('all_data_blobs_and_subblobs.pickle')
-
-    # plotBlob2ds(blob3dlist[0].blob2ds) # DEBUG no issue plotting b2ds here
-    # blob3dlist = sorted(blob3dlist, key=lambda b3d: b3d.pixels, reverse=True) # Sorting for biggest first
-    allb2ds = sorted([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
-    print('Number of b2ds=' + str(len(allb2ds)))
-    print('Original b2ds:')
-    prepixellists = [b2d.pixels for b2d in allb2ds]
-    plotPixelLists(prepixellists)
+    # prepixellists = [b2d.pixels for b2d in allb2ds]
+    # plotPixelLists(prepixellists)
 
     no_bloom_b2ds = []
     all_gen_b2ds = []
-    for bnum, blob2d in enumerate(allb2ds):
+    for bnum, blob2d in enumerate(allb2ds[:10]):
         # showBlob2d(b2d)
         print('Blooming b2d: ' + str(bnum) + '/' + str(len(allb2ds)) + ' = ' + str(blob2d) )
         bloomstages = bloomInwards(blob2d) # NOTE will have len 0 if no blooming can be done
@@ -250,13 +233,13 @@ def main():
         # plotPixelLists(bloomstages)
 
         if len(bloomstages) == 0:
-            print('Didnt derive any bloomstages for b2d:' + str(blob2d))
-            # plotBlob2ds([blob2d], stitches=False)
             no_bloom_b2ds.append(blob2d)
         #TODO now need to analyze the stages of blooming
         blob2dlists_by_stage = []
+
+
         for snum, stage in enumerate(bloomstages):
-            b2ds = Blob2d.pixels_to_blob2ds(stage, modify=False) # NOTE making new pixels, rather than messing with existing
+            b2ds = Blob2d.pixels_to_blob2ds(stage, parentID=blob2d.id, recursive_depth=blob2d.recursive_depth+1+snum, modify=False) # NOTE making new pixels, rather than messing with existing
             blob2dlists_by_stage.append(b2ds)
         b2ds_from_b2d = [b2d for blob2dlist in blob2dlists_by_stage for b2d in blob2dlist]
         all_gen_b2ds = all_gen_b2ds + b2ds_from_b2d
@@ -272,17 +255,98 @@ def main():
             #     pixel.z -= 2
             # allpixels.append(blob2d.pixels)
             plotPixelLists(allpixels)
-    print('Generated a total of ' + str(len(all_gen_b2ds)) + ' blob2ds')
-    # for b2d in all_gen_b2ds:
-    #     print(b2d)
-    allpixellists = [b2d.pixels for b2d in all_gen_b2ds]
-    # plotBlob2ds(all_gen_b2ds)
-    # print('RETESTING plotblob2ds')
-    # plotBlob2ds(blob3dlist[0].blob2ds) # DEBUG
-    # plotBlob2ds([all_gen_b2ds[0]]) # DEBUG
-    # plotBlob3d(blob3dlist[0])
+    print('Generated a total of ' + str(len(all_gen_b2ds)) + ' blob2ds, from the original ' + str(len(allb2ds)))
 
-    plotPixelLists(allpixellists)
+    # plotBlob2ds(all_gen_b2ds, stitches=True, coloring='')
+    # allb2ds = [b2d for b2d in list(Blob2d.all.values())]
+    # print(all_gen_b2ds[:50])
+    # plotBlob2ds(allb2ds, stitches=True, coloring='', ids=False)
+    print('Total number of blob2ds:' + str(len(Blob2d.all)))
+    Blob2d.alive = [True] * len(Blob2d.all) # Used to keep track of which blob2ds are being ignored
+    base_b2ds = [b2d for b2d in Blob2d.all.values() if b2d.recursive_depth == 0 and len(b2d.children)]
+    print('Len of base b2ds:' + str(len(base_b2ds)))
+    print('Len of gen b2ds:' + str(len(all_gen_b2ds)))
+    check = [Blob2d.get(child) for b2d in base_b2ds for child in b2d.children]
+    print('Len of check b2ds:' + str(len(check)) + ' (should match gen b2ds)')
+
+    print(base_b2ds)
+    print('-------')
+    print(check)
+    plotBlob2ds(base_b2ds + check)
+    plotBlob2ds(set(Blob2d.all.values()) - set(base_b2ds + check))
+
+
+
+
+    # TODO the b2ds generated via blooming do not have the correct number of pixels
+    # Their #EP = #P, so we need to go through all children, and add their child's pixels to theirs
+    ##Update here rather than outside.
+    # Note that we can store b2ds in the main dict pretty easily. We can decide to delete ones under a certain size if we'd like to
+    # Therefore, we can delete the relationships that we dont need
+    # This can be done by merging blob2ds or deleting from the dict
+
+
+
+    # print(all_gen_b2ds)
+    # max_depth = max(Blob2d.get(b2d).recursive_depth for b2d in all_gen_b2ds)
+    # print('The max depth is: ' + str(max_depth))
+    # cur_depth = max_depth
+    # while(cur_depth >= 0):
+    #     b2ds_at_depth = [Blob2d.get(b2d) for b2d in all_gen_b2ds if Blob2d.get(b2d).recursive_depth == cur_depth]
+    #     for b2d in b2ds_at_depth:
+    #         total_pixels = 0
+    #         for child in b2d.children:
+    #             print(child)
+    #     print(b2ds_at_depth)
+    #     cur_depth -= 1
+
+    # print(Blob2d.all)
+    # for b2d in Blob2d.all.values():
+    #     print(b2d)
+
+
+
+
+
+
+
+
+
+
+
+    # cur_depth = 0
+    #
+    # doneb2ds = []
+    # workingb2ds = [b2d.id for b2d in allb2ds]
+    #
+    # excludedb2ds = []
+    # depth = 0
+    #
+    #
+    # while len(workingb2ds) != 0:
+    #     next_working = []
+    #
+    #     print('workingb2ds:' + str(workingb2ds))
+    #     for index in workingb2ds:
+    #         print(' Index:' + str(index) + ' / ' + str(len(workingb2ds)) + ' len doneb2ds:' + str(len(doneb2ds)))
+    #         b2d = Blob2d.get(index)
+    #         if len(b2d.pixels) >= min_pixels_to_be_independent:
+    #             doneb2ds.append(b2d.id)
+    #             for subb2d in b2d.children:
+    #                 if len(Blob2d.get(subb2d).pixels) >= min_pixels_to_be_independent:
+    #                     workingb2ds.append(subb2d)
+    #                 else:
+    #                     excludedb2ds.append(subb2d)
+    #         else:
+    #             excludedb2ds.append(b2d)
+    #     workingb2ds = next_working
+    #
+    # doneb2ds = [Blob2d.get(id) for id in doneb2ds]
+    # print('Doneb2ds:' + str(doneb2ds))
+    # for b2d in doneb2ds:
+    #     print(b2d)
+
+
 
 
 
@@ -305,13 +369,7 @@ def main():
 
 
 
-
     # NOTE temp: in the original 20 swellshark scans, there are ~ 11K blobs, ~9K pairings
-    # blob3dlist[2].blob2ds[0].saveImage('test2.jpg')
-    # Note, current plan is to find all blob3d's that exists with singular pairings between each 2d blob
-    # These blobs should be 'known' to be singular blobs.
-    # An additional heuristic may be necessary, potentially using the cost from Munkres()
-    # Or computing a new cost based on the displacements between stitched pixelsS
     # Note: Without endcap mod (3 instead of 2), had 549 singular blobs, 900 non-singular
     # Note: Ignoring endcaps, and setting general threshold to 3 instead of 2, get 768 songular, and 681 non-singular
 

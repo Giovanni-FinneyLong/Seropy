@@ -3,7 +3,7 @@ import numpy as np
 from munkres import Munkres
 from myconfig import *
 from serodraw import debug, progressBarUpdate
-# import Pixel
+from Blob2d import Blob2d
 import time
 class Pairing:
     """
@@ -170,6 +170,9 @@ class Pairing:
                 print('Starting slide #' + str(slide_num) + '/' + str(len(slidelist)) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds')
 
             for blob1 in slide.blob2dlist:
+                #Converting to static:
+                blob1 = Blob2d.get(blob1)
+
                 if len(blob1.possible_partners) > 0:
                     if debug and blob1.debugFlag is True:
                         print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
@@ -178,6 +181,8 @@ class Pairing:
                 sub_start_time = time.time()
 
                 for b2_num, blob2 in enumerate(blob1.possible_partners):
+                    #Converting to static:
+                    blob2 = Blob2d.get(blob2)
                     if debug and (blob1.debugFlag is True or blob2.debugFlag is True):
                         print('   Comparing to blob2:' + str(blob2))
                     t0 = time.time()
@@ -205,17 +210,17 @@ class Pairing:
         else:
             cost_str = str(self.cost)
 
-        return str('<Stitch between slides:(' + str(self.lowerslidenum) + ',' + str(self.upperslidenum) + ') with blobs (' +
+        return str('<Pairing between blob2ds at heights:(' + str(self.lowerheight) + ',' + str(self.upperheight) + ') with ids (' +
                    str(self.lowerblob.id) + ',' + str(self.upperblob.id) + '). Chose:' + str(len(self.lowerpixels)) +
                    '/' + str(len(self.lowerblob.edge_pixels)) + ' lower blob pixels and ' + str(len(self.upperpixels)) +
                    '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels. ' + 'Cost:' + cost_str + '>')
     __repr__ = __str__
 
-    def __init__(self, lowerblob, upperblob, overscan_scale, num_bins, quiet=False):
+    def __init__(self, lowerblob, upperblob, overscan_scale, num_bins, quiet=True):
         self.overscan_scale = overscan_scale
         self.num_bins = num_bins
-        self.lowerslidenum = lowerblob.slide.height # CHANGED
-        self.upperslidenum = upperblob.slide.height # CHANGED
+        self.lowerheight = lowerblob.height # CHANGED
+        self.upperheight = upperblob.height # CHANGED
         self.lowerblob = lowerblob
         self.upperblob = upperblob
         self.upperpixels = self.edgepixelsinbounds(upperblob, lowerblob)
