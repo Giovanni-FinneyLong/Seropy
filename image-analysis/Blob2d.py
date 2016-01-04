@@ -565,12 +565,14 @@ class Blob2d:
 
 
         # TODO this update is very expensive, need to separate this lists of children from the blob2ds (into another dict), therefore no need for a deep copy of a blob2d
-        # print('-Preparent1:' + str(Blob2d.all[parentID - 1].children))
+
+        # print('DB before child update: ' + str(Blob2d.get(parentID).children))
         buff = copy.deepcopy(Blob2d.get(parentID)) # Note confirmed this doesnt change Blob2d.all
         buff.children += [b2d.id for b2d in b2ds]
         # print('-Parent1        :' + str(Blob2d.all[parentID].children))
         # print('-Buff (w/update):' + str(buff.children))
         Blob2d.all[parentID] = buff
+        # print('DB after child update: ' + str(Blob2d.get(parentID).children))
         # print('-Parent2:   ' + str(Blob2d.all[parentID].children))
         # print('-Preparent2:' + str(Blob2d.all[parentID - 1].children))
 

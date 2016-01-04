@@ -142,6 +142,7 @@ if mayPlot:
     colors.remove('wheat')
     colors.remove('yellowgreen')
     print('There are a total of ' + str(len(colors)) + ' colors available for plotting')
+    # openglconfig = vispy.gloo.wrappers.get_gl_configuration()
 
 
 
