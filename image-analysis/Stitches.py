@@ -3,7 +3,6 @@ import numpy as np
 from munkres import Munkres
 from myconfig import *
 from serodraw import debug, progressBarUpdate
-# import Pixel
 from Blob2d import Blob2d
 import time
 class Pairing:

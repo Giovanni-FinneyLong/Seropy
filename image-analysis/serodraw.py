@@ -2,18 +2,10 @@ __author__ = 'gio'
 # This file includes the various functions written to visualize data from within sero.py
 # These functions have been separated for convenience; they are higher volume and lower maintenance.
 
-from sklearn.cluster import MeanShift, estimate_bandwidth
-from itertools import cycle
-from sklearn.cluster import AffinityPropagation
-from sklearn import metrics
-import matplotlib
-import tkinter
 # HACK HACK
 # matplotlib.use('GTK3Agg')
 # http://www.swharden.com/blog/2013-04-15-fixing-slow-matplotlib-in-pythonxy/
 # http://matplotlib.org/faq/usage_faq.html#what-is-a-backend
-import glob
-from Pixel import Pixel
 from myconfig import *
 
 
@@ -471,7 +463,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
 
     assert coloring.lower() in ['blob2d', '', 'depth'] + colors
 
-
+    print(blob2ds)
     xmin = min(blob2d.minx for blob2d in blob2ds)
     ymin = min(blob2d.miny for blob2d in blob2ds)
     xmax = max(blob2d.maxx for blob2d in blob2ds)
@@ -503,12 +495,10 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
             for p_num, pixel in enumerate(blob2d.edge_pixels):
                 edge_pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * zdim)]
             offsets[index] += len(blob2d.edge_pixels)
-
-        print("DB adding " + str(len(edge_pixel_arrays)) + ' sets of colors for ' + str(len(blob2ds)) + ' blob2ds and ' + str(len(colors)) + ' colors)')
         for color_num, edge_array in enumerate(edge_pixel_arrays):
             view.add(visuals.Markers(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 ))
     else:
-        # DEPTH
+        # DEPTH # TODO TODO TODO FIX THIS, issue when plotting with multiple depths (plotting d0 works)
         max_depth = max(blob2d.recursive_depth for blob2d in blob2ds if hasattr(blob2d, 'recursive_depth'))
         min_depth = min(blob2d.recursive_depth for blob2d in blob2ds if hasattr(blob2d, 'recursive_depth'))
         markers_per_color = [0 for i in range(min(len(colors), max_depth + 1))]
@@ -522,7 +512,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
             for p_num, pixel in enumerate(blob2d.edge_pixels):
                 edge_pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * zdim)]
             offsets[index] += len(blob2d.edge_pixels)
-        print('----DB adding edge_array:' + str(edge_pixel_arrays))
+        print('----DB adding edge arrays :' + str(edge_pixel_arrays))
 
         for color_num, edge_array in enumerate(edge_pixel_arrays):
             view.add(visuals.Markers(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 ))
@@ -558,8 +548,8 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
                     for lowerpnum, upperpnum in pairing.indeces:
                         lowerpixel = pairing.lowerpixels[lowerpnum]
                         upperpixel = pairing.upperpixels[upperpnum]
-                        line_locations[line_index] = [(lowerpixel.x - xmin) / xdim, (lowerpixel.y - ymin) / ydim, (pairing.lowerslidenum) / ( z_compression * zdim)]
-                        line_locations[line_index + 1] = [(upperpixel.x - xmin) / xdim, (upperpixel.y - ymin) / ydim, (pairing.upperslidenum) / ( z_compression * zdim)]
+                        line_locations[line_index] = [(lowerpixel.x - xmin) / xdim, (lowerpixel.y - ymin) / ydim, (pairing.lowerheight) / ( z_compression * zdim)]
+                        line_locations[line_index + 1] = [(upperpixel.x - xmin) / xdim, (upperpixel.y - ymin) / ydim, (pairing.upperheight) / ( z_compression * zdim)]
                         line_index += 2
             stitch_lines = visuals.Line(method=linemethod)
             stitch_lines.set_data(pos=line_locations, connect='segments')

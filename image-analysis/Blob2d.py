@@ -2,6 +2,8 @@ from myconfig import *
 import numpy as np
 import math
 from Pixel import Pixel
+import copy
+
 if mayPlot:
     from scipy import misc as scipy_misc
 
@@ -86,7 +88,7 @@ class Blob2d:
             pass
 
 
-    def __init__(self, list_of_pixels, height, offsetx=0, offsety=0, recursive_depth=0, parentID=-1, direct_child_ids=[]): # CHANGED to height from slide, removed master_array
+    def __init__(self, list_of_pixels, height, offsetx=0, offsety=0, recursive_depth=0, parentID=-1): # CHANGED to height from slide, removed master_array
         assert(recursive_depth == 0 or parentID != -1)
 
 
@@ -100,7 +102,7 @@ class Blob2d:
         self.offsety = offsety
         self.recursive_depth = recursive_depth
         self.parentID = parentID
-        self.children = direct_child_ids
+        self.children = []
 
         # self.master_array = master_array
         # self.slide = slide
@@ -501,8 +503,6 @@ class Blob2d:
     @staticmethod
     def pixels_to_blob2ds(pixellist, parentID=-1, recursive_depth=0, modify=False): # Modify true if we want to modify the pixels passed, otherwise make new ones
         #HACK
-
-
         if modify:
             pixelistcopy = pixellist
         else:
@@ -517,7 +517,6 @@ class Blob2d:
         alive = set(pixelistcopy)
         blob2dlists = []
         while len(alive):
-            # print('   db looping, len(alive):' + str(len(alive)))
             alivedict = Pixel.pixelstodict(alive)
             pixel = next(iter(alive)) # Basically alive[0]
             neighbors = set(pixel.neighborsfromdict(alivedict))
@@ -526,9 +525,6 @@ class Blob2d:
             while (len(neighbors) == 0 or not done) and len(alive) > 0:
                 # print('    Index:' + str(index) + ' len of neighbors:' + str(len(neighbors)) + ' len of alive:' + str(len(alive)))
                 if index < len(alive):
-                    #DEBUG
-                    # print('    db assigning pixel in try')
-
                     try:
                         pixel = list(alive)[index] # Basically alive[0] # TODO fix this to get the index set to the next iteration
                         index += 1
@@ -539,8 +535,6 @@ class Blob2d:
                         pass #DEBUG
                         import pbt
                         pbt.set_trace()
-
-
                 else:
                     done = True
                     # Note this needs testing!!!!
@@ -555,7 +549,6 @@ class Blob2d:
                         index = 0
             oldneighbors = set() # TODO can make this more efficient
             while len(oldneighbors) != len(neighbors):
-                # print('     db looping in neighbors')
                 oldneighbors = set(neighbors)
                 newneighbors = set(neighbors)
                 # print(' Iterating through: ' + str(len(neighbors)) + ' neighbors to cursor pixel & its found neighbors')
@@ -565,13 +558,32 @@ class Blob2d:
             # print(' DB found a group which make up a blob2d:' + str(neighbors) + ' \n  consisting of ' + str(len(neighbors)) + ' pixels')
             blob2dlists.append(list(neighbors))
             alive = alive - neighbors
-            # print(' Len of alive:' + str(len(alive)))
-        # print('Found blob2dlists for stage:' + str(blob2dlists))
-        # for b2dlist in blob2dlists:
-        #     print('  ' + str(b2dlist))
-        # # TODO
-        # Ids will be validated
-        # print('Incoming pixellist:' + str(pixellist))
-        # print('Blob2dlists:' + str(blob2dlists))
+
+        # TODO need to seperate lists that are disjoint
+
         b2ds = [Blob2d(blob2dlist, blob2dlist[0].z, parentID=parentID, recursive_depth=recursive_depth) for blob2dlist in blob2dlists if len(blob2dlist) > 0]
+
+
+        # TODO this update is very expensive, need to separate this lists of children from the blob2ds (into another dict), therefore no need for a deep copy of a blob2d
+        # print('-Preparent1:' + str(Blob2d.all[parentID - 1].children))
+        buff = copy.deepcopy(Blob2d.get(parentID)) # Note confirmed this doesnt change Blob2d.all
+        buff.children += [b2d.id for b2d in b2ds]
+        # print('-Parent1        :' + str(Blob2d.all[parentID].children))
+        # print('-Buff (w/update):' + str(buff.children))
+        Blob2d.all[parentID] = buff
+        # print('-Parent2:   ' + str(Blob2d.all[parentID].children))
+        # print('-Preparent2:' + str(Blob2d.all[parentID - 1].children))
+
+
+
+
+
+
+        if Blob2d.get(parentID).recursive_depth > 0:
+            print('  BEFORE:' + str(Blob2d.get(parentID)))
+            Blob2d.all[parentID].pixels += [pixel for b2d in b2ds for pixel in b2d.pixels]
+            print('  AFTER:' + str(Blob2d.get(parentID)))
+
+        b2ds = [b2d.id for b2d in b2ds]
+
         return b2ds
