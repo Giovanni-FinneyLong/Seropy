@@ -141,7 +141,13 @@ def bloomInwards(blob2d):
         for pixel in last_edge:
             edge_neighbors = edge_neighbors | set(pixel.neighborsfromdict(alldict)) # - set(blob2d.edge_pixels)
         edge_neighbors = edge_neighbors - last_edge
-        bloomstages.append(list(edge_neighbors))
+
+
+        # bloomstages.append(list(edge_neighbors))
+        bloomstages.append(livepix)
+        usedpix = usedpix | edge_neighbors
+
+
         last_edge = edge_neighbors
         livepix = livepix - edge_neighbors
         # plotPixels(blob2d.edge_pixels)
@@ -224,7 +230,7 @@ def main():
 
     no_bloom_b2ds = []
     all_gen_b2ds = []
-    for bnum, blob2d in enumerate(allb2ds[:10]):
+    for bnum, blob2d in enumerate([allb2ds[3]]): # HACK
         # showBlob2d(b2d)
         print('Blooming b2d: ' + str(bnum) + '/' + str(len(allb2ds)) + ' = ' + str(blob2d) )
         bloomstages = bloomInwards(blob2d) # NOTE will have len 0 if no blooming can be done
@@ -257,7 +263,20 @@ def main():
             plotPixelLists(allpixels)
     print('Generated a total of ' + str(len(all_gen_b2ds)) + ' blob2ds, from the original ' + str(len(allb2ds)))
 
-    # plotBlob2ds(all_gen_b2ds, stitches=True, coloring='')
+
+    verifyb2ds = [Blob2d.get(b2d) for b2d in all_gen_b2ds]
+    for index, b2d in enumerate(verifyb2ds):
+        print(b2d)
+        b2d.height = b2d.recursive_depth # SO that can compare in plotting
+
+    print('Base b2d:')
+    plotBlob2ds([allb2ds[3]], edge=False, ids=True)
+
+    print('PLOTTING FOR VERIFICATION')
+    print('Children:' + str(len(Blob2d.get(allb2ds[3].id).children)))
+    for child in Blob2d.get(allb2ds[3].id).children:
+        print(Blob2d.get(child))
+    plotBlob2ds(verifyb2ds, stitches=True, coloring='', edge=False, ids=True)
     # allb2ds = [b2d for b2d in list(Blob2d.all.values())]
     # print(all_gen_b2ds[:50])
     # plotBlob2ds(allb2ds, stitches=True, coloring='', ids=False)

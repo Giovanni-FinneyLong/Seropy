@@ -456,7 +456,7 @@ def contrastSaturatedBlob2ds(blob2ds, minimal_edge_pixels=350):
         else:
             print('Skipping, as blob2d had only: ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
 
-def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches=True, titleNote=''):
+def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches=True, titleNote='', edge=True):
     global canvas
     global view
     global colors
@@ -479,23 +479,34 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size,
                                      title='plotBlob2ds(' + str(len(blob2ds)) + '-Blob2ds, coloring=' + str(coloring) + ' canvas_size=' + str(canvas_size) + ') ' + titleNote)
     view = canvas.central_widget.add_view()
-    edge_pixel_arrays = []
+    pixel_arrays = []
     markers = []
 
 
     if coloring in ['blob2d', '']:
         markers_per_color = [0 for i in range(min(len(colors), len(blob2ds)))]
         offsets = [0] * min(len(colors), len(blob2ds))
-        for blobnum, blob2d in enumerate(blob2ds):
-            markers_per_color[blobnum % len(markers_per_color)] += len(blob2d.edge_pixels)
+        if edge:
+            for blobnum, blob2d in enumerate(blob2ds):
+                markers_per_color[blobnum % len(markers_per_color)] += len(blob2d.edge_pixels)
+        else:
+            for blobnum, blob2d in enumerate(blob2ds):
+                markers_per_color[blobnum % len(markers_per_color)] += len(blob2d.pixels)
         for num,i in enumerate(markers_per_color):
-            edge_pixel_arrays.append(np.zeros([i, 3]))
+            pixel_arrays.append(np.zeros([i, 3]))
         for blobnum, blob2d in enumerate(blob2ds):
             index = blobnum % len(markers_per_color)
-            for p_num, pixel in enumerate(blob2d.edge_pixels):
-                edge_pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * zdim)]
-            offsets[index] += len(blob2d.edge_pixels)
-        for color_num, edge_array in enumerate(edge_pixel_arrays):
+
+            if edge:
+                for p_num, pixel in enumerate(blob2d.edge_pixels):
+                    pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, blob2d.height / ( z_compression * zdim)]
+                offsets[index] += len(blob2d.edge_pixels)
+            else:
+                for p_num, pixel in enumerate(blob2d.pixels):
+                    pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, blob2d.height / ( z_compression * zdim)]
+                offsets[index] += len(blob2d.pixels)
+
+        for color_num, edge_array in enumerate(pixel_arrays):
             view.add(visuals.Markers(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 ))
     else:
         # DEPTH # TODO TODO TODO FIX THIS, issue when plotting with multiple depths (plotting d0 works)
@@ -506,15 +517,15 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
         for blobnum, blob2d in enumerate(blob2ds):
             markers_per_color[blob2d.recursive_depth % len(markers_per_color)] += len(blob2d.edge_pixels)
         for num,i in enumerate(markers_per_color):
-            edge_pixel_arrays.append(np.zeros([i, 3]))
+            pixel_arrays.append(np.zeros([i, 3]))
         for blobnum, blob2d in enumerate(blob2ds):
             index = blob2d.recursive_depth % len(markers_per_color)
             for p_num, pixel in enumerate(blob2d.edge_pixels):
-                edge_pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * zdim)]
+                pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * zdim)]
             offsets[index] += len(blob2d.edge_pixels)
-        print('----DB adding edge arrays :' + str(edge_pixel_arrays))
+        print('----DB adding edge arrays :' + str(pixel_arrays))
 
-        for color_num, edge_array in enumerate(edge_pixel_arrays):
+        for color_num, edge_array in enumerate(pixel_arrays):
             view.add(visuals.Markers(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 ))
 
 
