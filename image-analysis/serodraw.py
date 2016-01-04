@@ -142,6 +142,7 @@ if mayPlot:
     colors.remove('wheat')
     colors.remove('yellowgreen')
     print('There are a total of ' + str(len(colors)) + ' colors available for plotting')
+    # openglconfig = vispy.gloo.wrappers.get_gl_configuration()
 
 
 
@@ -496,7 +497,9 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
                 edge_pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * zdim)]
             offsets[index] += len(blob2d.edge_pixels)
         for color_num, edge_array in enumerate(edge_pixel_arrays):
-            view.add(visuals.Markers(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 ))
+            buf = visuals.Markers()
+            buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8)
+            view.add(buf)
     else:
         # DEPTH # TODO TODO TODO FIX THIS, issue when plotting with multiple depths (plotting d0 works)
         max_depth = max(blob2d.recursive_depth for blob2d in blob2ds if hasattr(blob2d, 'recursive_depth'))

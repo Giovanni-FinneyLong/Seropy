@@ -272,10 +272,11 @@ def main():
     print(base_b2ds)
     print('-------')
     print(check)
-    plotBlob2ds(base_b2ds + check)
-    plotBlob2ds(set(Blob2d.all.values()) - set(base_b2ds + check))
+    # plotBlob2ds(base_b2ds + check)
+    print('-------')
 
-
+    print(set(Blob2d.all.values()) - set(base_b2ds + check))
+    print(len(set(Blob2d.all.values()) - set(base_b2ds + check)))
 
 
     # TODO the b2ds generated via blooming do not have the correct number of pixels
@@ -285,7 +286,27 @@ def main():
     # Therefore, we can delete the relationships that we dont need
     # This can be done by merging blob2ds or deleting from the dict
 
+    allb2ds = sorted([Blob2d.get(blob2d) for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
 
+    count = 0
+    children = 0
+    for b2d in Blob2d.all.values():
+        if len(b2d.children):
+            count += 1
+            children += len(b2d.children)
+            print(b2d)
+    base_without_children = [b2d for b2d in Blob2d.all.values() if len(b2d.children) == 0 and b2d.recursive_depth == 0]
+    print('There are ' + str(count) + ' b2ds with children')
+    print('There have a total of ' + str(children) + ' children')
+    print('There are ' + str(len(base_without_children)) + ' base b2ds who didnt have children')
+    print('There are a total of ' + str(len(Blob2d.all)) + ' b2ds')
+    # NOTE: The sum of base blobs with & without children and the count of their children = the total number of b2ds, so at this point we are successfully
+
+
+    # for b2d in allb2ds:
+    #     print(b2d)
+    #     for child in b2d.children:
+    #         print('  ' + str(child))
 
     # print(all_gen_b2ds)
     # max_depth = max(Blob2d.get(b2d).recursive_depth for b2d in all_gen_b2ds)
