@@ -270,7 +270,7 @@ def main():
         b2d.height = b2d.recursive_depth # SO that can compare in plotting
 
     print('Base b2d:')
-    plotBlob2ds([allb2ds[3]], edge=False, ids=True)
+    # plotBlob2ds([allb2ds[3]], edge=False, ids=True)
 
     print('PLOTTING FOR VERIFICATION')
     print('Children:' + str(len(Blob2d.get(allb2ds[3].id).children)))

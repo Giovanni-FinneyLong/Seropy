@@ -464,13 +464,21 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
 
     assert coloring.lower() in ['blob2d', '', 'depth'] + colors
 
-    print(blob2ds)
+    print('Plotting the blob2ds: ' + str(blob2ds))
     xmin = min(blob2d.minx for blob2d in blob2ds)
     ymin = min(blob2d.miny for blob2d in blob2ds)
     xmax = max(blob2d.maxx for blob2d in blob2ds)
     ymax = max(blob2d.maxy for blob2d in blob2ds)
     zmin = min(blob2d.height for blob2d in blob2ds)
     zmax = max(blob2d.height for blob2d in blob2ds)
+
+    # xmin = min(pixel.x for b2d in blob2ds for pixel in b2d.edge_pixels)
+    # ymin = min(pixel.y for b2d in blob2ds for pixel in b2d.edge_pixels)
+    # xmax = max(pixel.x for b2d in blob2ds for pixel in b2d.edge_pixels)
+    # ymax = max(pixel.y for b2d in blob2ds for pixel in b2d.edge_pixels)
+
+
+
 
     xdim = xmax - xmin + 1
     ydim = ymax - ymin + 1
@@ -500,15 +508,17 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
 
             if edge:
                 for p_num, pixel in enumerate(blob2d.edge_pixels):
-                    pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, blob2d.height / ( z_compression * zdim)]
+                    pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (blob2d.height - zmin) / ( z_compression * zdim)]
                 offsets[index] += len(blob2d.edge_pixels)
             else:
                 for p_num, pixel in enumerate(blob2d.pixels):
-                    pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, blob2d.height / ( z_compression * zdim)]
+                    pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (blob2d.height - zmin) / ( z_compression * zdim)]
                 offsets[index] += len(blob2d.pixels)
 
         for color_num, edge_array in enumerate(pixel_arrays):
-            view.add(visuals.Markers(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 ))
+            buf = visuals.Markers()
+            buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
+            view.add(buf)
     else:
         # DEPTH # TODO TODO TODO FIX THIS, issue when plotting with multiple depths (plotting d0 works)
         max_depth = max(blob2d.recursive_depth for blob2d in blob2ds if hasattr(blob2d, 'recursive_depth'))
@@ -522,12 +532,14 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
         for blobnum, blob2d in enumerate(blob2ds):
             index = blob2d.recursive_depth % len(markers_per_color)
             for p_num, pixel in enumerate(blob2d.edge_pixels):
-                pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * zdim)]
+                pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (blob2d.height - zmin) / ( z_compression * zdim)]
             offsets[index] += len(blob2d.edge_pixels)
         print('----DB adding edge arrays :' + str(pixel_arrays))
 
         for color_num, edge_array in enumerate(pixel_arrays):
-            view.add(visuals.Markers(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 ))
+            buf = visuals.Markers()
+            buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
+            view.add(buf)
 
 
 
@@ -537,7 +549,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
         midpoints = []
         midpoints.append(np.zeros([1,3]))
         for b2d_num, b2d in enumerate(blob2ds): #FIXME! For some reason overloads the ram.
-            midpoints[-1] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, b2d.height / (z_compression * zdim)]
+            midpoints[-1] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, ((b2d.height + .25 - zmin) / (z_compression * zdim))]
             textStr = str(b2d.id)
             if coloring == '' or coloring == 'blob2d':
                 color = colors[b2d_num % len(colors)]
