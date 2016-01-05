@@ -148,6 +148,82 @@ def bloomInwards(blob2d, depth=0):
 
 
 
+
+
+
+@profile
+def experiment(blob3dlist):
+
+    # plotBlob3ds(blob3dlist)
+    allb2ds = sorted([Blob2d.get(blob2d) for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
+
+
+    start_offset = 2
+
+    all_desc = []
+    t_start_bloom = time.time()
+    for bnum, blob2d in enumerate(allb2ds[:start_offset]): # HACK need to put the colon on the right of start_offset
+        # showBlob2d(b2d)
+        print('Blooming b2d: ' + str(bnum + start_offset) + '/' + str(len(allb2ds)) + ' = ' + str(blob2d) )
+        bloomInwards(blob2d) # NOTE will have len 0 if no blooming can be done
+        base = Blob2d.get(blob2d.id)
+        desc = base.getdescendants()
+        all_desc += desc
+        # print('Printing descendants ')
+        # base.printdescendants()
+        # plotBlob2ds(desc, edge=False, ids=True, parentlines=True)
+
+        # for index, b2d in enumerate(desc):
+        #     b2d.height = b2d.recursive_depth
+        # print('Desc:' + str(desc))
+        # plotBlob2ds(desc, edge=False, ids=True, parentlines=True,explode=True, titleNote=str('The blob serving as the base is #' + str(bnum) + ' / ' + str(len(allb2ds))))
+
+    print('To complete all blooming:')
+    printElapsedTime(t_start_bloom, time.time())
+
+    #refresh
+    # allb2ds = sorted([Blob2d.get(blob2d) for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
+
+    # rec_is_3 = [b2d for b2d in Blob2d.all.values() if b2d.recursive_depth == 3]
+    # print(len(rec_is_3))
+    # test = rec_is_3[0]
+    # print('Test=' + str(test))
+    # test_desc = test.getrelated()
+    # print('All related:')
+    #
+    # for d in test_desc:
+    #     print('  ' + str(d))
+    # debug()
+
+
+    # print('Plotting all blob2ds exploded')
+    # plotBlob2ds(all_desc, edge=True, ids=False, parentlines=True,explode=True)
+    # debug()
+    # #refresh
+    # allb2ds = sorted([Blob2d.get(blob2d) for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
+    #
+    # count = 0
+    # children = 0
+    # for b2d in Blob2d.all.values():
+    #     if len(b2d.children):
+    #         count += 1
+    #         children += len(b2d.children)
+    # base_without_children = [b2d for b2d in Blob2d.all.values() if len(b2d.children) == 0 and b2d.recursive_depth == 0]
+    # print('There are ' + str(count) + ' b2ds with children')
+    # print('There have a total of ' + str(children) + ' children')
+    # print('There are ' + str(len(base_without_children)) + ' base b2ds who didnt have children')
+    # print('There are a total of ' + str(len(Blob2d.all)) + ' b2ds')
+    # # NOTE: The sum of base blobs with & without children and the count of their children = the total number of b2ds, so at this point we are successfully
+
+
+
+
+
+
+
+
+
+# @profile
 def main():
 
     sys.setrecursionlimit(7000) # HACK
@@ -208,73 +284,13 @@ def main():
     else:
         # blob3dlist = unPickle(directory='H:/Dropbox/Serotonin/pickles/recursive/', filename='depth1_subset_of_b3ds.pickle'))
         blob3dlist = unPickle(picklefile)
-    # plotBlob3ds(blob3dlist)
-    allb2ds = sorted([Blob2d.get(blob2d) for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
+    #NOTE at this point, after unpickling the entire swellshark dataset, memory usage is 2.2GB (for Python.exe)
+
+    experiment(blob3dlist)
 
 
-    start_offset = 0
-
-    all_desc = []
-    t_start_bloom = time.time()
-    for bnum, blob2d in enumerate(allb2ds[start_offset:]): # HACK need to put the colon on the right of start_offset
-        # showBlob2d(b2d)
-        print('Blooming b2d: ' + str(bnum + start_offset) + '/' + str(len(allb2ds)) + ' = ' + str(blob2d) )
-        bloomstages = bloomInwards(blob2d) # NOTE will have len 0 if no blooming can be done
-        base = Blob2d.get(blob2d.id)
-        desc = base.getdescendants()
-        all_desc += desc
-        # print('Printing descendants ')
-        # base.printdescendants()
-        # plotBlob2ds(desc, edge=False, ids=True, parentlines=True)
-
-        # for index, b2d in enumerate(desc):
-        #     b2d.height = b2d.recursive_depth
-        # print('Desc:' + str(desc))
-        # plotBlob2ds(desc, edge=False, ids=True, parentlines=True,explode=True, titleNote=str('The blob serving as the base is #' + str(bnum) + ' / ' + str(len(allb2ds))))
-
-    print('To complete all blooming:')
-    printElapsedTime(t_start_bloom, time.time())
-
-    #refresh
-    # allb2ds = sorted([Blob2d.get(blob2d) for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
-
-    # rec_is_3 = [b2d for b2d in Blob2d.all.values() if b2d.recursive_depth == 3]
-    # print(len(rec_is_3))
-    # test = rec_is_3[0]
-    # print('Test=' + str(test))
-    # test_desc = test.getrelated()
-    # print('All related:')
-    #
-    # for d in test_desc:
-    #     print('  ' + str(d))
-    # debug()
-
-
-    print('Plotting all blob2ds exploded')
-    plotBlob2ds(all_desc, edge=True, ids=False, parentlines=True,explode=True)
-
-    debug()
-
-
-
-
-    #refresh
-    allb2ds = sorted([Blob2d.get(blob2d) for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
-
-    count = 0
-    children = 0
-    for b2d in Blob2d.all.values():
-        if len(b2d.children):
-            count += 1
-            children += len(b2d.children)
-    base_without_children = [b2d for b2d in Blob2d.all.values() if len(b2d.children) == 0 and b2d.recursive_depth == 0]
-    print('There are ' + str(count) + ' b2ds with children')
-    print('There have a total of ' + str(children) + ' children')
-    print('There are ' + str(len(base_without_children)) + ' base b2ds who didnt have children')
-    print('There are a total of ' + str(len(Blob2d.all)) + ' b2ds')
-    # NOTE: The sum of base blobs with & without children and the count of their children = the total number of b2ds, so at this point we are successfully
-
-
+if __name__ == '__main__':
+    main()  # Run the main function
 
     # NOTE: Idea to test: keep looking through bloom stages until all blob2ds less than a certain size. Then stitch with the original
 
@@ -296,9 +312,3 @@ def main():
     # NOTE temp: in the original 20 swellshark scans, there are ~ 11K blobs, ~9K pairings
     # Note: Without endcap mod (3 instead of 2), had 549 singular blobs, 900 non-singular
     # Note: Ignoring endcaps, and setting general threshold to 3 instead of 2, get 768 songular, and 681 non-singular
-
-if __name__ == '__main__':
-    main()  # Run the main function
-
-# TODO time to switch to sparse matrices, it seems that there are indeed computational optimizations
-# TODO other sklearn clustering techniques: http://scikit-learn.org/stable/modules/clustering.html
