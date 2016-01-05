@@ -125,37 +125,27 @@ def segment_horizontal(blob3d):
             plotBlob3d(blob3d)
 
 
-def bloomInwards(blob2d):
+def bloomInwards(blob2d, depth=0):
     # TODO this will require a method to determine if a point is inside a polygon
     # See: https://en.wikipedia.org/wiki/Point_in_polygon
-
-    usedpix = set(blob2d.edge_pixels)
     livepix = set(set(blob2d.pixels) - set(blob2d.edge_pixels))
-
+    # else:
+    #     livepix = set(blob2d.edge_pixels)
     bloomstages = []
     last_edge = set(blob2d.edge_pixels)
 
-    while(len(livepix) > 1):
-        alldict = Pixel.pixelstodict(livepix)
-        edge_neighbors = set()
-        for pixel in last_edge:
-            edge_neighbors = edge_neighbors | set(pixel.neighborsfromdict(alldict)) # - set(blob2d.edge_pixels)
-        edge_neighbors = edge_neighbors - last_edge
+    alldict = Pixel.pixelstodict(livepix)
+    edge_neighbors = set()
+    for pixel in last_edge:
+        edge_neighbors = edge_neighbors | set(pixel.neighborsfromdict(alldict)) # - set(blob2d.edge_pixels)
+    edge_neighbors = edge_neighbors - last_edge
+    bloomstages.append(livepix)
+    livepix = livepix - edge_neighbors
+    b2ds = Blob2d.pixels_to_blob2ds(bloomstages[-1], parentID=blob2d.id, recursive_depth=blob2d.recursive_depth+1, modify=False) # NOTE making new pixels, rather than messing with existing
+    if len(livepix) > 1:
+        for b2d in b2ds:
+            bloomInwards(Blob2d.get(b2d), depth=depth+1)
 
-
-        # bloomstages.append(list(edge_neighbors))
-        bloomstages.append(livepix)
-        usedpix = usedpix | edge_neighbors
-
-
-        last_edge = edge_neighbors
-        livepix = livepix - edge_neighbors
-        # plotPixels(blob2d.edge_pixels)
-        # plotPixels(edge_neighbors)
-        # plotPixels(livepix)
-    # print(bloomstages)
-    # print('Iterations:' + str(len(bloomstages)))
-    return bloomstages
 
 
 def main():
@@ -168,7 +158,7 @@ def main():
          # picklefile = 'pickletest_converting_blob2ds_to_static.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
          picklefile = 'pickletest_envy.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
     else:
-        picklefile = 'all_data_regen_after_stitches_refactored_to_pairing_log2_times.pickle'
+        picklefile = 'All_data_redone_1-5_with_maximal_blooming.pickle'
     if not dePickle:
         setMasterStartTime()
         if test_instead_of_data:
@@ -180,8 +170,8 @@ def main():
         all_images = glob.glob(dir + extension)
         #
         # # HACK
-        if not test_instead_of_data:
-            all_images = all_images[:3]
+        # if not test_instead_of_data:
+        #     all_images = all_images[:3]
         # # HACK
         #
         print(all_images)
@@ -216,95 +206,59 @@ def main():
         doPickle(blob3dlist, picklefile)
 
     else:
-
         # blob3dlist = unPickle(directory='H:/Dropbox/Serotonin/pickles/recursive/', filename='depth1_subset_of_b3ds.pickle'))
         blob3dlist = unPickle(picklefile)
-
     # plotBlob3ds(blob3dlist)
     allb2ds = sorted([Blob2d.get(blob2d) for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
-    # plotBlob2ds(allb2ds, stitches=True, coloring='depth')
-    # exit()
 
-    # prepixellists = [b2d.pixels for b2d in allb2ds]
-    # plotPixelLists(prepixellists)
 
-    no_bloom_b2ds = []
-    all_gen_b2ds = []
-    for bnum, blob2d in enumerate([allb2ds[3]]): # HACK
+    start_offset = 0
+
+    all_desc = []
+    t_start_bloom = time.time()
+    for bnum, blob2d in enumerate(allb2ds[start_offset:]): # HACK need to put the colon on the right of start_offset
         # showBlob2d(b2d)
-        print('Blooming b2d: ' + str(bnum) + '/' + str(len(allb2ds)) + ' = ' + str(blob2d) )
+        print('Blooming b2d: ' + str(bnum + start_offset) + '/' + str(len(allb2ds)) + ' = ' + str(blob2d) )
         bloomstages = bloomInwards(blob2d) # NOTE will have len 0 if no blooming can be done
+        base = Blob2d.get(blob2d.id)
+        desc = base.getdescendants()
+        all_desc += desc
+        # print('Printing descendants ')
+        # base.printdescendants()
+        # plotBlob2ds(desc, edge=False, ids=True, parentlines=True)
 
-        # print(' Showing blooming, stages=' + str(len(bloomstages)))
-        # plotPixelLists(bloomstages)
+        # for index, b2d in enumerate(desc):
+        #     b2d.height = b2d.recursive_depth
+        # print('Desc:' + str(desc))
+        # plotBlob2ds(desc, edge=False, ids=True, parentlines=True,explode=True, titleNote=str('The blob serving as the base is #' + str(bnum) + ' / ' + str(len(allb2ds))))
 
-        if len(bloomstages) == 0:
-            no_bloom_b2ds.append(blob2d)
-        #TODO now need to analyze the stages of blooming
-        blob2dlists_by_stage = []
+    print('To complete all blooming:')
+    printElapsedTime(t_start_bloom, time.time())
 
+    #refresh
+    # allb2ds = sorted([Blob2d.get(blob2d) for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
 
-        for snum, stage in enumerate(bloomstages):
-            b2ds = Blob2d.pixels_to_blob2ds(stage, parentID=blob2d.id, recursive_depth=blob2d.recursive_depth+1+snum, modify=False) # NOTE making new pixels, rather than messing with existing
-            blob2dlists_by_stage.append(b2ds)
-        b2ds_from_b2d = [b2d for blob2dlist in blob2dlists_by_stage for b2d in blob2dlist]
-        all_gen_b2ds = all_gen_b2ds + b2ds_from_b2d
-        print(' Generated ' + str(len(b2ds_from_b2d)) + ' blob2ds from b2d:' + str(blob2d))
-        if False: # Visualizing results of b2d => stages => blob2ds
-            print('Blob2d:' + str(blob2d) + ' generated ' + str(len(bloomstages)) + ' bloom stages')
-            print('Bloomstages:')
-            plotPixelLists(bloomstages)
-            print('Plotting all b2ds generated from b2d:' + str(blob2d) + ' a total of: ' + str(len(b2ds_from_b2d)))
-            allpixels = [b2d.pixels for b2d in b2ds_from_b2d]
-            print('Plotting pixel lists from generated blob2ds')
-            # for pixel in blob2d.pixels:
-            #     pixel.z -= 2
-            # allpixels.append(blob2d.pixels)
-            plotPixelLists(allpixels)
-    print('Generated a total of ' + str(len(all_gen_b2ds)) + ' blob2ds, from the original ' + str(len(allb2ds)))
-
-
-    verifyb2ds = [Blob2d.get(b2d) for b2d in all_gen_b2ds]
-    for index, b2d in enumerate(verifyb2ds):
-        print(b2d)
-        b2d.height = b2d.recursive_depth # SO that can compare in plotting
-
-    print('Base b2d:')
-    # plotBlob2ds([allb2ds[3]], edge=False, ids=True)
-
-    print('PLOTTING FOR VERIFICATION')
-    print('Children:' + str(len(Blob2d.get(allb2ds[3].id).children)))
-    for child in Blob2d.get(allb2ds[3].id).children:
-        print(Blob2d.get(child))
-    plotBlob2ds(verifyb2ds, stitches=True, coloring='', edge=False, ids=True)
-    # allb2ds = [b2d for b2d in list(Blob2d.all.values())]
-    # print(all_gen_b2ds[:50])
-    # plotBlob2ds(allb2ds, stitches=True, coloring='', ids=False)
-    print('Total number of blob2ds:' + str(len(Blob2d.all)))
-    Blob2d.alive = [True] * len(Blob2d.all) # Used to keep track of which blob2ds are being ignored
-    base_b2ds = [b2d for b2d in Blob2d.all.values() if b2d.recursive_depth == 0 and len(b2d.children)]
-    print('Len of base b2ds:' + str(len(base_b2ds)))
-    print('Len of gen b2ds:' + str(len(all_gen_b2ds)))
-    check = [Blob2d.get(child) for b2d in base_b2ds for child in b2d.children]
-    print('Len of check b2ds:' + str(len(check)) + ' (should match gen b2ds)')
-
-    print(base_b2ds)
-    print('-------')
-    print(check)
-    # plotBlob2ds(base_b2ds + check)
-    print('-------')
-
-    print(set(Blob2d.all.values()) - set(base_b2ds + check))
-    print(len(set(Blob2d.all.values()) - set(base_b2ds + check)))
+    # rec_is_3 = [b2d for b2d in Blob2d.all.values() if b2d.recursive_depth == 3]
+    # print(len(rec_is_3))
+    # test = rec_is_3[0]
+    # print('Test=' + str(test))
+    # test_desc = test.getrelated()
+    # print('All related:')
+    #
+    # for d in test_desc:
+    #     print('  ' + str(d))
+    # debug()
 
 
-    # TODO the b2ds generated via blooming do not have the correct number of pixels
-    # Their #EP = #P, so we need to go through all children, and add their child's pixels to theirs
-    ##Update here rather than outside.
-    # Note that we can store b2ds in the main dict pretty easily. We can decide to delete ones under a certain size if we'd like to
-    # Therefore, we can delete the relationships that we dont need
-    # This can be done by merging blob2ds or deleting from the dict
+    print('Plotting all blob2ds exploded')
+    plotBlob2ds(all_desc, edge=True, ids=False, parentlines=True,explode=True)
 
+    debug()
+
+
+
+
+    #refresh
     allb2ds = sorted([Blob2d.get(blob2d) for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
 
     count = 0
@@ -313,82 +267,12 @@ def main():
         if len(b2d.children):
             count += 1
             children += len(b2d.children)
-            print(b2d)
     base_without_children = [b2d for b2d in Blob2d.all.values() if len(b2d.children) == 0 and b2d.recursive_depth == 0]
     print('There are ' + str(count) + ' b2ds with children')
     print('There have a total of ' + str(children) + ' children')
     print('There are ' + str(len(base_without_children)) + ' base b2ds who didnt have children')
     print('There are a total of ' + str(len(Blob2d.all)) + ' b2ds')
     # NOTE: The sum of base blobs with & without children and the count of their children = the total number of b2ds, so at this point we are successfully
-
-
-    # for b2d in allb2ds:
-    #     print(b2d)
-    #     for child in b2d.children:
-    #         print('  ' + str(child))
-
-    # print(all_gen_b2ds)
-    # max_depth = max(Blob2d.get(b2d).recursive_depth for b2d in all_gen_b2ds)
-    # print('The max depth is: ' + str(max_depth))
-    # cur_depth = max_depth
-    # while(cur_depth >= 0):
-    #     b2ds_at_depth = [Blob2d.get(b2d) for b2d in all_gen_b2ds if Blob2d.get(b2d).recursive_depth == cur_depth]
-    #     for b2d in b2ds_at_depth:
-    #         total_pixels = 0
-    #         for child in b2d.children:
-    #             print(child)
-    #     print(b2ds_at_depth)
-    #     cur_depth -= 1
-
-    # print(Blob2d.all)
-    # for b2d in Blob2d.all.values():
-    #     print(b2d)
-
-
-
-
-
-
-
-
-
-
-
-    # cur_depth = 0
-    #
-    # doneb2ds = []
-    # workingb2ds = [b2d.id for b2d in allb2ds]
-    #
-    # excludedb2ds = []
-    # depth = 0
-    #
-    #
-    # while len(workingb2ds) != 0:
-    #     next_working = []
-    #
-    #     print('workingb2ds:' + str(workingb2ds))
-    #     for index in workingb2ds:
-    #         print(' Index:' + str(index) + ' / ' + str(len(workingb2ds)) + ' len doneb2ds:' + str(len(doneb2ds)))
-    #         b2d = Blob2d.get(index)
-    #         if len(b2d.pixels) >= min_pixels_to_be_independent:
-    #             doneb2ds.append(b2d.id)
-    #             for subb2d in b2d.children:
-    #                 if len(Blob2d.get(subb2d).pixels) >= min_pixels_to_be_independent:
-    #                     workingb2ds.append(subb2d)
-    #                 else:
-    #                     excludedb2ds.append(subb2d)
-    #         else:
-    #             excludedb2ds.append(b2d)
-    #     workingb2ds = next_working
-    #
-    # doneb2ds = [Blob2d.get(id) for id in doneb2ds]
-    # print('Doneb2ds:' + str(doneb2ds))
-    # for b2d in doneb2ds:
-    #     print(b2d)
-
-
-
-
 
 
 

@@ -2,12 +2,7 @@ __author__ = 'gio'
 # This file includes the various functions written to visualize data from within sero.py
 # These functions have been separated for convenience; they are higher volume and lower maintenance.
 
-# HACK HACK
-# matplotlib.use('GTK3Agg')
-# http://www.swharden.com/blog/2013-04-15-fixing-slow-matplotlib-in-pythonxy/
-# http://matplotlib.org/faq/usage_faq.html#what-is-a-backend
 from myconfig import *
-
 
 if mayPlot:
     import matplotlib.colors as colortools
@@ -33,30 +28,18 @@ if mayPlot:
     frames = 0
     orders = [] # List of tuples of the format ('command', degrees/scaling total, number of iterations)
     order_frame = 0
-
     canvas = None
     view = None
-
-    #TODO this needs work/experimentation:
-
 
 import numpy as np
 import time
 import math
-from PIL import Image
-from numpy import zeros
-# from visvis.vvmovie.images2gif import writeGif
-# from Scripts.images2gif import writeGif
-from scipy.cluster.vq import vq, kmeans, whiten, kmeans2
 from sklearn.preprocessing import normalize
-
 import subprocess
-import readline
-import code
-import rlcompleter
 import pdb
 import os
-from mpl_toolkits.mplot3d import Axes3D
+
+from Blob2d import Blob2d # Interestingly, importing Blob2d directly causes a string list function call error
 
 
 def vispy_info():
@@ -142,17 +125,18 @@ if mayPlot:
     colors.remove('wheat')
     colors.remove('yellowgreen')
     print('There are a total of ' + str(len(colors)) + ' colors available for plotting')
-    # openglconfig = vispy.gloo.wrappers.get_gl_configuration()
+    # openglconfig = vispy.gloo.wrappers.get_gl_configuration() # Causes opengl/vispy crash for unknown reasons
 
 
 
-# NOTE  ##########################
 # NOTE  Setting up global vars:
 current_path = os.getcwd()
 xdim = -1
 ydim = -1
 zdim = -1
 
+def warn(string):
+    print('\n>\n->\n--> WARNING: ' + str(string) + ' <--\n->\n>')
 
 def showColors(canvas_size=(800,800)):
     global canvas
@@ -263,10 +247,8 @@ def isInside(pixel_in, blob2d):
 
     # NOTE will be able to sort this later, to effectively send lines in two directions horizontally
 
-
 def debug():
     pdb.set_trace()
-# NOTE  ##########################
 
 def progressBarUpdate(value, max, min=0, last_update=0, steps=10):
     ''' # TODO not functional
@@ -457,7 +439,7 @@ def contrastSaturatedBlob2ds(blob2ds, minimal_edge_pixels=350):
         else:
             print('Skipping, as blob2d had only: ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
 
-def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches=True, titleNote='', edge=True):
+def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitches=False, titleNote='', edge=True, parentlines=False, explode=False):
     global canvas
     global view
     global colors
@@ -465,6 +447,10 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
     assert coloring.lower() in ['blob2d', '', 'depth'] + colors
 
     print('Plotting the blob2ds: ' + str(blob2ds))
+
+
+
+
     xmin = min(blob2d.minx for blob2d in blob2ds)
     ymin = min(blob2d.miny for blob2d in blob2ds)
     xmax = max(blob2d.maxx for blob2d in blob2ds)
@@ -472,27 +458,28 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
     zmin = min(blob2d.height for blob2d in blob2ds)
     zmax = max(blob2d.height for blob2d in blob2ds)
 
-    # xmin = min(pixel.x for b2d in blob2ds for pixel in b2d.edge_pixels)
-    # ymin = min(pixel.y for b2d in blob2ds for pixel in b2d.edge_pixels)
-    # xmax = max(pixel.x for b2d in blob2ds for pixel in b2d.edge_pixels)
-    # ymax = max(pixel.y for b2d in blob2ds for pixel in b2d.edge_pixels)
-
-
-
-
     xdim = xmax - xmin + 1
     ydim = ymax - ymin + 1
     zdim = zmax - zmin + 1
-    # print((xdim, ydim, zdim))
 
+
+    if explode:
+        if not all(b2d.height == blob2ds[0].height for b2d in blob2ds):
+            warn('Attempting to explode blob2ds that are not all at the same height')
+        for b2d in blob2ds:
+            b2d.height += b2d.recursive_depth / (zdim * max([len(b2d.getrelated()), 1])) # HACK 1.2 to try to correct allignment, may need function worst case
+
+
+
+    if coloring == '':
+        coloring = 'blob2d' # For the canvas title
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size,
                                      title='plotBlob2ds(' + str(len(blob2ds)) + '-Blob2ds, coloring=' + str(coloring) + ' canvas_size=' + str(canvas_size) + ') ' + titleNote)
     view = canvas.central_widget.add_view()
     pixel_arrays = []
-    markers = []
 
 
-    if coloring in ['blob2d', '']:
+    if coloring == 'blob2d':
         markers_per_color = [0 for i in range(min(len(colors), len(blob2ds)))]
         offsets = [0] * min(len(colors), len(blob2ds))
         if edge:
@@ -542,9 +529,6 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
             view.add(buf)
 
 
-
-
-
     if ids is True:
         midpoints = []
         midpoints.append(np.zeros([1,3]))
@@ -578,10 +562,22 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(800,800), ids=False, stitches
             stitch_lines = visuals.Line(method=linemethod)
             stitch_lines.set_data(pos=line_locations, connect='segments')
             view.add(stitch_lines)
-
-
-
-
+    if parentlines:
+        lineendpoints = 0
+        for b2d in blob2ds:
+            lineendpoints += (2 * len(b2d.children))
+        if lineendpoints:
+            line_index = 0
+            line_locations = np.zeros([lineendpoints, 3])
+            for b2d in blob2ds:
+                for child in b2d.children:
+                    child = Blob2d.get(child)
+                    line_locations[line_index] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, (b2d.height - zmin) / ( z_compression * zdim)]
+                    line_locations[line_index + 1] = [(child.avgx - xmin) / xdim, (child.avgy - ymin) / ydim, (child.height - zmin) / ( z_compression * zdim)]
+                    line_index += 2
+            parent_lines = visuals.Line(method=linemethod)
+            parent_lines.set_data(pos=line_locations, connect='segments')
+            view.add(parent_lines)
 
     axis = visuals.XYZAxis(parent=view.scene)
     view.camera = 'turntable'  # or try 'arcball'

@@ -33,6 +33,45 @@ class Blob2d:
     def getkeys():
         return Blob2d.all.keys()
 
+    def getdescendants(self, include_self=True, rdepth=0):
+
+        if include_self or rdepth != 0:
+            res = [self]
+        else:
+            res = []
+        for child in self.children:
+            res = res + Blob2d.all[child].getdescendants(rdepth=rdepth+1)
+        return res
+
+    def getrelated(self, rdepth=0):
+        desc = self.getdescendants()
+        par = self.getparents()
+        return desc + par #TODO This does not operate through branching. Not critical currently, but needs fixing or an modified alternative
+
+
+    def getparents(self): # Excludes self
+        buf = self.getparentsrecur([])
+        return buf
+
+    def getparentsrecur(self, buf): # Todo nest
+        if self.parentID != -1: #Unassigned
+            buf.append(Blob2d.all[self.parentID])
+            return Blob2d.all[self.parentID].getparentsrecur(buf)
+        else:
+            return buf
+
+
+
+    def printdescendants(self, rdepth=0):
+        pad = ''
+        for _ in range(rdepth):
+            pad += '-'
+        print(pad + str(self))
+        for child in self.children:
+            b2d = Blob2d.all[child]
+            b2d.printdescendants(rdepth=rdepth+1)
+
+
     def validateID(self, quiet=True):
         '''
         Checks that a blob2d's id has not been used, and it's id if it has been used
@@ -532,7 +571,6 @@ class Blob2d:
                         print('Error encountered')
                         print('Index:' + str(index))
                         print('Length of alive:' + str(len(alive)))
-                        pass #DEBUG
                         import pbt
                         pbt.set_trace()
                 else:
@@ -559,32 +597,16 @@ class Blob2d:
             blob2dlists.append(list(neighbors))
             alive = alive - neighbors
 
-        # TODO need to seperate lists that are disjoint
-
         b2ds = [Blob2d(blob2dlist, blob2dlist[0].z, parentID=parentID, recursive_depth=recursive_depth) for blob2dlist in blob2dlists if len(blob2dlist) > 0]
-
-
         # TODO this update is very expensive, need to separate this lists of children from the blob2ds (into another dict), therefore no need for a deep copy of a blob2d
-
-        # print('DB before child update: ' + str(Blob2d.get(parentID).children))
         buff = copy.deepcopy(Blob2d.get(parentID)) # Note confirmed this doesnt change Blob2d.all
         buff.children += [b2d.id for b2d in b2ds]
-        # print('-Parent1        :' + str(Blob2d.all[parentID].children))
-        # print('-Buff (w/update):' + str(buff.children))
         Blob2d.all[parentID] = buff
-        # print('DB after child update: ' + str(Blob2d.get(parentID).children))
-        # print('-Parent2:   ' + str(Blob2d.all[parentID].children))
-        # print('-Preparent2:' + str(Blob2d.all[parentID - 1].children))
-
-
-
-
-
 
         if Blob2d.get(parentID).recursive_depth > 0:
-            print('  BEFORE:' + str(Blob2d.get(parentID)))
+            # print('  BEFORE:' + str(Blob2d.get(parentID)))
             Blob2d.all[parentID].pixels += [pixel for b2d in b2ds for pixel in b2d.pixels]
-            print('  AFTER:' + str(Blob2d.get(parentID)))
+            # print('  AFTER:' + str(Blob2d.get(parentID)))
 
         b2ds = [b2d.id for b2d in b2ds]
 
