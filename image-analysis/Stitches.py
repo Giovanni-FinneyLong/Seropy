@@ -5,6 +5,8 @@ from myconfig import *
 from serodraw import debug, progressBarUpdate
 from Blob2d import Blob2d
 import time
+
+from Pixel import Pixel
 class Pairing:
     """
     Only created when it is expected that two blobs from different slides belong to the same blob3d
@@ -30,6 +32,7 @@ class Pairing:
         up_bound = boundaryblob.avgy + ((boundaryblob.maxy - boundaryblob.avgy) * self.overscan_scale)
         boundedpixels = []
         for p_num, pixel in enumerate(subsetblob.edge_pixels): # TODO TODO TODO IMPORTANT, need two way setup, for blob and self. FIXME
+            pixel = Pixel.get(pixel)
             if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
                 boundedpixels.append(pixel)
         return boundedpixels

@@ -91,9 +91,10 @@ class Pixel:
     def distancebetween(pixel1, pixel2):
         return math.sqrt(math.pow(pixel1.x - pixel2.x, 2) + math.pow(pixel1.y - pixel2.y, 2))
     @staticmethod
-    def pixelstodict(pixellist):
+    def pixelidstodict(pixellist): # NOTE this takes ids, not pixels
         d = dict()
         for pixel in pixellist:
+            pixel = Pixel.get(pixel) # Converting from id to pixel
             d[pixel.x, pixel.y] = pixel
         return d
 

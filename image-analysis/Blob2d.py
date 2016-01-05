@@ -116,7 +116,16 @@ class Blob2d:
     def __init__(self, list_of_pixels, height, offsetx=0, offsety=0, recursive_depth=0, parentID=-1): # CHANGED to height from slide, removed master_array
         assert(recursive_depth == 0 or parentID != -1)
         Blob2d.total_blobs += 1
-        self.pixels = list_of_pixels
+
+        self.minx = min(pixel.x for pixel in list_of_pixels)
+        self.maxx = max(pixel.x for pixel in list_of_pixels)
+        self.miny = min(pixel.y for pixel in list_of_pixels)
+        self.maxy = max(pixel.y for pixel in list_of_pixels)
+        self.avgx = sum(pixel.x for pixel in list_of_pixels) / len(list_of_pixels)
+        self.avgy = sum(pixel.y for pixel in list_of_pixels) / len(list_of_pixels)
+        self.min_nzn_pixel = min(pixel.nz_neighbors for pixel in list_of_pixels)
+
+        self.pixels = [pixel.id for pixel in list_of_pixels]
         self.num_pixels = len(list_of_pixels)
         self.assignedto3d = False # Set to true once a blod2d has been added to a list that will be used to construct a blob3d
         self.debugFlag = False
@@ -136,13 +145,7 @@ class Blob2d:
                                     # The value of each element in the sublist for each partner is the index of the pixel from the corresponding partner
         self.my_subpixels = []      # Set of own subpixels, with each list corresponding to a list from partner_subpixels
         self.pairings = [] # A list of pairings that this blob belongs to
-        self.minx = min(pixel.x for pixel in self.pixels)
-        self.maxx = max(pixel.x for pixel in self.pixels)
-        self.miny = min(pixel.y for pixel in self.pixels)
-        self.maxy = max(pixel.y for pixel in self.pixels)
-        self.avgx = sum(pixel.x for pixel in self.pixels) / len(self.pixels)
-        self.avgy = sum(pixel.y for pixel in self.pixels) / len(self.pixels)
-        self.min_nzn_pixel = min(pixel.nz_neighbors for pixel in self.pixels)
+
         # Note for now, will use the highest non-zero-neighbor count pixel
         self.setEdge()
         # self.setTouchingBlobs()
@@ -152,9 +155,9 @@ class Blob2d:
         self.validateID() # self is added to Blob2d.all dict here
 
     def setEdge(self):
-        pixeldict = Pixel.pixelstodict(self.pixels)
+        pixeldict = Pixel.pixelidstodict(self.pixels)
         # self.edge_pixels = [pixel for pixel in self.pixels if pixel.nz_neighbors < 8]
-        self.edge_pixels = [pixel for pixel in self.pixels if len(pixel.neighborsfromdict(pixeldict)) < 8]
+        self.edge_pixels = [pixel for pixel in self.pixels if len(Pixel.get(pixel).neighborsfromdict(pixeldict)) < 8]
         self.edge_pixels.sort()
 
 
@@ -286,9 +289,11 @@ class Blob2d:
                 partner_subpixel_indeces = []
                 my_subpixel_indeces = []
                 for p_num, pixel in enumerate(blob.edge_pixels):
+                    pixel = Pixel.get(pixel)
                     if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
                         partner_subpixel_indeces.append(p_num)
                 for p_num, pixel in enumerate(self.edge_pixels):
+                    pixel = Pixel.get(pixel)
                     if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
                         my_subpixel_indeces.append(p_num)
                 self.partner_subpixels.append(partner_subpixel_indeces)
@@ -316,7 +321,9 @@ class Blob2d:
         self.context_bins = np.zeros((edgep , num_bins)) # Each edge pixel has rows of num_bins each
         # First bin is 0 - (360 / num_bins) degress
         for (pix_num, pixel) in enumerate(self.edge_pixels):
+            pixel = Pixel.get(pixel)
             for (pix_num2, pixel2) in enumerate(self.edge_pixels):
+                pixel2 = Pixel.get(pixel2)
                 if pix_num != pix_num2: # Only check against other pixels.
                     distance = math.sqrt(math.pow(pixel.x - pixel2.x, 2) + math.pow(pixel.y - pixel2.y, 2))
                     angle = math.degrees(math.atan2(pixel2.y - pixel.y, pixel2.x - pixel.x)) # Note using atan2 handles the dy = 0 case
@@ -540,7 +547,7 @@ class Blob2d:
         alive = set(pixelistcopy)
         blob2dlists = []
         while len(alive):
-            alivedict = Pixel.pixelstodict(alive)
+            alivedict = Pixel.pixelidstodict(alive)
             pixel = next(iter(alive)) # Basically alive[0]
             neighbors = set(pixel.neighborsfromdict(alivedict))
             index = 1

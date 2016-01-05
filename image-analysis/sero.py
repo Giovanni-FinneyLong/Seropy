@@ -138,7 +138,7 @@ def bloomInwards(blob2d, depth=0):
     bloomstages = []
     last_edge = set(blob2d.edge_pixels)
 
-    alldict = Pixel.pixelstodict(livepix)
+    alldict = Pixel.pixelidstodict(livepix)
     edge_neighbors = set()
     for pixel in last_edge:
         edge_neighbors = edge_neighbors | set(pixel.neighborsfromdict(alldict)) # - set(blob2d.edge_pixels)
@@ -236,7 +236,7 @@ def main():
     if test_instead_of_data:
          # picklefile = 'pickletest_refactor4.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
          # picklefile = 'pickletest_converting_blob2ds_to_static.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
-         picklefile = 'All_test_redone_1-5_with_maximal_blooming.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
+         picklefile = 'All_test_redone_with_maximal_blooming.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
     else:
         picklefile = 'All_data_redone_1-5_with_maximal_blooming.pickle'
     if not dePickle:
