@@ -59,6 +59,7 @@ def doPickle(blob3dlist, filename, directory=PICKLEDIR, note=''):
     pickledict['ydim'] = ydim
     pickledict['zdim'] = zdim
     pickledict['allb2ds'] = Blob2d.all
+    pickledict['allpixels'] = Pixel.all
     pickledict['usedb2ds'] = Blob2d.used_ids
     pickledict['note'] = note # TODO use info to rememeber info about different pickles
     if directory != '':
@@ -96,6 +97,9 @@ def unPickle(filename, directory=PICKLEDIR):
         Blob2d.all = pickledict['allb2ds']
         Blob2d.used_ids = pickledict['usedb2ds']
         # TODO look for info
+        Pixel.all = pickledict['allpixels']
+        Pixel.total_pixels = len(Pixel.all)
+
         if 'note' in pickledict and pickledict['note'] != '':
             print('Included note:' + pickledict['note'])
         setglobaldims(xdim, ydim, zdim)
@@ -151,7 +155,7 @@ def bloomInwards(blob2d, depth=0):
 
 
 
-@profile
+# @profile
 def experiment(blob3dlist):
 
     # plotBlob3ds(blob3dlist)
@@ -232,7 +236,7 @@ def main():
     if test_instead_of_data:
          # picklefile = 'pickletest_refactor4.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
          # picklefile = 'pickletest_converting_blob2ds_to_static.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
-         picklefile = 'pickletest_envy.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
+         picklefile = 'All_test_redone_1-5_with_maximal_blooming.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
     else:
         picklefile = 'All_data_redone_1-5_with_maximal_blooming.pickle'
     if not dePickle:
@@ -286,7 +290,18 @@ def main():
         blob3dlist = unPickle(picklefile)
     #NOTE at this point, after unpickling the entire swellshark dataset, memory usage is 2.2GB (for Python.exe)
 
-    experiment(blob3dlist)
+    all_b2ds = [b2d for b3d in blob3dlist for b2d in b3d.blob2ds ]
+    print('total b2ds:' + str(len(all_b2ds)))
+    # for b2d in all_b2ds:
+    #     print(Blob2d.get(b2d))
+    # experiment(blob3dlist)
+    print(Blob2d.get(all_b2ds[5]))
+    # for pixel in Blob2d.get(all_b2ds[5]).pixels:
+    #     print(pixel)
+    for pix in Pixel.all.values():
+        print(pix)
+    # print(Pixel.all)
+    print(Pixel.total_pixels)
 
 
 if __name__ == '__main__':

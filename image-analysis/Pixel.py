@@ -6,6 +6,22 @@ class Pixel:
     '''
 
     id_num = 0
+    total_pixels = 0
+    all = dict() # A dictionary containing ALL Blob2ds. A blob2d's key is it's id
+
+    @staticmethod
+    def get(id):
+        return Pixel.all.get(id)
+
+    @staticmethod
+    def getall():
+        return Pixel.all.values()
+
+    @staticmethod
+    def getkeys():
+        return Pixel.all.keys()
+
+
     def __init__(self, value, xin, yin, zin):
         self.x = xin  # The x coordinate, int
         self.y = yin  # The y coordinate, int
@@ -17,6 +33,9 @@ class Pixel:
         self.neighbors_checked = 0
         self.neighbors_set = False  # For keeping track later, in case things get nasty
         self.blob_id = -1 # 0 means that it is unset
+        self.id = Pixel.total_pixels
+        Pixel.total_pixels += 1
+        Pixel.all[self.id] = self
 
     def setNeighborValues(self, non_zero_neighbors, max_neighbors, neighbor_sum, neighbors_checked):
         self.nz_neighbors = non_zero_neighbors  # The number out of the 8 surrounding pixels that are non-zero
@@ -36,7 +55,7 @@ class Pixel:
 
     def __str__(self):
         '''Method used to convert Pixel to string, generall for printing'''
-        return str('P{[v:' + str(self.val) + ', x:' + str(self.x) + ', y:' + str(self.y) + ', z:' + str(self.z) + '], id:' + str(self.blob_id) + '}')
+        return str('P{ id:' + str(self.id) + ', [v:' + str(self.val) + ', x:' + str(self.x) + ', y:' + str(self.y) + ', z:' + str(self.z) + '], B2d_id:' + str(self.blob_id) + '}')
             # '[nzn:' + str(
             # self.nz_neighbors) + ', mn:' + str(self.maximal_neighbors) + ', ns:' + str(
             # self.neighbor_sum) + ', nc:' + str(self.neighbors_checked) + ']}')

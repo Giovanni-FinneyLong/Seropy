@@ -88,10 +88,6 @@ class Blob2d:
             Blob2d.min_free_id = len(Blob2d.used_ids)
             return index
 
-        db_len = len(Blob2d.used_ids)
-        db = 0
-
-
         if self.id >= len(Blob2d.used_ids):
             Blob2d.used_ids.resize([self.id + 50]) # NOTE can alter this value, for now expanding by 50, which will be filled with zeros
             Blob2d.used_ids[self.id] = 1 # 1 for used, no need to check if the value has been used as we are in a new range
@@ -109,28 +105,16 @@ class Blob2d:
         else: # Fill this id entry for the first time
             if not quiet:
                 print('Updated entry for ' + str(self.id))
-            #DEBUG
-            if self.id == 0:
-                print("DB UPDATING ID 0")
-            db = 3
+            # if self.id == 0:
+            #     print("DB UPDATING ID 0")
             Blob2d.used_ids[self.id] = 1
             Blob2d.all[self.id] = self
         # print('DB validated the id:' + str(self.id) + ' db value is:' + str(db))
-        #DEBUG
-        if self.id == 0:
-            print('ID was 0, b2dids:' + str(Blob2d.getkeys()))
-            print('Old len of used ids:' + str(db_len))
-            print('Current:' + str(len(Blob2d.used_ids)))
-            print('DB:' + str(db))
-            print('Blob2d.all[id]:' + str(Blob2d.all.get(self.id)))
-            print(Blob2d.used_ids)
-            pass
+
 
 
     def __init__(self, list_of_pixels, height, offsetx=0, offsety=0, recursive_depth=0, parentID=-1): # CHANGED to height from slide, removed master_array
         assert(recursive_depth == 0 or parentID != -1)
-
-
         Blob2d.total_blobs += 1
         self.pixels = list_of_pixels
         self.num_pixels = len(list_of_pixels)
