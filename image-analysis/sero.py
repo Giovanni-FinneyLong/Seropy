@@ -80,6 +80,42 @@ def doPickle(blob3dlist, filename, directory=PICKLEDIR, note=''):
         debug()
         pass
 
+# @profile
+def doPickle2(blob3dlist, filename, directory=PICKLEDIR):
+    if directory != '':
+        if directory[-1] not in ['/', '\\']:
+            slash = '/'
+        else:
+            slash = ''
+    filename = directory + slash + filename
+    print('Saving to pickle:'+ str(filename))
+    print('Pickling b3ds')
+    pickle.dump({'b3ds' : blob3dlist}, open(filename + '_b3ds', "wb"))
+    print('Pickling b2ds')
+    pickle.dump({'b2ds' : Blob2d.all, 'used_ids': Blob2d.used_ids}, open(filename + '_b2ds', "wb"))
+    print('Pickling pixels')
+    pickle.dump({'pixels' : Pixel.all, 'total_pixels' : Pixel.total_pixels}, open(filename + '_pixels', "wb"))
+
+# @profile
+def unPickle2(filename, directory=PICKLEDIR):
+        if directory[-1] not in ['/', '\\']:
+            slash = '/'
+        else:
+            slash = ''
+        filename = directory + slash + filename
+        print('Loading from pickle:' + str(filename))
+        print('Loading b3ds')
+        b3ds = pickle.load(open(filename + '_b3ds', "rb"))['b3ds']
+        print('Loading b2ds')
+        b2d_load = pickle.load(open(filename + '_b2ds', "rb"))
+        Blob2d.all = b2d_load['b2ds']
+        Blob2d.used_ids = b2d_load['used_ids']
+        print('Loading pixels')
+        pixel_load = pickle.load(open(filename + '_pixels', "rb"))
+        Pixel.all = pixel_load['pixels']
+        Pixel.total_pixels = pixel_load['pixels']
+        return b3ds
+
 
 def unPickle(filename, directory=PICKLEDIR):
         if directory[-1] not in ['/', '\\']:
@@ -155,9 +191,6 @@ def bloomInwards(blob2d, depth=0):
 
 
 
-
-
-
 # @profile
 def experiment(blob3dlist):
 
@@ -165,11 +198,11 @@ def experiment(blob3dlist):
     allb2ds = sorted([Blob2d.get(blob2d) for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
 
 
-    start_offset = 10
+    start_offset = 0
 
     all_desc = []
     t_start_bloom = time.time()
-    for bnum, blob2d in enumerate(allb2ds[:start_offset]): # HACK need to put the colon on the right of start_offset
+    for bnum, blob2d in enumerate(allb2ds[start_offset:]): # HACK need to put the colon on the right of start_offset
         # showBlob2d(b2d)
         print('Blooming b2d: ' + str(bnum + start_offset) + '/' + str(len(allb2ds)) + ' = ' + str(blob2d) )
         bloomInwards(blob2d) # NOTE will have len 0 if no blooming can be done
@@ -187,8 +220,11 @@ def experiment(blob3dlist):
 
     print('To complete all blooming:')
     printElapsedTime(t_start_bloom, time.time())
+
     # plotBlob2ds(all_desc, edge=True, ids=False, parentlines=True,explode=True)
-    plotBlob2ds([b2d for b2d in Blob2d.all.values()], edge=True, ids=False, parentlines=True,explode=True)
+
+
+    # plotBlob2ds([b2d for b2d in Blob2d.all.values()], edge=True, ids=False, parentlines=True,explode=True)
 
 
 
@@ -226,8 +262,45 @@ def experiment(blob3dlist):
     # # NOTE: The sum of base blobs with & without children and the count of their children = the total number of b2ds, so at this point we are successfully
 
 
+def explorememoryusage(blob3dlist):
+    # Note: Sys.getsizeof() is in bytes
+    # slide = slides[0]
+
+    dir = 'pickle_sizes/'
+    for b3d_num, b3d in enumerate(blob3dlist):
+
+        print('B3d:' + str(b3d_num) + '/' + str(len(blob3dlist)))
+        b3d_dict = {'b3d' : b3d}
+        pickle.dump(b3d_dict, open(dir + 'b3d/b3d_size' + str(b3d_num) + '.pickle', "wb"))
+        for b2d_num, b2d in enumerate(b3d.blob2ds):
+            b2d = Blob2d.get(b2d)
+            b2d_dict = {'b2d' : b2d}
+            pickle.dump(b2d_dict, open(dir + 'b2d/b2d_size' + str(b3d_num) + '_' + str(b2d_num) + '.pickle', "wb"))
+            for p_num, pixel in enumerate(b2d.pixels):
+                pixel = Pixel.get(pixel)
+                pixel_dict = {'pixel' : pixel}
+                pickle.dump(pixel_dict, open(dir + 'pixel/pixel_size' + str(b3d_num) + '_' + str(b2d_num) + '_' + str(p_num) + '.pickle', "wb"))
+
+        # pixel = Pixel.get(b2d.edge_pixels[0])
+        # # pickle.dump(pickledict, open(filename, "wb"))
+        #
+        # b2d_dict = {'b2d' : b2d}
+        # pickle.dump(b2d_dict, open(dir + 'b2d_size.pickle', "wb"))
+        # pixel_dict = {'pixel' : pixel}
+        # pickle.dump(pixel_dict, open(dir + 'pixel_size.pickle', "wb"))
 
 
+
+    # from Pixel import Pixel
+
+    # to_check = [b3d]
+    # for check in to_check:
+    #     print('Checking the memory of :' + str(check) + '=' + str(sys.getsizeof(check)))
+    #     for attr in check.__dict__.items():
+    #         print(str(attr) + ' => ' + str(sys.getsizeof(attr[1])))
+    #         if attr[0] == 'pixels':
+    #             pixel =
+    #             print(' size of a pixel:' + str(sys.getsizeof(Pixel.get(attr[1][0]))))
 
 
 
@@ -260,7 +333,8 @@ def main():
         #     all_images = all_images[:3]
         # # HACK
         #
-        print(all_images)
+		
+        #print(all_images)
         all_slides = []
 
         for imagefile in all_images:
@@ -289,16 +363,38 @@ def main():
         Blob3d.tagBlobsSingular(blob3dlist) # TODO improve the simple classification
         for blob3d in blob3dlist:
             blob3d.set_note(note)
-        doPickle(blob3dlist, picklefile)
+        doPickle2(blob3dlist, picklefile) # DEBUG DEBUG DEBUG
 
     else:
         # blob3dlist = unPickle(directory='H:/Dropbox/Serotonin/pickles/recursive/', filename='depth1_subset_of_b3ds.pickle'))
-        blob3dlist = unPickle(picklefile)
+
+        blob3dlist = unPickle2(picklefile) # DEBUG DEBUG DEBUG
     #NOTE at this point, after unpickling the entire swellshark dataset, memory usage is 2.2GB (for Python.exe)
 
-    all_b2ds = [b2d for b3d in blob3dlist for b2d in b3d.blob2ds ]
-    # plotBlob2ds(all_b2ds, stitches=False, explode=True)
-    experiment(blob3dlist)
+
+    if False:
+        # used_b2ds = [b2d for b3d in blob3dlist for b2d in b3d.blob2ds ]
+        # print(len(Blob2d.all.values()))
+        plotBlob2ds(Blob2d.all.values(), stitches=False, explode=False, parentlines=False)
+
+        print('DB blob3dlist:' + str(blob3dlist))
+        experiment(blob3dlist)
+        doPickle2(blob3dlist, picklefile + '_BLOOMED')
+
+    else:
+        blob3dlist = unPickle2(picklefile + '_BLOOMED') # DEBUG DEBUG DEBUG
+
+
+    # explorememoryusage(blob3dlist)
+
+    print('Blob2d.all=' + str(Blob2d.all))
+    all_b2ds = [b2d for b2d in Blob2d.all.values()]
+    print(len(all_b2ds))
+    # print('DB printing all b2ds:')
+    for b2d in all_b2ds:
+        print(b2d)
+
+    plotBlob2ds(all_b2ds, stitches=False, explode=True, parentlines=True) # TODO parentlines here causes an issue...
 
 
 if __name__ == '__main__':

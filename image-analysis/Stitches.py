@@ -165,7 +165,7 @@ class Pairing:
             #     print('Ignored cost:' + str(self.cost_array[row][col]))
 
     @staticmethod
-    def stitchAllBlobs(slidelist, quiet=False, debug=False):
+    def stitchAllBlobs(slidelist, quiet=True, debug=False):
         def  printElapsedTime(t0, tf, pad=''): # HACK FIXME REMOVE THIS AND IMPORT CORRECTLY
             temp = tf - t0
             m = math.floor(temp / 60)
@@ -185,13 +185,24 @@ class Pairing:
         # total_edge_pixels = sum(len(blob2d.edge_pixels) for slide in slidelist for blob2d in slide.blob2dlist)
         # updateStatus = 0
         # pixels_processed = 0
-        for slide_num, slide in enumerate(slidelist):
-            if not quiet or (debug and slide.debugFlag is True):
-                print('Starting slide #' + str(slide_num) + '/' + str(len(slidelist)) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds')
 
-            for blob1 in slide.blob2dlist:
+
+        last_print = 0
+
+
+        for slide_num, slide in enumerate(slidelist):
+            #if not quiet or (debug and slide.debugFlag is True):
+            print('\nStitching slide #' + str(slide_num) + '/' + str(len(slidelist)) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds')
+
+            for b_num, blob1 in enumerate(slide.blob2dlist):
                 #Converting to static:
                 blob1 = Blob2d.get(blob1)
+                print('DB:' + str(((b_num - last_print) / len(slide.blob2dlist))))
+                if ((b_num - last_print) / len(slide.blob2dlist)) >= .1:
+                    print('.', end='')
+                    last_print = b_num
+
+
 
                 if len(blob1.possible_partners) > 0:
                     if debug and blob1.debugFlag is True:

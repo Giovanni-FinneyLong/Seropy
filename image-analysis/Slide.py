@@ -25,7 +25,6 @@ def setglobaldims(x, y, z):
     setserodims(x, y, z) # Need both calls, one to set the global vars in each file, otherwise they don't carry
     setseerodrawdims(x, y, z) # Even when using 'global'; one method needs to be in each file
 
-
 class Slide:
     ''''
     Each slide holds the Blob2d's from a single scan image.
@@ -88,6 +87,7 @@ class Slide:
                     self.sum_pixels += pixel_value
         if not quiet:
             print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(self.local_xdim * self.local_ydim) + ' pixels')
+
         pixels.sort(key=lambda pix: pix.val, reverse=True)# Note that sorting is being done like so to sort based on value not position as is normal with pixels. Sorting is better as no new list
 
         # Lets go further and grab the maximal pixels, which are at the front
@@ -151,9 +151,9 @@ class Slide:
         # Sets to lists for indexing,
         # Note that in python, sets are always unordered, and so a derivative list must be sorted.
 
-        db_blob2d_list = [Blob2d.get(b2d) for b2d in self.blob2dlist]
+        #db_blob2d_list = [Blob2d.get(b2d) for b2d in self.blob2dlist]
 
-        print('DB working on slide, w/ blob2list: ' + str(db_blob2d_list))
+        #print('DB working on slide, w/ blob2list: ' + str(db_blob2d_list))
 
         for (index,stl) in enumerate(equiv_sets): # TODO this can be changed to be faster after b2ds are statically indexed
             equiv_sets[index] = sorted(stl) # See note
