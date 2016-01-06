@@ -58,7 +58,9 @@ class Pairing:
         self.upper_context_bins = np.zeros((uedgep , num_bins)) # Each edge pixel has rows of num_bins each
         # First bin is 0 - (360 / num_bins) degress
         for (pix_num, pixel) in enumerate(self.lowerpixels):
+            pixel = Pixel.get(pixel)
             for (pix_num2, pixel2) in enumerate(self.lowerpixels):
+                pixel2 = Pixel.get(pixel2)
                 if pix_num != pix_num2: # Only check against other pixels.
                     distance = math.sqrt(math.pow(pixel.x - pixel2.x, 2) + math.pow(pixel.y - pixel2.y, 2))
                     angle = math.degrees(math.atan2(pixel2.y - pixel.y, pixel2.x - pixel.x)) # Note using atan2 handles the dy = 0 case
@@ -71,7 +73,17 @@ class Pairing:
                     # print('DB: Pixel:' + str(pixel) + ' Pixel2:' + str(pixel2) + ' distance:' + str(distance) + ' angle:' + str(angle) + ' bin_num:' + str(bin_num))
                     self.lower_context_bins[pix_num][bin_num] += value
         for (pix_num, pixel) in enumerate(self.upperpixels):
+            for pixel in Pixel.all.values():
+                print(pixel)
+
+            print('DB pixel is originally:' + str(pixel))
+            print('Size of all pixels:' + str(len(Pixel.all)))
+
+            pixel = Pixel.get(pixel)
+            print('Got pixel:')
+
             for (pix_num2, pixel2) in enumerate(self.upperpixels):
+                pixel2 = Pixel.get(pixel2)
                 if pix_num != pix_num2: # Only check against other pixels.
                     distance = math.sqrt(math.pow(pixel.x - pixel2.x, 2) + math.pow(pixel.y - pixel2.y, 2))
                     angle = math.degrees(math.atan2(pixel2.y - pixel.y, pixel2.x - pixel.x)) # Note using atan2 handles the dy = 0 case
@@ -226,8 +238,8 @@ class Pairing:
         self.upperheight = upperblob.height # CHANGED
         self.lowerblob = lowerblob
         self.upperblob = upperblob
-        self.upperpixels = self.edgepixelsinbounds(upperblob, lowerblob)
-        self.lowerpixels = self.edgepixelsinbounds(lowerblob, upperblob) # TODO psoe on the order of lower and upper
+        self.upperpixels = [pixel.id for pixel in self.edgepixelsinbounds(upperblob, lowerblob)]
+        self.lowerpixels = [pixel.id for pixel in self.edgepixelsinbounds(lowerblob, upperblob)] # TODO psoe on the order of lower and upper
         self.isReduced = False # True when have chosen a subset of the edge pixels to reduce computation
         self.stitches = []
         self.cost = -1 # Just to indicate that it is unset

@@ -292,16 +292,19 @@ def main():
 
     all_b2ds = [b2d for b3d in blob3dlist for b2d in b3d.blob2ds ]
     print('total b2ds:' + str(len(all_b2ds)))
+    print('Allb2ds:' + str(all_b2ds))
+
     # for b2d in all_b2ds:
     #     print(Blob2d.get(b2d))
     # experiment(blob3dlist)
     print(Blob2d.get(all_b2ds[5]))
-    # for pixel in Blob2d.get(all_b2ds[5]).pixels:
-    #     print(pixel)
-    for pix in Pixel.all.values():
-        print(pix)
+    # for pix in Pixel.all.values():
+    #     print(pix)
     # print(Pixel.all)
     print(Pixel.total_pixels)
+    print(type(all_b2ds[0]))
+    print(type(Pixel.get(all_b2ds[0])))
+    plotBlob2ds(all_b2ds, stitches=True)
 
 
 if __name__ == '__main__':

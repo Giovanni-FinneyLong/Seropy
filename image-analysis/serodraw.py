@@ -4,6 +4,7 @@ __author__ = 'gio'
 
 from myconfig import *
 
+
 if mayPlot:
     import matplotlib.colors as colortools
     from matplotlib import animation
@@ -40,7 +41,7 @@ import pdb
 import os
 
 from Blob2d import Blob2d # Interestingly, importing Blob2d directly causes a string list function call error
-
+from Pixel import Pixel
 
 def vispy_info():
     import vispy
@@ -449,6 +450,13 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
     print('Plotting the blob2ds: ' + str(blob2ds))
 
 
+    all_b2ds_are_ids = all(type(b2d) is int for b2d in blob2ds)
+    all_b2d_are_blob2ds = all(type(b2d) is Blob2d for b2d in blob2ds)
+    # assert(all(type(pixel) is int for b2d in blob2ds for pixel in Blob2d.get(b2d).pixels))
+    assert(all_b2d_are_blob2ds or all_b2ds_are_ids)
+    if all_b2ds_are_ids: # May want to change this depending on what it does to memory
+        blob2ds = [Blob2d.get(b2d) for b2d in blob2ds]
+
 
 
     xmin = min(blob2d.minx for blob2d in blob2ds)
@@ -495,10 +503,12 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
 
             if edge:
                 for p_num, pixel in enumerate(blob2d.edge_pixels):
+                    pixel = Pixel.get(pixel)
                     pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (blob2d.height - zmin) / ( z_compression * zdim)]
                 offsets[index] += len(blob2d.edge_pixels)
             else:
                 for p_num, pixel in enumerate(blob2d.pixels):
+                    pixel = Pixel.get(pixel)
                     pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (blob2d.height - zmin) / ( z_compression * zdim)]
                 offsets[index] += len(blob2d.pixels)
 
@@ -519,6 +529,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
         for blobnum, blob2d in enumerate(blob2ds):
             index = blob2d.recursive_depth % len(markers_per_color)
             for p_num, pixel in enumerate(blob2d.edge_pixels):
+                pixel = Pixel.get(pixel)
                 pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (blob2d.height - zmin) / ( z_compression * zdim)]
             offsets[index] += len(blob2d.edge_pixels)
         print('----DB adding edge arrays :' + str(pixel_arrays))
@@ -553,9 +564,13 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
             line_locations = np.zeros([lineendpoints, 3])
             for blob2d in blob2ds:
                 for pairing in blob2d.pairings:
+                    print('DB pairing indeces:' + str(pairing.indeces))
+                    print('DB pairing lowerpixels:' + str(pairing.lowerpixels))
+
+
                     for lowerpnum, upperpnum in pairing.indeces:
-                        lowerpixel = pairing.lowerpixels[lowerpnum]
-                        upperpixel = pairing.upperpixels[upperpnum]
+                        lowerpixel = Pixel.get(pairing.lowerpixels[lowerpnum])
+                        upperpixel = Pixel.get(pairing.upperpixels[upperpnum])
                         line_locations[line_index] = [(lowerpixel.x - xmin) / xdim, (lowerpixel.y - ymin) / ydim, (pairing.lowerheight) / ( z_compression * zdim)]
                         line_locations[line_index + 1] = [(upperpixel.x - xmin) / xdim, (upperpixel.y - ymin) / ydim, (pairing.upperheight) / ( z_compression * zdim)]
                         line_index += 2
