@@ -529,27 +529,35 @@ class Blob2d:
         return saturated
 
 
-
+    #TODO this needs some fixing, has been causing issues with pixels to dict, will know is fixed once can remove the id to b2d hack in pixelstodict
     @staticmethod
     def pixels_to_blob2ds(pixellist, parentID=-1, recursive_depth=0, modify=False): # Modify true if we want to modify the pixels passed, otherwise make new ones
         #HACK
-        if modify:
-            pixelistcopy = pixellist
-        else:
-            pixelistcopy = []# = pixellist #HACK
-            for pixel in pixellist:
-                pixelistcopy.append(Pixel(pixel.val, pixel.x, pixel.y, pixel.z))
+        # if modify:
+        #     pixelistcopy = pixellist
+        # else:
+        #     pixelistcopy = []# = pixellist #HACK
+        #     for pixel in pixellist:
+        #         pixel = Pixel.get(pixel)
+        #         pixelistcopy.append(Pixel(pixel.val, pixel.x, pixel.y, pixel.z))
+
+        #DEBUG
+        pixellistcopy = pixellist
+        #DEBUG
 
         alonepixels = []
-        for pixel in pixelistcopy:
-            pixel.blob_id = -1
+        # for pixel in pixellistcopy:
+        #     pixel.blob_id = -1
         #hack
-        alive = set(pixelistcopy)
+        alive = set(pixellistcopy)
         blob2dlists = []
+        # print('DB ORIGINALLY ALIVE IS:' + str(alive))
         while len(alive):
+            # print('DB len of alive is;' + str(len(alive)))
+            # print('    DB CALLING WITHIN pixels to blob2ds with args:' + str(alive))
             alivedict = Pixel.pixelidstodict(alive)
             pixel = next(iter(alive)) # Basically alive[0]
-            neighbors = set(pixel.neighborsfromdict(alivedict))
+            neighbors = set(Pixel.get(pixel).neighborsfromdict(alivedict))
             index = 1
             done = False
             while (len(neighbors) == 0 or not done) and len(alive) > 0:
@@ -568,7 +576,7 @@ class Blob2d:
                     done = True
                     # Note this needs testing!!!!
                     # Assuming that all the remaining pixels are their own blob2ds essentiall, and so are removed
-                neighbors = set(pixel.neighborsfromdict(alivedict))
+                neighbors = set(Pixel.get(pixel).neighborsfromdict(alivedict))
                 if len(neighbors) == 0:
                     # print('   Found a blob with no neighbors, removing')
                     alive = alive - set([pixel])
@@ -586,7 +594,11 @@ class Blob2d:
                 neighbors = newneighbors
             # print(' DB found a group which make up a blob2d:' + str(neighbors) + ' \n  consisting of ' + str(len(neighbors)) + ' pixels')
             blob2dlists.append(list(neighbors))
-            alive = alive - neighbors
+
+            # print('DB NEIGHBORS:' + str(neighbors))
+            # print('DB alive:' + str(alive))
+            alive = alive - set(n.id for n in neighbors)
+            # print('DB after update at end of loop, alive:' + str(alive))
 
         b2ds = [Blob2d(blob2dlist, blob2dlist[0].z, parentID=parentID, recursive_depth=recursive_depth) for blob2dlist in blob2dlists if len(blob2dlist) > 0]
         # TODO this update is very expensive, need to separate this lists of children from the blob2ds (into another dict), therefore no need for a deep copy of a blob2d

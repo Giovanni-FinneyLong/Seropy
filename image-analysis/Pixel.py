@@ -93,8 +93,34 @@ class Pixel:
     @staticmethod
     def pixelidstodict(pixellist): # NOTE this takes ids, not pixels
         d = dict()
+
+        # #DEBUG
+        # print('DB allpixels:')
+        # for pixel in Pixel.all:
+        #     print(' ' + str(pixel))
+        # #DEBUG
+        # print('PRINTING PIXEL LIST')
+        # for pixel in pixellist:
+        #     print(pixel)
+        all_pixels = all(type(pix) is Pixel for pix in pixellist)
+        # print('\n\nDB all_pixel value is:' + str(all_pixels))
+        # if len(pixellist):
+        #     print('--Called pixels to dict with pixellist:' + str(pixellist))
         for pixel in pixellist:
-            pixel = Pixel.get(pixel) # Converting from id to pixel
+            # print('DB pixel:' + str(pixel))
+            # print('DB getting id:' + str(pixel))
+            # buf = Pixel.get(pixel) # Converting from id to pixel
+            # print('DB pixel before:' + str(pixel))
+            #HACK
+            if type(pixel) is int:
+
+                pixel = Pixel.get(pixel) # Converting from id to pixel
+            else:
+                print('*************DB Didnt convert pixelid to pixel, original:' + str(pixel))
+                # print('     Pixellist:' + str(pixellist))
+
+            # HACK
+            # print('Result is:' + str(pixel))
             d[pixel.x, pixel.y] = pixel
         return d
 

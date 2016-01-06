@@ -564,8 +564,8 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
             line_locations = np.zeros([lineendpoints, 3])
             for blob2d in blob2ds:
                 for pairing in blob2d.pairings:
-                    print('DB pairing indeces:' + str(pairing.indeces))
-                    print('DB pairing lowerpixels:' + str(pairing.lowerpixels))
+                    # print('DB pairing indeces:' + str(pairing.indeces))
+                    # print('DB pairing lowerpixels:' + str(pairing.lowerpixels))
 
 
                     for lowerpnum, upperpnum in pairing.indeces:

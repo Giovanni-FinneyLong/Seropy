@@ -34,7 +34,7 @@ class Pairing:
         for p_num, pixel in enumerate(subsetblob.edge_pixels): # TODO TODO TODO IMPORTANT, need two way setup, for blob and self. FIXME
             pixel = Pixel.get(pixel)
             if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
-                boundedpixels.append(pixel)
+                boundedpixels.append(pixel.id)
         return boundedpixels
 
 
@@ -73,14 +73,16 @@ class Pairing:
                     # print('DB: Pixel:' + str(pixel) + ' Pixel2:' + str(pixel2) + ' distance:' + str(distance) + ' angle:' + str(angle) + ' bin_num:' + str(bin_num))
                     self.lower_context_bins[pix_num][bin_num] += value
         for (pix_num, pixel) in enumerate(self.upperpixels):
-            for pixel in Pixel.all.values():
-                print(pixel)
 
-            print('DB pixel is originally:' + str(pixel))
-            print('Size of all pixels:' + str(len(Pixel.all)))
+            # for pixel in Pixel.all.values():
+            #     print(pixel)
+
+            # print('DB pixel is originally:' + str(pixel))
+            # print('Size of all pixels:' + str(len(Pixel.all)))
 
             pixel = Pixel.get(pixel)
-            print('Got pixel:')
+            # print('Got pixel:' + str(pixel))
+            # print('Upper pixels:' + str(self.upperpixels))
 
             for (pix_num2, pixel2) in enumerate(self.upperpixels):
                 pixel2 = Pixel.get(pixel2)
@@ -113,6 +115,9 @@ class Pairing:
             return cost / 2
 
         def distanceCostBetweenPoints(pixel1, pixel2):
+            pixel1 = Pixel.get(pixel1)
+            pixel2 = Pixel.get(pixel2)
+
             buf = math.sqrt(math.pow(pixel1.x - pixel2.x, 2) + math.pow(pixel1.y - pixel2.y, 2))
             if buf > 0.0: # Because floats..
                 try:
@@ -137,7 +142,7 @@ class Pairing:
                 for j in range(ndim):
                     contourCost = costBetweenPoints(self.lower_context_bins[i], self.upper_context_bins[j])
                     distanceCost = distanceCostBetweenPoints(self.lowerpixels[i], self.upperpixels[j])
-                    distance = math.sqrt(math.pow(self.lowerpixels[i].x - self.upperpixels[j].x, 2) + math.pow(self.lowerpixels[i].y - self.upperpixels[j].y, 2))
+                    distance = math.sqrt(math.pow(Pixel.get(self.lowerpixels[i]).x - Pixel.get(self.upperpixels[j]).x, 2) + math.pow(Pixel.get(self.lowerpixels[i]).y - Pixel.get(self.upperpixels[j]).y, 2))
                     net_cost = contourCost * distanceCost
                     self.cost_array[i][j] = [contourCost, distanceCost, net_cost, distance] # TODO can reduce this later for efficiency
                     munkres_array[i][j] = net_cost
@@ -238,11 +243,12 @@ class Pairing:
         self.upperheight = upperblob.height # CHANGED
         self.lowerblob = lowerblob
         self.upperblob = upperblob
-        self.upperpixels = [pixel.id for pixel in self.edgepixelsinbounds(upperblob, lowerblob)]
-        self.lowerpixels = [pixel.id for pixel in self.edgepixelsinbounds(lowerblob, upperblob)] # TODO psoe on the order of lower and upper
+        self.upperpixels = self.edgepixelsinbounds(upperblob, lowerblob)
+        self.lowerpixels = self.edgepixelsinbounds(lowerblob, upperblob) # TODO psoe on the order of lower and upper
         self.isReduced = False # True when have chosen a subset of the edge pixels to reduce computation
         self.stitches = []
         self.cost = -1 # Just to indicate that it is unset
+
 
         if len(self.lowerpixels) != 0: # Optimization
             self.upperpixels = self.edgepixelsinbounds(upperblob, lowerblob)
@@ -289,7 +295,7 @@ class Stitch:
         self.lowerblob = lowerblob
         self.upperblob = upperblob
         self.cost = cost
-        self.distance = math.sqrt(math.pow(lowerpixel.x - upperpixel.x, 2) + math.pow(lowerpixel.y - upperpixel.y, 2)) # TODO replace with distancebetween static method from Pixel
+        self.distance = math.sqrt(math.pow(Pixel.get(lowerpixel).x - Pixel.get(upperpixel).x, 2) + math.pow(Pixel.get(lowerpixel).y - Pixel.get(upperpixel).y, 2)) # TODO replace with distancebetween static method from Pixel
             # math.sqrt(math.pow(lowerpixel.x - upperpixel.x, 2) + math.pow(lowerpixel.y - upperpixel.y, 2))
 
 

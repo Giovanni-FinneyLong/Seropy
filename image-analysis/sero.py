@@ -135,17 +135,20 @@ def bloomInwards(blob2d, depth=0):
     livepix = set(set(blob2d.pixels) - set(blob2d.edge_pixels))
     # else:
     #     livepix = set(blob2d.edge_pixels)
-    bloomstages = []
     last_edge = set(blob2d.edge_pixels)
 
+    # print('     DB CALLING WITHIN BLOOM INWARDS with args:' + str(livepix))
     alldict = Pixel.pixelidstodict(livepix)
     edge_neighbors = set()
     for pixel in last_edge:
-        edge_neighbors = edge_neighbors | set(pixel.neighborsfromdict(alldict)) # - set(blob2d.edge_pixels)
+        edge_neighbors = edge_neighbors | set(Pixel.get(pixel).neighborsfromdict(alldict)) # - set(blob2d.edge_pixels)
     edge_neighbors = edge_neighbors - last_edge
-    bloomstages.append(livepix)
+    bloomstage = livepix
     livepix = livepix - edge_neighbors
-    b2ds = Blob2d.pixels_to_blob2ds(bloomstages[-1], parentID=blob2d.id, recursive_depth=blob2d.recursive_depth+1, modify=False) # NOTE making new pixels, rather than messing with existing
+
+    # print('DB the result of bloomstages (should be ids): ' + str(bloomstage))
+    b2ds = Blob2d.pixels_to_blob2ds(bloomstage, parentID=blob2d.id, recursive_depth=blob2d.recursive_depth+1, modify=False) # NOTE making new pixels, rather than messing with existing
+    # print("DB done converting pixels to b2ds")
     if len(livepix) > 1:
         for b2d in b2ds:
             bloomInwards(Blob2d.get(b2d), depth=depth+1)
@@ -162,7 +165,7 @@ def experiment(blob3dlist):
     allb2ds = sorted([Blob2d.get(blob2d) for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
 
 
-    start_offset = 2
+    start_offset = 10
 
     all_desc = []
     t_start_bloom = time.time()
@@ -184,6 +187,10 @@ def experiment(blob3dlist):
 
     print('To complete all blooming:')
     printElapsedTime(t_start_bloom, time.time())
+    # plotBlob2ds(all_desc, edge=True, ids=False, parentlines=True,explode=True)
+    plotBlob2ds([b2d for b2d in Blob2d.all.values()], edge=True, ids=False, parentlines=True,explode=True)
+
+
 
     #refresh
     # allb2ds = sorted([Blob2d.get(blob2d) for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
@@ -201,7 +208,6 @@ def experiment(blob3dlist):
 
 
     # print('Plotting all blob2ds exploded')
-    # plotBlob2ds(all_desc, edge=True, ids=False, parentlines=True,explode=True)
     # debug()
     # #refresh
     # allb2ds = sorted([Blob2d.get(blob2d) for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
@@ -291,20 +297,8 @@ def main():
     #NOTE at this point, after unpickling the entire swellshark dataset, memory usage is 2.2GB (for Python.exe)
 
     all_b2ds = [b2d for b3d in blob3dlist for b2d in b3d.blob2ds ]
-    print('total b2ds:' + str(len(all_b2ds)))
-    print('Allb2ds:' + str(all_b2ds))
-
-    # for b2d in all_b2ds:
-    #     print(Blob2d.get(b2d))
-    # experiment(blob3dlist)
-    print(Blob2d.get(all_b2ds[5]))
-    # for pix in Pixel.all.values():
-    #     print(pix)
-    # print(Pixel.all)
-    print(Pixel.total_pixels)
-    print(type(all_b2ds[0]))
-    print(type(Pixel.get(all_b2ds[0])))
-    plotBlob2ds(all_b2ds, stitches=True)
+    # plotBlob2ds(all_b2ds, stitches=False, explode=True)
+    experiment(blob3dlist)
 
 
 if __name__ == '__main__':
