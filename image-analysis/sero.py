@@ -107,13 +107,13 @@ def unPickle2(filename, directory=PICKLEDIR):
         print('Loading b3ds')
         b3ds = pickle.load(open(filename + '_b3ds', "rb"))['b3ds']
         print('Loading b2ds')
-        b2d_load = pickle.load(open(filename + '_b2ds', "rb"))
-        Blob2d.all = b2d_load['b2ds']
-        Blob2d.used_ids = b2d_load['used_ids']
+        buff = pickle.load(open(filename + '_b2ds', "rb"))
+        Blob2d.all = buff['b2ds']
+        Blob2d.used_ids = buff['used_ids']
         print('Loading pixels')
-        pixel_load = pickle.load(open(filename + '_pixels', "rb"))
-        Pixel.all = pixel_load['pixels']
-        Pixel.total_pixels = pixel_load['pixels']
+        buff = pickle.load(open(filename + '_pixels', "rb"))
+        Pixel.all = buff['pixels']
+        Pixel.total_pixels = buff['pixels']
         return b3ds
 
 
@@ -309,7 +309,7 @@ def explorememoryusage(blob3dlist):
 # @profile
 def main():
 
-    sys.setrecursionlimit(7000) # HACK
+    # sys.setrecursionlimit(7000) # HACK # DEBUG removed to see if this is related to the RAM usage when pickling pixels
 
     note = 'Was created by setting distance cost log to base 2 instead of 10, and multiplying by contour_cost'
     if test_instead_of_data:
@@ -371,11 +371,11 @@ def main():
         blob3dlist = unPickle2(picklefile) # DEBUG DEBUG DEBUG
     #NOTE at this point, after unpickling the entire swellshark dataset, memory usage is 2.2GB (for Python.exe)
 
-
-    if False:
+    if True:
         # used_b2ds = [b2d for b3d in blob3dlist for b2d in b3d.blob2ds ]
         # print(len(Blob2d.all.values()))
-        plotBlob2ds(Blob2d.all.values(), stitches=False, explode=False, parentlines=False)
+        # plotBlob2ds(Blob2d.all.values(), stitches=False, explode=False, parentlines=False)
+        print('DONE PICKLING THE NORMAL BLOBS, NOW BLOOMING')
 
         print('DB blob3dlist:' + str(blob3dlist))
         experiment(blob3dlist)
@@ -387,12 +387,12 @@ def main():
 
     # explorememoryusage(blob3dlist)
 
-    print('Blob2d.all=' + str(Blob2d.all))
-    all_b2ds = [b2d for b2d in Blob2d.all.values()]
-    print(len(all_b2ds))
-    # print('DB printing all b2ds:')
-    for b2d in all_b2ds:
-        print(b2d)
+    # print('Blob2d.all=' + str(Blob2d.all))
+    # all_b2ds = [b2d for b2d in Blob2d.all.values()]
+    # print(len(all_b2ds))
+    # # print('DB printing all b2ds:')
+    # for b2d in all_b2ds:
+    #     print(b2d)
 
     plotBlob2ds(all_b2ds, stitches=False, explode=True, parentlines=True) # TODO parentlines here causes an issue...
 

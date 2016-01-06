@@ -187,19 +187,21 @@ class Pairing:
         # pixels_processed = 0
 
 
-        last_print = 0
 
 
         for slide_num, slide in enumerate(slidelist):
             #if not quiet or (debug and slide.debugFlag is True):
-            print('\nStitching slide #' + str(slide_num) + '/' + str(len(slidelist)) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds')
+            print('Stitching slide #' + str(slide_num) + '/' + str(len(slidelist)) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds')
+            last_print = 0
 
             for b_num, blob1 in enumerate(slide.blob2dlist):
                 #Converting to static:
                 blob1 = Blob2d.get(blob1)
-                print('DB:' + str(((b_num - last_print) / len(slide.blob2dlist))))
-                if ((b_num - last_print) / len(slide.blob2dlist)) >= .1:
-                    print('.', end='')
+                # print('DB:' + str(((b_num - last_print) / len(slide.blob2dlist))))
+                if ((b_num - last_print) / len(slide.blob2dlist)) >= .1 and quiet:
+                    # print('-' + str((b_num - last_print) / len(slide.blob2dlist)) + '-', end='', flush=True)
+                    print('.', end='', flush=True)
+
                     last_print = b_num
 
 
@@ -229,7 +231,8 @@ class Pairing:
                         print('    -Blobs not connected')
                 # updateStatus = progressBarUpdate(pixels_processed, total_edge_pixels, last_update=updateStatus, steps=100)
                 # pixels_processed += len(blob1.edge_pixels)
-
+            if quiet:
+                print('.')
 
 
 
