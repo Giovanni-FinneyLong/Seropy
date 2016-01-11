@@ -8,7 +8,6 @@ class Pixel:
     id_num = 0
     total_pixels = 0
     all = dict() # A dictionary containing ALL Blob2ds. A blob2d's key is it's id
-
     @staticmethod
     def get(id):
         return Pixel.all.get(id)
@@ -22,27 +21,21 @@ class Pixel:
         return Pixel.all.keys()
 
 
-    def __init__(self, value, xin, yin, zin):
+    def __init__(self, value, xin, yin, zin, validate=True):
         self.x = xin  # The x coordinate, int
         self.y = yin  # The y coordinate, int
         self.z = zin
         self.val = value  # float
-        self.nz_neighbors = 0
-        self.maximal_neighbors = 0
-        self.neighbor_sum = 0
-        self.neighbors_checked = 0
-        self.neighbors_set = False  # For keeping track later, in case things get nasty
         self.blob_id = -1 # 0 means that it is unset
         self.id = Pixel.total_pixels
         Pixel.total_pixels += 1
-        Pixel.all[self.id] = self
 
-    def setNeighborValues(self, non_zero_neighbors, max_neighbors, neighbor_sum, neighbors_checked):
-        self.nz_neighbors = non_zero_neighbors  # The number out of the 8 surrounding pixels that are non-zero
-        self.maximal_neighbors = max_neighbors
-        self.neighbor_sum = neighbor_sum  # The sum of the surrounding 8 pixels
-        self.neighbors_checked = neighbors_checked
-        self.neighbors_set = True
+        if validate:
+            self.validate();
+
+    def validate(self):
+        # self.id = Pixel.total_pixels
+        Pixel.all[self.id] = self
 
     def setBlobID(self, new_val):
         self.blob_id = new_val

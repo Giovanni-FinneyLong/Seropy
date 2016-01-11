@@ -88,13 +88,31 @@ def doPickle2(blob3dlist, filename, directory=PICKLEDIR):
         else:
             slash = ''
     filename = directory + slash + filename
-    print('Saving to pickle:'+ str(filename))
-    print('Pickling b3ds')
-    pickle.dump({'b3ds' : blob3dlist}, open(filename + '_b3ds', "wb"))
-    print('Pickling b2ds')
-    pickle.dump({'b2ds' : Blob2d.all, 'used_ids': Blob2d.used_ids}, open(filename + '_b2ds', "wb"))
-    print('Pickling pixels')
-    pickle.dump({'pixels' : Pixel.all, 'total_pixels' : Pixel.total_pixels}, open(filename + '_pixels', "wb"))
+    print('Saving to pickle:'+ str(filename) +  'current recursion limit:' + str(sys.getrecursionlimit()))
+    done = False
+    while not done:
+        try:
+            print('Pickling ' + str(len(blob3dlist)) + ' b3ds')
+            t = time.time()
+            pickle.dump({'b3ds' : blob3dlist}, open(filename + '_b3ds', "wb"), protocol=0)
+            printElapsedTime(t,time.time())
+
+            print('Pickling ' + str(len(Blob2d.all)) + ' b2ds')
+            t = time.time()
+            pickle.dump({'b2ds' : Blob2d.all, 'used_ids': Blob2d.used_ids}, open(filename + '_b2ds', "wb"), protocol=0)
+            printElapsedTime(t,time.time())
+
+            print('Pickling ' + str(len(Pixel.all)) + ' pixels from the total possible ' + str(Pixel.total_pixels))
+            t = time.time()
+            pickle.dump({'pixels' : Pixel.all, 'total_pixels' : Pixel.total_pixels}, open(filename + '_pixels', "wb"), protocol=0)
+            printElapsedTime(t,time.time())
+            done = True
+        except RuntimeError:
+            print('\nIf recursion depth has been exceeded, you may increase the maximal depth with: sys.setrecursionlimit(<newdepth>)')
+            print('The current max recursion depth is: ' + str(sys.getrecursionlimit()))
+            print('Opening up an interactive console, press \'n\' then \'enter\' to load variables before interacting, and enter \'exit\' to resume execution')
+            debug()
+            pass
 
 # @profile
 def unPickle2(filename, directory=PICKLEDIR):
@@ -114,6 +132,10 @@ def unPickle2(filename, directory=PICKLEDIR):
         buff = pickle.load(open(filename + '_pixels', "rb"))
         Pixel.all = buff['pixels']
         Pixel.total_pixels = buff['pixels']
+        print('There are a total of:' + str(len(b3ds)) + ' b3ds')
+        print('There are a total of:' + str(len(Blob2d.all)) + ' b2ds')
+        print('There are a total of:' + str(len(Pixel.all)) + ' pixels')
+
         return b3ds
 
 
@@ -224,7 +246,7 @@ def experiment(blob3dlist):
     # plotBlob2ds(all_desc, edge=True, ids=False, parentlines=True,explode=True)
 
 
-    # plotBlob2ds([b2d for b2d in Blob2d.all.values()], edge=True, ids=False, parentlines=True,explode=True)
+    plotBlob2ds([b2d for b2d in Blob2d.all.values()], edge=True, ids=False, parentlines=True,explode=True)
 
 
 
@@ -304,12 +326,10 @@ def explorememoryusage(blob3dlist):
 
 
 
-
-
 # @profile
 def main():
-
-    # sys.setrecursionlimit(7000) # HACK # DEBUG removed to see if this is related to the RAM usage when pickling pixels
+    print('Current recusion limit:' + str(sys.getrecursionlimit()) + ' updating to:' + str(recusion_limit))
+    sys.setrecursionlimit(recusion_limit) # HACK
 
     note = 'Was created by setting distance cost log to base 2 instead of 10, and multiplying by contour_cost'
     if test_instead_of_data:
@@ -341,7 +361,11 @@ def main():
             all_slides.append(Slide(imagefile)) # Pixel computations are done here, as the slide is created.
         # Note now that all slides are generated, and blobs are merged, time to start mapping blobs upward, to their possible partners
 
+        print('DB - Total # of pixels: ' + str(Pixel.total_pixels))
+
+        print("Pairing all blob2ds with their potential partners in adjacent slides", flush=True)
         Slide.setAllPossiblePartners(all_slides)
+        print("Setting shape contexts for all blob2ds",flush=True)
         Slide.setAllShapeContexts(all_slides)
         t_start_munkres = time.time()
         stitchlist = Pairing.stitchAllBlobs(all_slides, debug=False)
@@ -357,44 +381,52 @@ def main():
                     list3ds.append([b2d.id for b2d in buf])
         blob3dlist = []
         for blob2dlist in list3ds:
-            # print('DB Creating b3d from blob2dlist:' + str(blob2dlist))
             blob3dlist.append(Blob3d(blob2dlist))
         print('There are a total of ' + str(len(blob3dlist)) + ' blob3ds')
         Blob3d.tagBlobsSingular(blob3dlist) # TODO improve the simple classification
         for blob3d in blob3dlist:
             blob3d.set_note(note)
-        doPickle2(blob3dlist, picklefile) # DEBUG DEBUG DEBUG
+        print('Pickling the results of stitching:')
+        doPickle2(blob3dlist, picklefile)
 
     else:
         # blob3dlist = unPickle(directory='H:/Dropbox/Serotonin/pickles/recursive/', filename='depth1_subset_of_b3ds.pickle'))
 
+
         blob3dlist = unPickle2(picklefile) # DEBUG DEBUG DEBUG
+
+        # NOTE: Total # of pixels: 38,953,178
+        # 708062 actual
+        # # Actually alive = ~40K per slide => 800k
+
+    all_b2ds = [b2d for b2d in Blob2d.all.values()]
+    plotBlob2ds(all_b2ds, stitches=False, ids=False, parentlines=True,explode=True)
+
     #NOTE at this point, after unpickling the entire swellshark dataset, memory usage is 2.2GB (for Python.exe)
 
     if True:
         # used_b2ds = [b2d for b3d in blob3dlist for b2d in b3d.blob2ds ]
         # print(len(Blob2d.all.values()))
         # plotBlob2ds(Blob2d.all.values(), stitches=False, explode=False, parentlines=False)
-        print('DONE PICKLING THE NORMAL BLOBS, NOW BLOOMING')
-
+        # print('DONE PICKLING THE NORMAL BLOBS, NOW BLOOMING')
         print('DB blob3dlist:' + str(blob3dlist))
         experiment(blob3dlist)
         doPickle2(blob3dlist, picklefile + '_BLOOMED')
 
     else:
         blob3dlist = unPickle2(picklefile + '_BLOOMED') # DEBUG DEBUG DEBUG
+    all_b2ds = [b2d for b2d in Blob2d.all.values()]
+    plotBlob2ds(all_b2ds, stitches=False, ids=False, parentlines=True,explode=True)
 
 
     # explorememoryusage(blob3dlist)
 
     # print('Blob2d.all=' + str(Blob2d.all))
-    # all_b2ds = [b2d for b2d in Blob2d.all.values()]
     # print(len(all_b2ds))
     # # print('DB printing all b2ds:')
     # for b2d in all_b2ds:
     #     print(b2d)
 
-    plotBlob2ds(all_b2ds, stitches=False, explode=True, parentlines=True) # TODO parentlines here causes an issue...
 
 
 if __name__ == '__main__':
@@ -405,7 +437,7 @@ if __name__ == '__main__':
     # I expect this will involve creating groups of touching pixels
     # This can be done most efficicently by using just the layers of bloom that have been returned; as there is no need
     # Need to find cases where 2 groups are separated exclusively by the previous layer's pixels
-    # NOTE that the avdvantage to this is
+    # NOTE that the advantage to this is
     # a) Can setup bloom to work on blob2ds
     # b) Can plot internals with blob2d methods
     # c) Can loop recursively only on larger blob2ds instead of whole layer

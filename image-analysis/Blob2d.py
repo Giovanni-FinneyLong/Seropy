@@ -116,14 +116,14 @@ class Blob2d:
     def __init__(self, list_of_pixels, height, offsetx=0, offsety=0, recursive_depth=0, parentID=-1): # CHANGED to height from slide, removed master_array
         assert(recursive_depth == 0 or parentID != -1)
         Blob2d.total_blobs += 1
-
+        for pixel in list_of_pixels:
+            pixel.validate();
         self.minx = min(pixel.x for pixel in list_of_pixels)
         self.maxx = max(pixel.x for pixel in list_of_pixels)
         self.miny = min(pixel.y for pixel in list_of_pixels)
         self.maxy = max(pixel.y for pixel in list_of_pixels)
         self.avgx = sum(pixel.x for pixel in list_of_pixels) / len(list_of_pixels)
         self.avgy = sum(pixel.y for pixel in list_of_pixels) / len(list_of_pixels)
-        self.min_nzn_pixel = min(pixel.nz_neighbors for pixel in list_of_pixels)
 
         self.pixels = [pixel.id for pixel in list_of_pixels]
         self.num_pixels = len(list_of_pixels)
@@ -136,8 +136,6 @@ class Blob2d:
         self.parentID = parentID
         self.children = []
 
-        # self.master_array = master_array
-        # self.slide = slide
         self.height = height
         self.possible_partners = [] # A list of blobs which MAY be part of the same blob3d as this blob2d
         self.partner_costs = [] # The minimal cost for the corresponding blob2d in possible_partners
