@@ -327,21 +327,14 @@ def main():
             dir = DATA_DIR
             extension = 'Swell*.tif'
         all_images = glob.glob(dir + extension)
-        #
-        # # HACK
-        # if not test_instead_of_data:
-        #     all_images = all_images[:3]
-        # # HACK
-        #
-		
-        #print(all_images)
+
         all_slides = []
 
         for imagefile in all_images:
             all_slides.append(Slide(imagefile)) # Pixel computations are done here, as the slide is created.
         # Note now that all slides are generated, and blobs are merged, time to start mapping blobs upward, to their possible partners
 
-        print('DB - Total # of pixels: ' + str(Pixel.total_pixels))
+        print('Total # of pixels: ' + str(Pixel.total_pixels))
 
         print("Pairing all blob2ds with their potential partners in adjacent slides", flush=True)
         Slide.setAllPossiblePartners(all_slides)
@@ -370,54 +363,43 @@ def main():
         doPickle2(blob3dlist, picklefile)
 
     else:
-        blob3dlist = unPickle2(picklefile) # DEBUG DEBUG DEBUG
-
-        # NOTE: Total # of pixels: 38,953,178
-        # 708062 actual
-        # # Actually alive = ~40K per slide => 800k
 
 
+        if False:
 
-    #
+            blob3dlist = unPickle2(picklefile) # DEBUG DEBUG DEBUG
+            # used_b2ds = [b2d for b3d in blob3dlist for b2d in b3d.blob2ds ]
+            # print(len(Blob2d.all.values()))
+            # plotBlob2ds(Blob2d.all.values(), stitches=False, explode=False, parentlines=False)
+            # print('DONE PICKLING THE NORMAL BLOBS, NOW BLOOMING')
+            print('DB blob3dlist:' + str(blob3dlist))
+            experiment(blob3dlist)
+            doPickle2(blob3dlist, picklefile + '_BLOOMED')
+
+        else:
+            blob3dlist = unPickle2(picklefile + '_BLOOMED') # DEBUG DEBUG DEBUG
+
+
     all_b2ds = [b2d for b2d in Blob2d.all.values()]
-    # test = all_b2ds[1]
-    # print("Printing test b2d's dict: (len = " + str(len(test.__dict__)) + ')' )
-    # for d in test.__dict__.items():
-    #     print(d)
-    # print("Performing blooming on test b2d")
-    # bloomInwards(test)
-    # testu = Blob2d.get(test.id)
-    # desc = testu.getdescendants()
-    # print("Total # of descendants:" + str(len(desc)))
-    # print("First desc:" + str(desc[1]))
-    # print("Printing test descendant b2d's dict: (len = " + str(len(desc[1].__dict__)) + ')')
-    # for d in desc[1].__dict__.items():
-    #     print(d)
-    #
-    # print('---------')
-    # print("Original b2d:" + str(test))
-    # print("Updated b2d:" + str(testu))
-
-    # print('WARNING after this plotting window is closed, will bloom all b2ds that are available..')
-    # plotBlob2ds(all_b2ds, stitches=False, ids=False, parentlines=True,explode=True, canvas_size=(300,300))
-
-    #NOTE at this point, after unpickling the entire swellshark dataset, memory usage is 2.2GB (for Python.exe)
+    plotBlob2ds(all_b2ds, stitches=True, ids=False, parentlines=True,explode=True, edge=False)
 
 
+    depth_1 = [b2d.id for b2d in Blob2d.all.values() if b2d.recursive_depth == 1]
+    print('The number of base b2ds: ' + str(depth_1) + ' = ' + str(depth_1))
 
-    if True:
-        # used_b2ds = [b2d for b3d in blob3dlist for b2d in b3d.blob2ds ]
-        # print(len(Blob2d.all.values()))
-        # plotBlob2ds(Blob2d.all.values(), stitches=False, explode=False, parentlines=False)
-        # print('DONE PICKLING THE NORMAL BLOBS, NOW BLOOMING')
-        print('DB blob3dlist:' + str(blob3dlist))
-        experiment(blob3dlist)
-        doPickle2(blob3dlist, picklefile + '_BLOOMED')
+    for b_num, b2d in enumerate(depth_1):
+        b2d = Blob2d.get(b2d)
 
-    else:
-        blob3dlist = unPickle2(picklefile + '_BLOOMED') # DEBUG DEBUG DEBUG
-    all_b2ds = [b2d for b2d in Blob2d.all.values()]
-    plotBlob2ds(all_b2ds, stitches=False, ids=False, parentlines=True,explode=True, edge=False)
+        print('Working on b2d ' + str(b_num) + ' / ' + str(len(depth_1)) + ' = ' + str(b2d))
+        # for pairing in b2d.pairings:
+        #     print(' ' + str(pairing))
+        b2d.setPossiblePartners(depth_1)
+        for p in b2d.possible_partners:
+            print(' partner:' + str(Blob2d.get(p)))
+        plotBlob2ds([b2d] + [Blob2d.get(p) for p in b2d.possible_partners], ids=True,edge=False)
+        # Seem to be correctly setting partners
+
+    plotBlob2ds(depth_1, stitches=True, ids=False, parentlines=True,explode=True, edge=False)
 
 
     # explorememoryusage(blob3dlist)

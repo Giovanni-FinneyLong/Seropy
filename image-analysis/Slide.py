@@ -184,11 +184,7 @@ class Slide:
             print('')
 
     @staticmethod
-    def setAllPossiblePartners(slidelist, **kwargs):
-        debugflag = kwargs.get('debugflag', -1)
-        debug2ds = kwargs.get('debugforb2ds',[])
-        debugging = (debugflag == 1)# debug, set value as desired
-
+    def setAllPossiblePartners(slidelist):
         max_height = max(slide.height for slide in slidelist)
         slides_by_height = [[] for i in range(max_height + 1)]
         for slide in slidelist:
@@ -197,7 +193,7 @@ class Slide:
             for slide in slides_at_height:
                 for blob in slide.blob2dlist:
                     for above_slide in slides_by_height[height + 1]:
-                        Blob2d.get(blob).setPossiblePartners(above_slide, **kwargs)
+                        Blob2d.get(blob).setPossiblePartners(above_slide.blob2dlist)
 
     @staticmethod
     def setAllShapeContexts(slidelist):

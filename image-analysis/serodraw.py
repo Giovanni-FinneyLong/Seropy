@@ -590,7 +590,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
                     line_locations[line_index + 1] = [(child.avgx - xmin) / xdim, (child.avgy - ymin) / ydim, (child.height - zmin) / ( z_compression * zdim)]
                     line_index += 2
             parent_lines = visuals.Line(method=linemethod)
-            parent_lines.set_data(pos=line_locations, connect='segments')
+            parent_lines.set_data(pos=line_locations, connect='segments', color='y')
             view.add(parent_lines)
 
     axis = visuals.XYZAxis(parent=view.scene)

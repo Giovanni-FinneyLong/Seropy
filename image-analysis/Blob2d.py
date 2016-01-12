@@ -8,29 +8,6 @@ if mayPlot:
     from scipy import misc as scipy_misc
 
 
-
-class Layer:
-    total_layers = 0
-    all = dict() # A dictionary containing ALL Blob2ds. A blob2d's key is it's id
-    def __init__(self, list_of_pixels, height, offsetx=0, offsety=0, recursive_depth=0, parentID=-1): # CHANGED to height from slide, removed master_array
-        assert(recursive_depth == 0 or parentID != -1)
-        Blob2d.total_blobs += 1
-        for pixel in list_of_pixels:
-            pixel.validate();
-        pixeldict = Pixel.pixelidstodict(self.pixels)
-        self.edge_pixels = [pixel for pixel in self.pixels if len(Pixel.get(pixel).neighborsfromdict(pixeldict)) < 8]
-        self.recursive_depth = recursive_depth
-        self.parentID = parentID
-        self.children = []
-        self.height = height
-        self.id = -1
-        self.validateID() # self is added to Blob2d.all dict here
-
-    def __str__(self):
-        return '<Layer:' + str(self.id) + ', r_depth:' + str(self.recursive_depth) + ', parent:' + str(self.parentID) + ', children:' + str(self.children)
-
-    __repr__ = __str__
-
 class Blob2d:
     '''
     This class contains a list of pixels, which comprise a 2d blob on a single image
@@ -205,7 +182,7 @@ class Blob2d:
         #     pix.blob_id = newid
 
 
-    def setPossiblePartners(self, slide, **kwargs):
+    def setPossiblePartners(self, blob2dlist):
         '''
         Finds all blobs in the given slide that COULD overlap with the given blob.
         These blobs could be part of the same blob3D (partners)
@@ -215,10 +192,12 @@ class Blob2d:
         #  minx2 <= (minx1 | max1) <= maxx2
         #  miny2 <= (miny1 | maxy1) <= maxy2
 
-        for blob in slide.blob2dlist:
+        for b_num, blob in enumerate(blob2dlist):
             blob = Blob2d.get(blob)
             inBounds = False
             partnerSmaller = False
+            # print('Working on blob #' + str(b_num) + ' / ' + str(len(blob2dlist)) + ' = ' + str(blob))
+
             if (blob.minx <= self.minx <= blob.maxx) or (blob.minx <= self.maxx <= blob.maxx): # Covers the case where the blob on the above slide is larger
                 # Overlaps in the x axis; a requirement even if overlapping in the y axis
                 if (blob.miny <= self.miny <= blob.maxy) or (blob.miny <= self.maxy <= blob.maxy):
@@ -260,6 +239,7 @@ class Blob2d:
                         my_subpixel_indeces.append(p_num)
         # self.partner_costs = [0] * len(self.possible_partners) # Note: May want to use this later
         # Could this method to do better filtering, like checking if the blobs are within each other etc
+        # TODO update entry in Blob2d...?
 
 
     def setShapeContexts(self, num_bins):

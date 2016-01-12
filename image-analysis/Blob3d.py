@@ -61,8 +61,6 @@ class Blob3d:
             self.note += str
         else:
             self.set_note(str)
-    def set_note(self, str):
-        self.note = str
 
     @staticmethod
     def tagBlobsSingular(blob3dlist, quiet=False):
