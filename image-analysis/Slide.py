@@ -25,7 +25,6 @@ def setglobaldims(x, y, z):
     setserodims(x, y, z) # Need both calls, one to set the global vars in each file, otherwise they don't carry
     setseerodrawdims(x, y, z) # Even when using 'global'; one method needs to be in each file
 
-
 class Slide:
     ''''
     Each slide holds the Blob2d's from a single scan image.
@@ -84,10 +83,13 @@ class Slide:
             for cury in range(self.local_ydim):
                 pixel_value = slices[0][curx][cury] # CHANGED back,  FIXME # reversed so that orientation is the same as the original when plotted with a reversed y.
                 if (pixel_value != 0):  # Can use alternate min threshold and <=
-                    pixels.append(Pixel(pixel_value, curx, cury, self.id_num))
+                    pixels.append(Pixel(pixel_value, curx, cury, self.id_num, validate=False))
                     self.sum_pixels += pixel_value
         if not quiet:
             print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(self.local_xdim * self.local_ydim) + ' pixels')
+        print(' --> Pixel.total_pixels = ' + str(Pixel.total_pixels) + ' Pixel.all = ' + str(len(Pixel.all)))
+        print('-----len of pixel.all = ' + str(len(Pixel.all)))
+
         pixels.sort(key=lambda pix: pix.val, reverse=True)# Note that sorting is being done like so to sort based on value not position as is normal with pixels. Sorting is better as no new list
 
         # Lets go further and grab the maximal pixels, which are at the front
@@ -98,6 +100,8 @@ class Slide:
             if not quiet:
                 print('There are ' + str(endmax) + ' pixels above the minimal threshold')
         # Time to pre-process the maximal pixels; try and create groups/clusters
+        print(' --> Pixel.total_pixels = ' + str(Pixel.total_pixels) + ' Pixel.all = ' + str(len(Pixel.all)))
+
         self.alive_pixels = filterSparsePixelsFromList(pixels[0:endmax], (self.local_xdim, self.local_ydim), quiet=quiet)
         self.alive_pixels.sort() # Sorted here so that in y,x order instead of value order
         alive_pixel_array = np.zeros([self.local_xdim, self.local_ydim], dtype=object)
@@ -107,7 +111,8 @@ class Slide:
         counter = collections.Counter(derived_ids)
         total_ids = len(counter.items())
         if not quiet:
-            print('There were: ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(total_ids) + ' blobs')
+            print('There were: ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(total_ids) + ' blobs.')
+        print(' --> Pixel.total_pixels = ' + str(Pixel.total_pixels) + ' Pixel.all = ' + str(len(Pixel.all)))
         most_common_ids = counter.most_common()# HACK Grabbing all for now, +1 b/c we start at 0 # NOTE Stored as (id, count)
         id_lists = getIdLists(self.alive_pixels, remap=remap_ids_by_group_size, id_counts=most_common_ids) # Hack, don't ned to supply id_counts of remap is false; just convenient for now
         self.blob2dlist = [] # Note that blobs in the blob list are ordered by number of pixels, not id, this makes merging faster
@@ -151,9 +156,9 @@ class Slide:
         # Sets to lists for indexing,
         # Note that in python, sets are always unordered, and so a derivative list must be sorted.
 
-        db_blob2d_list = [Blob2d.get(b2d) for b2d in self.blob2dlist]
+        #db_blob2d_list = [Blob2d.get(b2d) for b2d in self.blob2dlist]
 
-        print('DB working on slide, w/ blob2list: ' + str(db_blob2d_list))
+        #print('DB working on slide, w/ blob2list: ' + str(db_blob2d_list))
 
         for (index,stl) in enumerate(equiv_sets): # TODO this can be changed to be faster after b2ds are statically indexed
             equiv_sets[index] = sorted(stl) # See note
@@ -165,12 +170,14 @@ class Slide:
 
 
 
+
+
         self.blob2dlist = Blob2d.mergeblobs(self.blob2dlist) # NOTE, by assigning the returned Blob2d list to a new var, the results of merging can be demonstrated
         self.edge_pixels = []
         edge_lists = []
         for (blobnum, blobslist) in enumerate(self.blob2dlist):
             edge_lists.append(Blob2d.get(self.blob2dlist[blobnum]).edge_pixels)
-            self.edge_pixels.extend(Blob2d.get(self.blob2dlist[blobnum]).edge_pixels)
+            self.edge_pixels.extend(Blob2d.get(self.blob2dlist[blobnum]).edge_pixels) # TODO remove
         if not quiet:
             self.tf = time.time()
             printElapsedTime(self.t0, self.tf)
@@ -413,33 +420,38 @@ def getIdLists(pixels, **kwargs):
         print('Issue with kwargs in call to getIdLists!!')
 
 def filterSparsePixelsFromList(listin, local_dim_tuple, quiet=False):
+    # TODO convert to ids
     local_xdim, local_ydim = local_dim_tuple
     max_float_array = np.zeros([local_xdim, local_ydim])
     for pixel in listin:
         max_float_array[pixel.x][pixel.y] = pixel.val  # Note Remember that these are pointers!
     filtered_pixels = []
+    removed_pixel_ids = []
     for (pixn, pixel) in enumerate(listin):  # pixel_number and the actual pixel (value, x-coordinate, y-coordinate)
         xpos = pixel.x  # Note: The naming scheme has been repaired
         ypos = pixel.y
         # Keep track of nz-neighbors, maximal-neighbors, neighbor sum
         buf_nzn = 0
-        buf_maxn = 0
-        buf_sumn = 0.
-        neighbors_checked = 0
+        # buf_maxn = 0
+        # buf_sumn = 0.
+        # neighbors_checked = 0
         for horizontal_offset in range(-1, 2, 1):  # NOTE CURRENTLY 1x1 # TODO rteplace with getneighbors
             for vertical_offset in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
                 if (vertical_offset != 0 or horizontal_offset != 0):  # Don't measure the current pixel
                     if (xpos + horizontal_offset < local_xdim and xpos + horizontal_offset >= 0 and ypos + vertical_offset < local_ydim and ypos + vertical_offset >= 0):  # Boundary check.
-                        neighbors_checked += 1
+                        # neighbors_checked += 1
                         cur_neighbor_val = max_float_array[xpos + horizontal_offset][ypos + vertical_offset]
                         if (cur_neighbor_val > 0):
                             buf_nzn += 1
-                            if (cur_neighbor_val == 255):
-                                buf_maxn += 1
-                            buf_sumn += cur_neighbor_val
-        pixel.setNeighborValues(buf_nzn, buf_maxn, buf_sumn, neighbors_checked)
+                            # if (cur_neighbor_val == 255):
+                            #     buf_maxn += 1
+                            # buf_sumn += cur_neighbor_val
+        # pixel.setNeighborValues(buf_nzn, buf_maxn, buf_sumn, neighbors_checked)
         if buf_nzn >= minimal_nonzero_neighbors:
             filtered_pixels.append(pixel)
+        else:
+            removed_pixel_ids.append(pixel.id)
+    # print('\n\n\nThe removed pixels are:' + str(removed_pixel_ids))
     if not quiet:
         print('There are ' + str(len(listin) - len(filtered_pixels)) + ' dead pixels & ' + str(len(filtered_pixels)) + ' still alive')
     return filtered_pixels

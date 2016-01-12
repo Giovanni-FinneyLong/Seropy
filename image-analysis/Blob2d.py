@@ -116,41 +116,36 @@ class Blob2d:
     def __init__(self, list_of_pixels, height, offsetx=0, offsety=0, recursive_depth=0, parentID=-1): # CHANGED to height from slide, removed master_array
         assert(recursive_depth == 0 or parentID != -1)
         Blob2d.total_blobs += 1
-
+        for pixel in list_of_pixels:
+            pixel.validate();
         self.minx = min(pixel.x for pixel in list_of_pixels)
         self.maxx = max(pixel.x for pixel in list_of_pixels)
         self.miny = min(pixel.y for pixel in list_of_pixels)
         self.maxy = max(pixel.y for pixel in list_of_pixels)
         self.avgx = sum(pixel.x for pixel in list_of_pixels) / len(list_of_pixels)
         self.avgy = sum(pixel.y for pixel in list_of_pixels) / len(list_of_pixels)
-        self.min_nzn_pixel = min(pixel.nz_neighbors for pixel in list_of_pixels)
 
         self.pixels = [pixel.id for pixel in list_of_pixels]
-        self.num_pixels = len(list_of_pixels)
         self.assignedto3d = False # Set to true once a blod2d has been added to a list that will be used to construct a blob3d
-        self.debugFlag = False
-        self.sum_vals = 0
         self.offsetx = offsetx
         self.offsety = offsety
         self.recursive_depth = recursive_depth
         self.parentID = parentID
         self.children = []
 
-        # self.master_array = master_array
-        # self.slide = slide
         self.height = height
         self.possible_partners = [] # A list of blobs which MAY be part of the same blob3d as this blob2d
         self.partner_costs = [] # The minimal cost for the corresponding blob2d in possible_partners
-        self.partner_subpixels = [] # Each element is a list of pixels, corresponding to a subset of the edge pixels from the partner blob
+        # self.partner_subpixels = [] # Each element is a list of pixels, corresponding to a subset of the edge pixels from the partner blob
                                     # The value of each element in the sublist for each partner is the index of the pixel from the corresponding partner
-        self.my_subpixels = []      # Set of own subpixels, with each list corresponding to a list from partner_subpixels
+        # self.my_subpixels = []      # Set of own subpixels, with each list corresponding to a list from partner_subpixels
         self.pairings = [] # A list of pairings that this blob belongs to
 
         # Note for now, will use the highest non-zero-neighbor count pixel
         self.setEdge()
         # self.setTouchingBlobs()
         self.max_width = self.maxx-self.minx + 1 # Note +1 to include both endcaps
-        self.max_height = self.maxy-self.miny + 1 # Note +1 to include both endcaps
+        self.max_height = self.maxy-self.miny + 1 # Note +1 to include both endcaps //TODO rename misleading compared to self.heigh
         self.id = -1
         self.validateID() # self is added to Blob2d.all dict here
 
@@ -263,8 +258,6 @@ class Blob2d:
                 print('>>InBounds=' + str(inBounds) + ', partnerSmaller=' + str(partnerSmaller))
                 # from serodraw import plotBlob2ds
                 # plotBlob2ds([self, blob], ids=True)
-
-
             if inBounds:
                 self.possible_partners.append(blob.id)
                 # print('DEBUG  Inspected blob was added to current blob\'s possible partners')
@@ -296,8 +289,6 @@ class Blob2d:
                     pixel = Pixel.get(pixel)
                     if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
                         my_subpixel_indeces.append(p_num)
-                self.partner_subpixels.append(partner_subpixel_indeces)
-                self.my_subpixels.append(my_subpixel_indeces)
 
 
         self.partner_costs = [0] * len(self.possible_partners)
@@ -341,7 +332,7 @@ class Blob2d:
         pairingidsl = [pairing.lowerblob.id for pairing in self.pairings if pairing.lowerblob.id != self.id]
         pairingidsu = [pairing.upperblob.id for pairing in self.pairings if pairing.upperblob.id != self.id]
         pairingids = sorted(pairingidsl + pairingidsu)
-        return str('B{id:' + str(self.id) + ', #P=' + str(self.num_pixels)) + ', #EP=' + str(len(self.edge_pixels)) + ', recur_depth=' + str(self.recursive_depth) + ', parentID=' + str(self.parentID) + ', pairedids=' + str(pairingids)  + ', height=' + str(self.height) + ', (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) +'), Avg(X,Y):(%.1f' % self.avgx + ',%.1f' % self.avgy + ', children=' + str(self.children) +')}'
+        return str('B{id:' + str(self.id) + ', #P=' + str(len(self.pixels))) + ', #EP=' + str(len(self.edge_pixels)) + ', recur_depth=' + str(self.recursive_depth) + ', parentID=' + str(self.parentID) + ', pairedids=' + str(pairingids)  + ', height=' + str(self.height) + ', (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) +'), Avg(X,Y):(%.1f' % self.avgx + ',%.1f' % self.avgy + ', children=' + str(self.children) +')}'
 
     __repr__ = __str__
 
@@ -529,27 +520,35 @@ class Blob2d:
         return saturated
 
 
-
+    #TODO this needs some fixing, has been causing issues with pixels to dict, will know is fixed once can remove the id to b2d hack in pixelstodict
     @staticmethod
     def pixels_to_blob2ds(pixellist, parentID=-1, recursive_depth=0, modify=False): # Modify true if we want to modify the pixels passed, otherwise make new ones
         #HACK
-        if modify:
-            pixelistcopy = pixellist
-        else:
-            pixelistcopy = []# = pixellist #HACK
-            for pixel in pixellist:
-                pixelistcopy.append(Pixel(pixel.val, pixel.x, pixel.y, pixel.z))
+        # if modify:
+        #     pixelistcopy = pixellist
+        # else:
+        #     pixelistcopy = []# = pixellist #HACK
+        #     for pixel in pixellist:
+        #         pixel = Pixel.get(pixel)
+        #         pixelistcopy.append(Pixel(pixel.val, pixel.x, pixel.y, pixel.z))
+
+        #DEBUG
+        pixellistcopy = pixellist
+        #DEBUG
 
         alonepixels = []
-        for pixel in pixelistcopy:
-            pixel.blob_id = -1
+        # for pixel in pixellistcopy:
+        #     pixel.blob_id = -1
         #hack
-        alive = set(pixelistcopy)
+        alive = set(pixellistcopy)
         blob2dlists = []
+        # print('DB ORIGINALLY ALIVE IS:' + str(alive))
         while len(alive):
+            # print('DB len of alive is;' + str(len(alive)))
+            # print('    DB CALLING WITHIN pixels to blob2ds with args:' + str(alive))
             alivedict = Pixel.pixelidstodict(alive)
             pixel = next(iter(alive)) # Basically alive[0]
-            neighbors = set(pixel.neighborsfromdict(alivedict))
+            neighbors = set(Pixel.get(pixel).neighborsfromdict(alivedict))
             index = 1
             done = False
             while (len(neighbors) == 0 or not done) and len(alive) > 0:
@@ -568,7 +567,7 @@ class Blob2d:
                     done = True
                     # Note this needs testing!!!!
                     # Assuming that all the remaining pixels are their own blob2ds essentiall, and so are removed
-                neighbors = set(pixel.neighborsfromdict(alivedict))
+                neighbors = set(Pixel.get(pixel).neighborsfromdict(alivedict))
                 if len(neighbors) == 0:
                     # print('   Found a blob with no neighbors, removing')
                     alive = alive - set([pixel])
@@ -586,7 +585,11 @@ class Blob2d:
                 neighbors = newneighbors
             # print(' DB found a group which make up a blob2d:' + str(neighbors) + ' \n  consisting of ' + str(len(neighbors)) + ' pixels')
             blob2dlists.append(list(neighbors))
-            alive = alive - neighbors
+
+            # print('DB NEIGHBORS:' + str(neighbors))
+            # print('DB alive:' + str(alive))
+            alive = alive - set(n.id for n in neighbors)
+            # print('DB after update at end of loop, alive:' + str(alive))
 
         b2ds = [Blob2d(blob2dlist, blob2dlist[0].z, parentID=parentID, recursive_depth=recursive_depth) for blob2dlist in blob2dlists if len(blob2dlist) > 0]
         # TODO this update is very expensive, need to separate this lists of children from the blob2ds (into another dict), therefore no need for a deep copy of a blob2d
