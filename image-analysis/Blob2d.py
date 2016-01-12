@@ -547,10 +547,19 @@ class Blob2d:
             # print('DB after update at end of loop, alive:' + str(alive))
 
         b2ds = [Blob2d(blob2dlist, blob2dlist[0].z, parentID=parentID, recursive_depth=recursive_depth) for blob2dlist in blob2dlists if len(blob2dlist) > 0]
+
         # TODO this update is very expensive, need to separate this lists of children from the blob2ds (into another dict), therefore no need for a deep copy of a blob2d
-        buff = copy.deepcopy(Blob2d.get(parentID)) # Note confirmed this doesnt change Blob2d.all
-        buff.children += [b2d.id for b2d in b2ds]
-        Blob2d.all[parentID] = buff
+
+
+        # DEBUG DEBUG
+
+        # buff = copy.deepcopy(Blob2d.get(parentID)) # Note confirmed this doesnt change Blob2d.all
+        # buff.children += [b2d.id for b2d in b2ds]
+        # Blob2d.all[parentID] = buff
+        # print('=======> Updated to: ' + str(buff) )
+
+        Blob2d.all[parentID].children = Blob2d.all[parentID].children + [b2d.id for b2d in b2ds]
+
 
         if Blob2d.get(parentID).recursive_depth > 0:
             # print('  BEFORE:' + str(Blob2d.get(parentID)))

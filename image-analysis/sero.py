@@ -203,32 +203,19 @@ def bloomInwards(blob2d, depth=0):
         depth_offset += '-'
     # print(depth_offset + ' DB: Done blooming b2d:' + str(blob2d) + ' at depth ' + str(depth))
     # print(depth_offset + ' Total children: ' + str(len(blob2d.getdescendants())) + ' = ' + str(blob2d.getdescendants()))
-
     # NEW trying to 'steal' / inheret non-edgepixels from parents..
     # print(' Parent was originally:' + str(blob2d))
-
-
-
-
-    # FIXME FIXME FIXME FIXME
     # print(' DB stealing from parent: ' + str(blob2d) + ' # children: ' + str(len(b2ds)))
     # print('  Currently entry for parent is:' + str(Blob2d.get(blob2d.id)))
+
     for num,b2d in enumerate(b2ds):
         b2d = Blob2d.get(b2d)
         # print(' Child ' + str(num) + ' has ' + str(len(b2d.pixels)) + ' pixels and ' + str(len(b2d.edge_pixels)) + ' edge pixels')
         old_size = len(blob2d.pixels)
-        # DEBUG
-        # blob2d.pixels = list(set(blob2d.pixels) - set(b2d.pixels))
-        # Blob2d.all[blob2d.id] = blob2d
-        # DEBUG
-        #         blob2d.pixels = list(set(blob2d.pixels) - set(b2d.pixels))
-        pixels_before = len(Blob2d.all[blob2d.id].pixels)
         Blob2d.all[blob2d.id].pixels = list(set(Blob2d.all[blob2d.id].pixels) - set(b2d.pixels))
-        # Blob2d.all[blob2d.id].children.append(b2d.id)
+        # Blob2d.all[blob2d.id].children.append(b2d.id) #Todo remove or needed?
 
-        # print(depth_offset + ' The number of pixels has changed from ' + str(pixels_before) + ' to ' + str(len(Blob2d.all[blob2d.id].pixels)))
 
-    # FIXME FIXME FIXME FIXME
 
 
 
@@ -260,7 +247,7 @@ def experiment(blob3dlist):
     for bnum, blob2d in enumerate(allb2ds[start_offset:]): # HACK need to put the colon on the right of start_offset
         # showBlob2d(b2d)
         print('Blooming b2d: ' + str(bnum + start_offset) + '/' + str(len(allb2ds)) + ' = ' + str(blob2d) )
-        # print(' The current number of B2ds = ' + str(len(Blob2d.all)) + ' the previous count = ' + str(prev_count))
+        print(' The current number of B2ds = ' + str(len(Blob2d.all)) + ', the previous count = ' + str(prev_count))
         prev_count = len(Blob2d.all)
         bloomInwards(blob2d) # NOTE will have len 0 if no blooming can be done
         # print(' After blooming the above blob, len(Blob2d.all) = ' + str(len(Blob2d.all)))
@@ -271,7 +258,7 @@ def experiment(blob3dlist):
     print('To complete all blooming:')
     printElapsedTime(t_start_bloom, time.time())
     print('Before blooming there were: ' + str(num_unbloomed) + ' b2ds, there are now ' + str(len(Blob2d.all)))
-
+    #Note that at this point memory usage is 3.4gb, with 12.2K b2ds
 
     plotBlob2ds([b2d for b2d in Blob2d.all.values()], edge=True, ids=False, parentlines=True,explode=True)
 
