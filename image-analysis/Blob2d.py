@@ -9,6 +9,28 @@ if mayPlot:
 
 
 
+class Layer:
+    total_layers = 0
+    all = dict() # A dictionary containing ALL Blob2ds. A blob2d's key is it's id
+    def __init__(self, list_of_pixels, height, offsetx=0, offsety=0, recursive_depth=0, parentID=-1): # CHANGED to height from slide, removed master_array
+        assert(recursive_depth == 0 or parentID != -1)
+        Blob2d.total_blobs += 1
+        for pixel in list_of_pixels:
+            pixel.validate();
+        pixeldict = Pixel.pixelidstodict(self.pixels)
+        self.edge_pixels = [pixel for pixel in self.pixels if len(Pixel.get(pixel).neighborsfromdict(pixeldict)) < 8]
+        self.recursive_depth = recursive_depth
+        self.parentID = parentID
+        self.children = []
+        self.height = height
+        self.id = -1
+        self.validateID() # self is added to Blob2d.all dict here
+
+    def __str__(self):
+        return '<Layer:' + str(self.id) + ', r_depth:' + str(self.recursive_depth) + ', parent:' + str(self.parentID) + ', children:' + str(self.children)
+
+    __repr__ = __str__
+
 class Blob2d:
     '''
     This class contains a list of pixels, which comprise a 2d blob on a single image
@@ -20,6 +42,34 @@ class Blob2d:
     min_free_id = 0
 
     all = dict() # A dictionary containing ALL Blob2ds. A blob2d's key is it's id
+
+    def __init__(self, list_of_pixels, height, recursive_depth=0, parentID=-1): # CHANGED to height from slide, removed master_array
+        assert(recursive_depth == 0 or parentID != -1)
+        Blob2d.total_blobs += 1
+        for pixel in list_of_pixels:
+            pixel.validate();
+        self.minx = min(pixel.x for pixel in list_of_pixels)
+        self.maxx = max(pixel.x for pixel in list_of_pixels)
+        self.miny = min(pixel.y for pixel in list_of_pixels)
+        self.maxy = max(pixel.y for pixel in list_of_pixels)
+        self.avgx = sum(pixel.x for pixel in list_of_pixels) / len(list_of_pixels)
+        self.avgy = sum(pixel.y for pixel in list_of_pixels) / len(list_of_pixels)
+
+        self.pixels = [pixel.id for pixel in list_of_pixels]
+        self.assignedto3d = False # Set to true once a blod2d has been added to a list that will be used to construct a blob3d
+        self.recursive_depth = recursive_depth
+        self.parentID = parentID
+        self.children = []
+        self.height = height
+        self.possible_partners = [] # A list of blobs which MAY be part of the same blob3d as this blob2d , deleted later
+        #self.partner_costs = [] # The minimal cost for the corresponding blob2d in possible_partners
+            #Note may want to use this later
+        self.pairings = [] # A list of pairings that this blob belongs to
+        self.setEdge()
+        self.id = -1
+        self.validateID() # self is added to Blob2d.all dict here
+
+
 
     @staticmethod
     def get(id):
@@ -60,7 +110,9 @@ class Blob2d:
         else:
             return buf
 
-
+    def setEdge(self):
+        pixeldict = Pixel.pixelidstodict(self.pixels)
+        self.edge_pixels = [pixel for pixel in self.pixels if len(Pixel.get(pixel).neighborsfromdict(pixeldict)) < 8]
 
     def printdescendants(self, rdepth=0):
         pad = ''
@@ -104,45 +156,6 @@ class Blob2d:
                 print('Updated entry for ' + str(self.id))
             Blob2d.used_ids[self.id] = 1
             Blob2d.all[self.id] = self
-
-
-
-    def __init__(self, list_of_pixels, height, offsetx=0, offsety=0, recursive_depth=0, parentID=-1): # CHANGED to height from slide, removed master_array
-        assert(recursive_depth == 0 or parentID != -1)
-        Blob2d.total_blobs += 1
-        for pixel in list_of_pixels:
-            pixel.validate();
-        self.minx = min(pixel.x for pixel in list_of_pixels)
-        self.maxx = max(pixel.x for pixel in list_of_pixels)
-        self.miny = min(pixel.y for pixel in list_of_pixels)
-        self.maxy = max(pixel.y for pixel in list_of_pixels)
-        self.avgx = sum(pixel.x for pixel in list_of_pixels) / len(list_of_pixels)
-        self.avgy = sum(pixel.y for pixel in list_of_pixels) / len(list_of_pixels)
-
-        self.pixels = [pixel.id for pixel in list_of_pixels]
-        self.assignedto3d = False # Set to true once a blod2d has been added to a list that will be used to construct a blob3d
-        self.offsetx = offsetx
-        self.offsety = offsety
-        self.recursive_depth = recursive_depth
-        self.parentID = parentID
-        self.children = []
-
-        self.height = height
-        self.possible_partners = [] # A list of blobs which MAY be part of the same blob3d as this blob2d
-        self.partner_costs = [] # The minimal cost for the corresponding blob2d in possible_partners
-        self.pairings = [] # A list of pairings that this blob belongs to
-
-        # Note for now, will use the highest non-zero-neighbor count pixel
-        self.setEdge()
-        self.max_width = self.maxx-self.minx + 1 # Note +1 to include both endcaps
-        self.max_height = self.maxy-self.miny + 1 # Note +1 to include both endcaps //TODO rename misleading compared to self.heigh
-        self.id = -1
-        self.validateID() # self is added to Blob2d.all dict here
-
-    def setEdge(self):
-        pixeldict = Pixel.pixelidstodict(self.pixels)
-        self.edge_pixels = [pixel for pixel in self.pixels if len(Pixel.get(pixel).neighborsfromdict(pixeldict)) < 8]
-        self.edge_pixels.sort()
 
 
     def setTouchingBlobs(self):
@@ -245,8 +258,8 @@ class Blob2d:
                     pixel = Pixel.get(pixel)
                     if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
                         my_subpixel_indeces.append(p_num)
-        self.partner_costs = [0] * len(self.possible_partners)
-        # TODO update this method to do better filtering, like checking if the blobs are within each other etc
+        # self.partner_costs = [0] * len(self.possible_partners) # Note: May want to use this later
+        # Could this method to do better filtering, like checking if the blobs are within each other etc
 
 
     def setShapeContexts(self, num_bins):
@@ -290,17 +303,9 @@ class Blob2d:
 
     __repr__ = __str__
 
-    def totalBlobs(self):
-        '''
-        This is currently being updated at the end of the slide_creation
-        '''
-        return Blob2d.total_blobs
 
-    def updatePairings(self, stitches):
-        # print('DB Updating pairings with pairings totally costing: ' + str(pairings.total_cost))
-        self.pairings.append(stitches)
 
-    def getconnectedblob2ds(self, debug=False):
+    def getconnectedblob2ds(self, debug=False): # Note that doing this deletes possible_partners to opt mem usage
         '''
         Recursively finds all blobs that are directly or indirectly connected to this blob via stitching
         :return: The list of all blobs that are connected to this blob, including the seed blob
@@ -330,6 +335,7 @@ class Blob2d:
             return []
         blob2dlist = []
         followstitches(self, blob2dlist)
+        del self.possible_partners
         return blob2dlist
 
     @staticmethod
@@ -425,7 +431,7 @@ class Blob2d:
         else:
             offsetx = 0
             offsety = 0
-        arr = np.zeros((self.max_width + buffer + 1, self.max_height + buffer + 1))
+        arr = np.zeros((self.maxx-self.minx + 1 + buffer + 1, (self.maxy-self.miny + 1) + buffer + 1))
         for pixel in self.edge_pixels:
             arr[pixel.x - offsetx][pixel.y - offsety] = pixel.val
         return arr
@@ -440,7 +446,7 @@ class Blob2d:
         else:
             offsetx = 0
             offsety = 0
-        arr = np.zeros((self.max_width + buffer + 1, self.max_height + buffer + 1))
+        arr = np.zeros((self.maxx-self.minx + 1 + buffer + 1, self.maxy-self.miny + 1 + buffer + 1))
         for pixel in self.pixels:
             arr[pixel.x - offsetx][pixel.y - offsety] = pixel.val
         return arr

@@ -149,6 +149,7 @@ class Pairing:
 
     @staticmethod
     def stitchAllBlobs(slidelist, quiet=True, debug=False):
+
         def  printElapsedTime(t0, tf, pad=''): # HACK FIXME REMOVE THIS AND IMPORT CORRECTLY
             temp = tf - t0
             m = math.floor(temp / 60)
@@ -159,6 +160,7 @@ class Pairing:
                 print(pad + 'Elapsed Time: ' + str(m) + ' minute' + str(plural_minutes) + ' & %.0f seconds' % (temp % 60))
             else:
                 print(pad + 'Elapsed Time: %.2f seconds' % (temp % 60))
+
         pairlist = []
         if not quiet:
             print('Beginning to stitch together blobs')
@@ -241,8 +243,8 @@ class Pairing:
             if not quiet:
                 print('   ' + str(self))
             self.munkresCost() # Now have set self.cost and self.indeces and self.connect
-            lowerblob.updatePairings(self)
-            upperblob.updatePairings(self)
+            lowerblob.pairings.append(self)
+            upperblob.pairings.append(self)
         else:
             self.isConnected = False
 

@@ -1,8 +1,6 @@
 __author__ = 'gio'
 
 
-from myconfig import *
-from Stitches import *
 import munkres as Munkres
 from Slide import *
 from Blob3d import *
@@ -133,12 +131,13 @@ def unPickle2(filename, directory=PICKLEDIR):
         buff = pickle.load(open(filename + '_b2ds', "rb"))
         Blob2d.all = buff['b2ds']
         Blob2d.used_ids = buff['used_ids']
+        Blob2d.total_blobs = len(Blob2d.all)
         printElapsedTime(t, time.time())
         print('Loading pixels ', end='',flush=True)
         t = time.time()
         buff = pickle.load(open(filename + '_pixels', "rb"))
         Pixel.all = buff['pixels']
-        Pixel.total_pixels = buff['pixels']
+        Pixel.total_pixels = len(Pixel.all)
         printElapsedTime(t, time.time())
 
         print('There are a total of:' + str(len(b3ds)) + ' b3ds')
@@ -176,25 +175,6 @@ def unPickle(filename, directory=PICKLEDIR):
                 Blob2d.all[blob2d].validateID(quiet=True) # NOTE by validating the id here, we are adding the blob2d to the master array
                 Blob2d.total_blobs += 1
         return blob3dlist
-
-
-def segment_horizontal(blob3d):
-    splitblobs2dpairs = [] # Store as tuples
-    for blob2d_num,blob2d in enumerate(blob3d.blob2ds):
-        upward_stitch = 0
-        downward_stitch = 0
-        display = False
-        for stitch in blob2d.pairings:
-            if blob2d == stitch.lowerblob:
-                upward_stitch += 1
-            if blob2d == stitch.upperblob:
-                downward_stitch += 1
-        if upward_stitch > 1 or downward_stitch > 1:
-            print('Found instance of multiple stitching on b2d:' + str(blob2d_num) + ' which has ' + str(downward_stitch)
-                  + ' downward and ' + str(upward_stitch) + ' upward pairings')
-            display = True
-        if display:
-            plotBlob3d(blob3d)
 
 
 def bloomInwards(blob2d, depth=0):
@@ -245,16 +225,17 @@ def bloomInwards(blob2d, depth=0):
         pixels_before = len(Blob2d.all[blob2d.id].pixels)
         Blob2d.all[blob2d.id].pixels = list(set(Blob2d.all[blob2d.id].pixels) - set(b2d.pixels))
         # Blob2d.all[blob2d.id].children.append(b2d.id)
-        print(depth_offset + ' The number of pixels has changed from ' + str(pixels_before) + ' to ' + str(len(Blob2d.all[blob2d.id].pixels)))
+
+        # print(depth_offset + ' The number of pixels has changed from ' + str(pixels_before) + ' to ' + str(len(Blob2d.all[blob2d.id].pixels)))
 
     # FIXME FIXME FIXME FIXME
 
 
 
         # print("  Updated parent from " + str(old_size) + ' pixels to ' + str(len(blob2d.pixels)))
-    print(depth_offset + 'FINALLY the parent is:' + str(Blob2d.get(blob2d.id)))
+    print(depth_offset + ' After being bloomed the parent is:' + str(Blob2d.get(blob2d.id)))
     if (len(blob2d.pixels) < len(Blob2d.get(blob2d.id).pixels)):
-        print('-----Warning, gained pixels!!!! (THIS SHOULD NEVER HAPPEN!)')
+        warn('Gained pixels!!!! (THIS SHOULD NEVER HAPPEN!)')
 
     if depth < max_depth:# HACK
         if len(livepix) > 1:
@@ -279,15 +260,13 @@ def experiment(blob3dlist):
     for bnum, blob2d in enumerate(allb2ds[start_offset:]): # HACK need to put the colon on the right of start_offset
         # showBlob2d(b2d)
         print('Blooming b2d: ' + str(bnum + start_offset) + '/' + str(len(allb2ds)) + ' = ' + str(blob2d) )
-        print(' The current number of B2ds = ' + str(len(Blob2d.all)) + ' the previous count = ' + str(prev_count))
+        # print(' The current number of B2ds = ' + str(len(Blob2d.all)) + ' the previous count = ' + str(prev_count))
         prev_count = len(Blob2d.all)
         bloomInwards(blob2d) # NOTE will have len 0 if no blooming can be done
         # print(' After blooming the above blob, len(Blob2d.all) = ' + str(len(Blob2d.all)))
-        base = Blob2d.get(blob2d.id)
-        desc = base.getdescendants()
-        all_desc += desc
-        # print('Printing descendants ')
-        # base.printdescendants()
+        # base = Blob2d.get(blob2d.id)
+        # desc = base.getdescendants()
+        # all_desc += desc
 
     print('To complete all blooming:')
     printElapsedTime(t_start_bloom, time.time())
@@ -451,7 +430,7 @@ def main():
     else:
         blob3dlist = unPickle2(picklefile + '_BLOOMED') # DEBUG DEBUG DEBUG
     all_b2ds = [b2d for b2d in Blob2d.all.values()]
-    plotBlob2ds(all_b2ds, stitches=False, ids=False, parentlines=True,explode=True)
+    plotBlob2ds(all_b2ds, stitches=False, ids=False, parentlines=True,explode=True, edge=False)
 
 
     # explorememoryusage(blob3dlist)

@@ -90,7 +90,7 @@ class Slide:
         print(' --> Pixel.total_pixels = ' + str(Pixel.total_pixels) + ' Pixel.all = ' + str(len(Pixel.all)))
         print('-----len of pixel.all = ' + str(len(Pixel.all)))
 
-        pixels.sort(key=lambda pix: pix.val, reverse=True)# Note that sorting is being done like so to sort based on value not position as is normal with pixels. Sorting is better as no new list
+        # pixels.sort(key=lambda pix: pix.val, reverse=True)# Note that sorting is being done like so to sort based on value not position as is normal with pixels. Sorting is better as no new list
 
         # Lets go further and grab the maximal pixels, which are at the front
         endmax = 0
@@ -103,7 +103,7 @@ class Slide:
         print(' --> Pixel.total_pixels = ' + str(Pixel.total_pixels) + ' Pixel.all = ' + str(len(Pixel.all)))
 
         self.alive_pixels = filterSparsePixelsFromList(pixels[0:endmax], (self.local_xdim, self.local_ydim), quiet=quiet)
-        self.alive_pixels.sort() # Sorted here so that in y,x order instead of value order
+        # self.alive_pixels.sort() # Sorted here so that in y,x order instead of value order
         alive_pixel_array = np.zeros([self.local_xdim, self.local_ydim], dtype=object)
         for pixel in self.alive_pixels:
             alive_pixel_array[pixel.x][pixel.y] = pixel
