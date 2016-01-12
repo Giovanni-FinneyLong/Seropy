@@ -432,9 +432,6 @@ def filterSparsePixelsFromList(listin, local_dim_tuple, quiet=False):
         ypos = pixel.y
         # Keep track of nz-neighbors, maximal-neighbors, neighbor sum
         buf_nzn = 0
-        # buf_maxn = 0
-        # buf_sumn = 0.
-        # neighbors_checked = 0
         for horizontal_offset in range(-1, 2, 1):  # NOTE CURRENTLY 1x1 # TODO rteplace with getneighbors
             for vertical_offset in range(-1, 2, 1):  # NOTE CURRENTLY 1x1
                 if (vertical_offset != 0 or horizontal_offset != 0):  # Don't measure the current pixel
@@ -443,15 +440,10 @@ def filterSparsePixelsFromList(listin, local_dim_tuple, quiet=False):
                         cur_neighbor_val = max_float_array[xpos + horizontal_offset][ypos + vertical_offset]
                         if (cur_neighbor_val > 0):
                             buf_nzn += 1
-                            # if (cur_neighbor_val == 255):
-                            #     buf_maxn += 1
-                            # buf_sumn += cur_neighbor_val
-        # pixel.setNeighborValues(buf_nzn, buf_maxn, buf_sumn, neighbors_checked)
         if buf_nzn >= minimal_nonzero_neighbors:
             filtered_pixels.append(pixel)
         else:
             removed_pixel_ids.append(pixel.id)
-    # print('\n\n\nThe removed pixels are:' + str(removed_pixel_ids))
     if not quiet:
         print('There are ' + str(len(listin) - len(filtered_pixels)) + ' dead pixels & ' + str(len(filtered_pixels)) + ' still alive')
     return filtered_pixels

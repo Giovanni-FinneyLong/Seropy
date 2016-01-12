@@ -70,20 +70,9 @@ class Pairing:
                     # Now need bin # and magnitude for histogram
                     bin_num = math.floor((angle / 360.) * (num_bins - 1)) # HACK PSOE from -1
                     value = math.log(distance, 10)
-                    # print('DB: Pixel:' + str(pixel) + ' Pixel2:' + str(pixel2) + ' distance:' + str(distance) + ' angle:' + str(angle) + ' bin_num:' + str(bin_num))
                     self.lower_context_bins[pix_num][bin_num] += value
         for (pix_num, pixel) in enumerate(self.upperpixels):
-
-            # for pixel in Pixel.all.values():
-            #     print(pixel)
-
-            # print('DB pixel is originally:' + str(pixel))
-            # print('Size of all pixels:' + str(len(Pixel.all)))
-
             pixel = Pixel.get(pixel)
-            # print('Got pixel:' + str(pixel))
-            # print('Upper pixels:' + str(self.upperpixels))
-
             for (pix_num2, pixel2) in enumerate(self.upperpixels):
                 pixel2 = Pixel.get(pixel2)
                 if pix_num != pix_num2: # Only check against other pixels.
@@ -95,7 +84,6 @@ class Pairing:
                     # Now need bin # and magnitude for histogram
                     bin_num = math.floor((angle / 360.) * (num_bins - 1)) # HACK PSOE from -1
                     value = math.log(distance, 10)
-                    # print('DB: Pixel:' + str(pixel) + ' Pixel2:' + str(pixel2) + ' distance:' + str(distance) + ' angle:' + str(angle) + ' bin_num:' + str(bin_num))
                     self.upper_context_bins[pix_num][bin_num] += value
 
 
@@ -146,8 +134,6 @@ class Pairing:
                     net_cost = contourCost * distanceCost
                     self.cost_array[i][j] = [contourCost, distanceCost, net_cost, distance] # TODO can reduce this later for efficiency
                     munkres_array[i][j] = net_cost
-                    # self.cost_array[i][j] = costBetweenPoints(self.lower_context_bins[i], self.upper_context_bins[j]) \
-                    # * distanceCostBetweenPoints(self.lowerpixels[i], self.upperpixels[j]) # TODO THIS IS NEW!!! WILL NEED ADJUSTING
             return munkres_array
 
         munkres_array = makeCostArray()
@@ -160,9 +146,6 @@ class Pairing:
             if self.cost_array[row][col][3] < max_distance and self.cost_array[row][col][2] < max_stitch_cost :# HACK, may want to do this later, so that stitches can be manually removed via interactive interface (slide bar for max_value)
                 self.stitches.append(Stitch(self.lowerpixels[row], self.upperpixels[col], self.lowerblob, self.upperblob, self.cost_array[row][col]))
                 self.cost += self.cost_array[row][col][2] # 2 for total_cost
-                # print('DB cost of (contour, distance, total):' + str(self.cost_array[row][col]))
-            # else:
-            #     print('Ignored cost:' + str(self.cost_array[row][col]))
 
     @staticmethod
     def stitchAllBlobs(slidelist, quiet=True, debug=False):
@@ -179,33 +162,18 @@ class Pairing:
         pairlist = []
         if not quiet:
             print('Beginning to stitch together blobs')
-
         for slide_num, slide in enumerate(slidelist):
-            #if not quiet or (debug and slide.debugFlag is True):
             print('Stitching slide #' + str(slide_num) + '/' + str(len(slidelist)) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds')
             last_print = 0
-
             for b_num, blob1 in enumerate(slide.blob2dlist):
-                #Converting to static:
                 blob1 = Blob2d.get(blob1)
-                # print('DB:' + str(((b_num - last_print) / len(slide.blob2dlist))))
                 if ((b_num - last_print) / len(slide.blob2dlist)) >= .1 and quiet:
-                    # print('-' + str((b_num - last_print) / len(slide.blob2dlist)) + '-', end='', flush=True)
                     print('.', end='', flush=True)
-
                     last_print = b_num
-
-
-
                 if len(blob1.possible_partners) > 0:
                     if debug:
                         print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
-                # print('  Blob1 current parter_costs:' + str(blob1.partner_costs))
-
-                sub_start_time = time.time()
-
                 for b2_num, blob2 in enumerate(blob1.possible_partners):
-                    #Converting to static:
                     blob2 = Blob2d.get(blob2)
                     if debug:
                         print('   Comparing to blob2:' + str(blob2))
@@ -220,12 +188,8 @@ class Pairing:
                             printElapsedTime(t0, tf, pad='    ')
                     elif debug:
                         print('    -Blobs not connected')
-                # updateStatus = progressBarUpdate(pixels_processed, total_edge_pixels, last_update=updateStatus, steps=100)
-                # pixels_processed += len(blob1.edge_pixels)
             if quiet:
                 print('.', flush=True)
-
-
 
         return pairlist
 
@@ -244,8 +208,8 @@ class Pairing:
     def __init__(self, lowerblob, upperblob, overscan_scale, num_bins, quiet=True):
         self.overscan_scale = overscan_scale
         self.num_bins = num_bins
-        self.lowerheight = lowerblob.height # CHANGED
-        self.upperheight = upperblob.height # CHANGED
+        self.lowerheight = lowerblob.height
+        self.upperheight = upperblob.height
         self.lowerblob = lowerblob
         self.upperblob = upperblob
         self.upperpixels = self.edgepixelsinbounds(upperblob, lowerblob)
@@ -253,7 +217,6 @@ class Pairing:
         self.isReduced = False # True when have chosen a subset of the edge pixels to reduce computation
         self.stitches = []
         self.cost = -1 # Just to indicate that it is unset
-
 
         if len(self.lowerpixels) != 0: # Optimization
             self.upperpixels = self.edgepixelsinbounds(upperblob, lowerblob)
@@ -264,7 +227,6 @@ class Pairing:
             # NOTE 1:28 for (203,301) pre-opt, :37 for (174, 178), 66mins for (640, 616) -> 4 mins after optimization (picking half of each) -> 59 seconds with selective[::3]
             # NOTE After ::2 opt, total time for [:3] data slides = 10 mins 19 seconds, instead of ~ 2 hours, after selective[::3], total time = 6mins 49 seconds
             # selective [::3] with 5 slides = 36 mins
-
             if len(self.upperpixels) > max_pixels_to_stitch or len(self.lowerpixels) > max_pixels_to_stitch:
                 if not quiet:
                     print('-->Too many pixels in the below stitch, reducing to a subset, originally was: ' + str(len(self.lowerpixels)) +
@@ -272,12 +234,8 @@ class Pairing:
                         '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels.')
                 pickoneovers = max(1, math.ceil(len(self.upperpixels) / max_pixels_to_stitch)), max(1, math.ceil(len(self.lowerpixels) / max_pixels_to_stitch)) # HACK TODO Modify these values to be more suitable dependent on computation time
                 self.isReduced = True
-                # if len(self.upperpixels) > 500 and len(self.lowerpixels) > 500:
-                #     pickoneover = 5
-
                 self.upperpixels = self.upperpixels[::pickoneovers[0]] # Every pickoneover'th element
                 self.lowerpixels = self.lowerpixels[::pickoneovers[1]] # HACK this is a crude way of reducing the number of pixels
-
             self.isConnected = True
             self.setShapeContexts(num_bins) # Set lower and upper context bins
             if not quiet:
@@ -301,8 +259,6 @@ class Stitch:
         self.upperblob = upperblob
         self.cost = cost
         self.distance = math.sqrt(math.pow(Pixel.get(lowerpixel).x - Pixel.get(upperpixel).x, 2) + math.pow(Pixel.get(lowerpixel).y - Pixel.get(upperpixel).y, 2)) # TODO replace with distancebetween static method from Pixel
-            # math.sqrt(math.pow(lowerpixel.x - upperpixel.x, 2) + math.pow(lowerpixel.y - upperpixel.y, 2))
-
 
     def __str__(self):
         return str('<Stitch between blob2ds:(' + str(self.lowerblob.id) + ',' + str(self.upperblob.id) + '), between pixels:(' \

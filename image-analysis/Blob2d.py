@@ -92,8 +92,6 @@ class Blob2d:
             Blob2d.used_ids.resize([self.id + 50]) # NOTE can alter this value, for now expanding by 50, which will be filled with zeros
             Blob2d.used_ids[self.id] = 1 # 1 for used, no need to check if the value has been used as we are in a new range
             Blob2d.all[self.id] = self
-
-            db = 1
         elif self.id < 0 or Blob2d.used_ids[self.id] == 1: # This id has already been used
             oldid = self.id
             self.id = getNextID()
@@ -101,15 +99,11 @@ class Blob2d:
                 print('Updated id from ' + str(oldid) + ' to ' + str(self.id) + '  ' + str(self))
             Blob2d.all[self.id] = self
             Blob2d.used_ids[self.id] = 1
-            db = 2
         else: # Fill this id entry for the first time
             if not quiet:
                 print('Updated entry for ' + str(self.id))
-            # if self.id == 0:
-            #     print("DB UPDATING ID 0")
             Blob2d.used_ids[self.id] = 1
             Blob2d.all[self.id] = self
-        # print('DB validated the id:' + str(self.id) + ' db value is:' + str(db))
 
 
 
@@ -136,14 +130,10 @@ class Blob2d:
         self.height = height
         self.possible_partners = [] # A list of blobs which MAY be part of the same blob3d as this blob2d
         self.partner_costs = [] # The minimal cost for the corresponding blob2d in possible_partners
-        # self.partner_subpixels = [] # Each element is a list of pixels, corresponding to a subset of the edge pixels from the partner blob
-                                    # The value of each element in the sublist for each partner is the index of the pixel from the corresponding partner
-        # self.my_subpixels = []      # Set of own subpixels, with each list corresponding to a list from partner_subpixels
         self.pairings = [] # A list of pairings that this blob belongs to
 
         # Note for now, will use the highest non-zero-neighbor count pixel
         self.setEdge()
-        # self.setTouchingBlobs()
         self.max_width = self.maxx-self.minx + 1 # Note +1 to include both endcaps
         self.max_height = self.maxy-self.miny + 1 # Note +1 to include both endcaps //TODO rename misleading compared to self.heigh
         self.id = -1
@@ -151,7 +141,6 @@ class Blob2d:
 
     def setEdge(self):
         pixeldict = Pixel.pixelidstodict(self.pixels)
-        # self.edge_pixels = [pixel for pixel in self.pixels if pixel.nz_neighbors < 8]
         self.edge_pixels = [pixel for pixel in self.pixels if len(Pixel.get(pixel).neighborsfromdict(pixeldict)) < 8]
         self.edge_pixels.sort()
 
@@ -213,33 +202,10 @@ class Blob2d:
         #  minx2 <= (minx1 | max1) <= maxx2
         #  miny2 <= (miny1 | maxy1) <= maxy2
 
-        debugflag = kwargs.get('debugflag', -1)
-        debug2ds = kwargs.get('debugforb2ds',[])
-
-        debug_partners = [247,216,245,262,263]
-
-
-
-        if debugflag == 1 and self.id in debug2ds:
-            print('>Checking the pairings of a blob2d that is being debugged: ' + str(self))
-
-
-        # print('DEBUG Checking blob for possible partners:' + str(self) + ' xrange: (' + str(self.minx) + ',' + str(self.maxx) + '), yrange: (' + str(self.miny) + ',' + str(self.maxy) + ')')
         for blob in slide.blob2dlist:
-            # print('DEBUG  Comparing against blob:' + str(blob) + ' xrange: (' + str(blob.minx) + ',' + str(blob.maxx) + '), yrange: (' + str(blob.miny) + ',' + str(blob.maxy) + ')')
-            if debugflag == 1 and blob.id in debug2ds:
-                print('====Checking for a pairing with a blob2d that is being debugged: ' + str(blob))
-            if debugflag == 1 and self.id in debug2ds:
-                print(' checking against blob w/id:' + str(blob.id))
-
-            debugging = debugflag == 1 and self.id in debug2ds and blob.id in debug2ds
-
-            # Grabbing static entry:
             blob = Blob2d.get(blob)
-
             inBounds = False
             partnerSmaller = False
-
             if (blob.minx <= self.minx <= blob.maxx) or (blob.minx <= self.maxx <= blob.maxx): # Covers the case where the blob on the above slide is larger
                 # Overlaps in the x axis; a requirement even if overlapping in the y axis
                 if (blob.miny <= self.miny <= blob.maxy) or (blob.miny <= self.maxy <= blob.maxy):
@@ -251,18 +217,8 @@ class Blob2d:
                         inBounds = True
                         partnerSmaller = True
             # If either of the above was true, then one blob is within the bounding box of the other
-            if debugging:
-                print('Compared:')
-                print(self)
-                print(blob)
-                print('>>InBounds=' + str(inBounds) + ', partnerSmaller=' + str(partnerSmaller))
-                # from serodraw import plotBlob2ds
-                # plotBlob2ds([self, blob], ids=True)
             if inBounds:
                 self.possible_partners.append(blob.id)
-                # print('DEBUG  Inspected blob was added to current blob\'s possible partners')
-                # TODFO here we find a subset of the edge pixels from the potential partner that correspond to the area
-                # NOTE use self.avgx, self.avgy
                 if partnerSmaller:
                     # Use partner's (blob) midpoints, and expand a proportion of minx, maxx, miny, maxy
                     midx = blob.avgx
@@ -289,8 +245,6 @@ class Blob2d:
                     pixel = Pixel.get(pixel)
                     if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
                         my_subpixel_indeces.append(p_num)
-
-
         self.partner_costs = [0] * len(self.possible_partners)
         # TODO update this method to do better filtering, like checking if the blobs are within each other etc
 
@@ -454,7 +408,6 @@ class Blob2d:
         else:
             offsetx = 0
             offsety = 0
-
         x = np.zeros(len(self.edge_pixels))
         y = np.zeros(len(self.edge_pixels))
         for pix_num, pixel in enumerate(self.edge_pixels):
@@ -472,7 +425,6 @@ class Blob2d:
         else:
             offsetx = 0
             offsety = 0
-        # TODO FIXME PICKLE!!!! This below +1 has been fixed on 10/8, but the pickle files needs to be regen.
         arr = np.zeros((self.max_width + buffer + 1, self.max_height + buffer + 1))
         for pixel in self.edge_pixels:
             arr[pixel.x - offsetx][pixel.y - offsety] = pixel.val
@@ -488,9 +440,6 @@ class Blob2d:
         else:
             offsetx = 0
             offsety = 0
-
-        # TODO FIXME PICKLE!!!! This below +1 has been fixed on 10/8, but the pickle files needs to be regen.
-
         arr = np.zeros((self.max_width + buffer + 1, self.max_height + buffer + 1))
         for pixel in self.pixels:
             arr[pixel.x - offsetx][pixel.y - offsety] = pixel.val

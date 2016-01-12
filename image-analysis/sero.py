@@ -218,9 +218,9 @@ def bloomInwards(blob2d, depth=0):
     b2ds = Blob2d.pixels_to_blob2ds(bloomstage, parentID=blob2d.id, recursive_depth=blob2d.recursive_depth+1, modify=False) # NOTE making new pixels, rather than messing with existing
     # print("DB done converting pixels to b2ds")
 
-    # depth_offset = ''
-    # for d in range(depth):
-    #     depth_offset += ' '
+    depth_offset = ''
+    for d in range(depth):
+        depth_offset += '-'
     # print(depth_offset + ' DB: Done blooming b2d:' + str(blob2d) + ' at depth ' + str(depth))
     # print(depth_offset + ' Total children: ' + str(len(blob2d.getdescendants())) + ' = ' + str(blob2d.getdescendants()))
 
@@ -242,27 +242,24 @@ def bloomInwards(blob2d, depth=0):
         # Blob2d.all[blob2d.id] = blob2d
         # DEBUG
         #         blob2d.pixels = list(set(blob2d.pixels) - set(b2d.pixels))
-
+        pixels_before = len(Blob2d.all[blob2d.id].pixels)
         Blob2d.all[blob2d.id].pixels = list(set(Blob2d.all[blob2d.id].pixels) - set(b2d.pixels))
         # Blob2d.all[blob2d.id].children.append(b2d.id)
+        print(depth_offset + ' The number of pixels has changed from ' + str(pixels_before) + ' to ' + str(len(Blob2d.all[blob2d.id].pixels)))
 
     # FIXME FIXME FIXME FIXME
 
 
 
-
-
-
-
         # print("  Updated parent from " + str(old_size) + ' pixels to ' + str(len(blob2d.pixels)))
-    # print('FINALLY the parent is:' + str(Blob2d.get(blob2d.id)))
+    print(depth_offset + 'FINALLY the parent is:' + str(Blob2d.get(blob2d.id)))
     if (len(blob2d.pixels) < len(Blob2d.get(blob2d.id).pixels)):
         print('-----Warning, gained pixels!!!! (THIS SHOULD NEVER HAPPEN!)')
 
-
-    if len(livepix) > 1:
-        for b2d in b2ds:
-            bloomInwards(Blob2d.get(b2d), depth=depth+1)
+    if depth < max_depth:# HACK
+        if len(livepix) > 1:
+            for b2d in b2ds:
+                bloomInwards(Blob2d.get(b2d), depth=depth+1)
 
 
 
@@ -278,10 +275,12 @@ def experiment(blob3dlist):
     all_desc = []
     t_start_bloom = time.time()
     num_unbloomed = len(allb2ds)
-
+    prev_count = len(Blob2d.all)
     for bnum, blob2d in enumerate(allb2ds[start_offset:]): # HACK need to put the colon on the right of start_offset
         # showBlob2d(b2d)
         print('Blooming b2d: ' + str(bnum + start_offset) + '/' + str(len(allb2ds)) + ' = ' + str(blob2d) )
+        print(' The current number of B2ds = ' + str(len(Blob2d.all)) + ' the previous count = ' + str(prev_count))
+        prev_count = len(Blob2d.all)
         bloomInwards(blob2d) # NOTE will have len 0 if no blooming can be done
         # print(' After blooming the above blob, len(Blob2d.all) = ' + str(len(Blob2d.all)))
         base = Blob2d.get(blob2d.id)
@@ -289,44 +288,14 @@ def experiment(blob3dlist):
         all_desc += desc
         # print('Printing descendants ')
         # base.printdescendants()
-        # plotBlob2ds(desc, edge=False, ids=True, parentlines=True)
-
-        # for index, b2d in enumerate(desc):
-        #     b2d.height = b2d.recursive_depth
-        # print('Desc:' + str(desc))
-        # plotBlob2ds(desc, edge=False, ids=True, parentlines=True,explode=True, titleNote=str('The blob serving as the base is #' + str(bnum) + ' / ' + str(len(allb2ds))))
 
     print('To complete all blooming:')
     printElapsedTime(t_start_bloom, time.time())
     print('Before blooming there were: ' + str(num_unbloomed) + ' b2ds, there are now ' + str(len(Blob2d.all)))
 
-    # plotBlob2ds(all_desc, edge=True, ids=False, parentlines=True,explode=True)
 
     plotBlob2ds([b2d for b2d in Blob2d.all.values()], edge=True, ids=False, parentlines=True,explode=True)
 
-
-
-    #refresh
-    # allb2ds = sorted([Blob2d.get(blob2d) for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
-
-
-    # print('Plotting all blob2ds exploded')
-    # debug()
-    # #refresh
-    # allb2ds = sorted([Blob2d.get(blob2d) for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
-    #
-    # count = 0
-    # children = 0
-    # for b2d in Blob2d.all.values():
-    #     if len(b2d.children):
-    #         count += 1
-    #         children += len(b2d.children)
-    # base_without_children = [b2d for b2d in Blob2d.all.values() if len(b2d.children) == 0 and b2d.recursive_depth == 0]
-    # print('There are ' + str(count) + ' b2ds with children')
-    # print('There have a total of ' + str(children) + ' children')
-    # print('There are ' + str(len(base_without_children)) + ' base b2ds who didnt have children')
-    # print('There are a total of ' + str(len(Blob2d.all)) + ' b2ds')
-    # # NOTE: The sum of base blobs with & without children and the count of their children = the total number of b2ds, so at this point we are successfully
 
 
 def explorememoryusage(blob3dlist):
@@ -463,7 +432,8 @@ def main():
     # print("Original b2d:" + str(test))
     # print("Updated b2d:" + str(testu))
 
-    plotBlob2ds(all_b2ds, stitches=False, ids=False, parentlines=True,explode=True, canvas_size=(300,300))
+    # print('WARNING after this plotting window is closed, will bloom all b2ds that are available..')
+    # plotBlob2ds(all_b2ds, stitches=False, ids=False, parentlines=True,explode=True, canvas_size=(300,300))
 
     #NOTE at this point, after unpickling the entire swellshark dataset, memory usage is 2.2GB (for Python.exe)
 
