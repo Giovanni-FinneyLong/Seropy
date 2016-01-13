@@ -1,0 +1,10 @@
+Installation instructions:
+-Download anaconda from here:https://www.continuum.io/downloads#_windows making sure to get the python 3.x version not 2.x
+-Install anaconda, choosing to add anaconda to the system's path variable
+-Prepend the anaconda bin directory to your path if has not been added. You can check if you need to do this step by opening a command prompt window, and entering 'conda' <enter>. 
+	If a list of options is found, anaconda has been added to your path
+--Now need to install Munkres library, which is used to match together pixels to be stitched
+-Use 'pip install Munkres'. Note that if you have another version of python installed, using pip like so may cause you to install the library elsewhere than intended
+	To make sure, you can run 'pip -V', and confirm that the python version is 3.x. Alternatively, you can run 'which pip', and confirm that the result is a subdirectory of anaconda. 
+	Otherwise, use the full path 'C:\<directory sequence>\anaconda3\pip.py install Munkres'
+-Now install the visualization library Vispy, with 'conda install vispy'. You can expect a few other items to be installed as well.

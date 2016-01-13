@@ -1,0 +1,7 @@
+BLOBS:
+	Seemingly due to the lesser density of the chaining blob2d connections, horizontal lines of brightness can be observed at connection points.
+		This method may be used to determine the thinnest area between blobs in blob2ds, but would require matching perpendicular scans.
+
+VISPY:
+	Markers plot successfully when run on laptops GT 740M card, but not on HD4600. This same issue has been found by another user, also with a 4600.
+	
