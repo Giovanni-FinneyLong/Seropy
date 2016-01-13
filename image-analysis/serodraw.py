@@ -534,9 +534,12 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
         print('----DB adding edge arrays :' + str(pixel_arrays))
 
         for color_num, edge_array in enumerate(pixel_arrays):
-            buf = visuals.Markers()
-            buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
-            view.add(buf)
+            if len(edge_array) == 0:
+                print('Skipping plotting depth ' + str(color_num) + ' as there are no blob2ds at that depth')
+            else:
+                buf = visuals.Markers()
+                buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
+                view.add(buf)
 
 
     if ids is True:
