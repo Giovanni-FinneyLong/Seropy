@@ -198,9 +198,9 @@ def bloomInwards(blob2d, depth=0):
     b2ds = Blob2d.pixels_to_blob2ds(bloomstage, parentID=blob2d.id, recursive_depth=blob2d.recursive_depth+1, modify=False) # NOTE making new pixels, rather than messing with existing
     # print("DB done converting pixels to b2ds")
 
-    depth_offset = ''
-    for d in range(depth):
-        depth_offset += '-'
+    # depth_offset = ''
+    # for d in range(depth):
+    #     depth_offset += '-'
     # print(depth_offset + ' DB: Done blooming b2d:' + str(blob2d) + ' at depth ' + str(depth))
     # print(depth_offset + ' Total children: ' + str(len(blob2d.getdescendants())) + ' = ' + str(blob2d.getdescendants()))
     # NEW trying to 'steal' / inheret non-edgepixels from parents..
@@ -215,12 +215,7 @@ def bloomInwards(blob2d, depth=0):
         Blob2d.all[blob2d.id].pixels = list(set(Blob2d.all[blob2d.id].pixels) - set(b2d.pixels))
         # Blob2d.all[blob2d.id].children.append(b2d.id) #Todo remove or needed?
 
-
-
-
-
-        # print("  Updated parent from " + str(old_size) + ' pixels to ' + str(len(blob2d.pixels)))
-    print(depth_offset + ' After being bloomed the parent is:' + str(Blob2d.get(blob2d.id)))
+    # print(depth_offset + ' After being bloomed the parent is:' + str(Blob2d.get(blob2d.id)))
     if (len(blob2d.pixels) < len(Blob2d.get(blob2d.id).pixels)):
         warn('Gained pixels!!!! (THIS SHOULD NEVER HAPPEN!)')
 
@@ -247,8 +242,8 @@ def experiment(blob3dlist):
     for bnum, blob2d in enumerate(allb2ds[start_offset:]): # HACK need to put the colon on the right of start_offset
         # showBlob2d(b2d)
         print('Blooming b2d: ' + str(bnum + start_offset) + '/' + str(len(allb2ds)) + ' = ' + str(blob2d) )
-        print(' The current number of B2ds = ' + str(len(Blob2d.all)) + ', the previous count = ' + str(prev_count))
-        prev_count = len(Blob2d.all)
+        # print(' The current number of B2ds = ' + str(len(Blob2d.all)) + ', the previous count = ' + str(prev_count))
+        # prev_count = len(Blob2d.all)
         bloomInwards(blob2d) # NOTE will have len 0 if no blooming can be done
         # print(' After blooming the above blob, len(Blob2d.all) = ' + str(len(Blob2d.all)))
         # base = Blob2d.get(blob2d.id)
@@ -259,8 +254,6 @@ def experiment(blob3dlist):
     printElapsedTime(t_start_bloom, time.time())
     print('Before blooming there were: ' + str(num_unbloomed) + ' b2ds, there are now ' + str(len(Blob2d.all)))
     #Note that at this point memory usage is 3.4gb, with 12.2K b2ds
-
-    plotBlob2ds([b2d for b2d in Blob2d.all.values()], edge=True, ids=False, parentlines=True,explode=True)
 
 
 
@@ -283,28 +276,6 @@ def explorememoryusage(blob3dlist):
                 pixel_dict = {'pixel' : pixel}
                 pickle.dump(pixel_dict, open(dir + 'pixel/pixel_size' + str(b3d_num) + '_' + str(b2d_num) + '_' + str(p_num) + '.pickle', "wb"))
 
-        # pixel = Pixel.get(b2d.edge_pixels[0])
-        # # pickle.dump(pickledict, open(filename, "wb"))
-        #
-        # b2d_dict = {'b2d' : b2d}
-        # pickle.dump(b2d_dict, open(dir + 'b2d_size.pickle', "wb"))
-        # pixel_dict = {'pixel' : pixel}
-        # pickle.dump(pixel_dict, open(dir + 'pixel_size.pickle', "wb"))
-
-
-
-    # from Pixel import Pixel
-
-    # to_check = [b3d]
-    # for check in to_check:
-    #     print('Checking the memory of :' + str(check) + '=' + str(sys.getsizeof(check)))
-    #     for attr in check.__dict__.items():
-    #         print(str(attr) + ' => ' + str(sys.getsizeof(attr[1])))
-    #         if attr[0] == 'pixels':
-    #             pixel =
-    #             print(' size of a pixel:' + str(sys.getsizeof(Pixel.get(attr[1][0]))))
-
-
 
 # @profile
 def main():
@@ -313,8 +284,6 @@ def main():
 
     note = 'Was created by setting distance cost log to base 2 instead of 10, and multiplying by contour_cost'
     if test_instead_of_data:
-         # picklefile = 'pickletest_refactor4.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
-         # picklefile = 'pickletest_converting_blob2ds_to_static.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
          picklefile = 'All_test_redone_with_maximal_blooming.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
     else:
         picklefile = 'All_data_redone_1-5_with_maximal_blooming.pickle'
@@ -370,7 +339,10 @@ def main():
             blob3dlist = unPickle2(picklefile) # DEBUG DEBUG DEBUG
             # used_b2ds = [b2d for b3d in blob3dlist for b2d in b3d.blob2ds ]
             # print(len(Blob2d.all.values()))
+
+            # print('Plotting all original b2ds before blooming:')
             # plotBlob2ds(Blob2d.all.values(), stitches=False, explode=False, parentlines=False)
+
             # print('DONE PICKLING THE NORMAL BLOBS, NOW BLOOMING')
             print('DB blob3dlist:' + str(blob3dlist))
             experiment(blob3dlist)
@@ -379,9 +351,23 @@ def main():
         else:
             blob3dlist = unPickle2(picklefile + '_BLOOMED') # DEBUG DEBUG DEBUG
 
+    depth_0or2 = [b2d for b2d in Blob2d.all.values() if b2d.recursive_depth in [0,2]]
+    depth_0or1or2 = [b2d for b2d in Blob2d.all.values() if b2d.recursive_depth in [0,1,2]]
+
+    print('Plotting at depths 0, 1 or 2')
+    plotBlob2ds(depth_0or1or2, coloring='depth', explode = False)
+
+
+
 
     all_b2ds = [b2d for b2d in Blob2d.all.values()]
-    plotBlob2ds(all_b2ds, stitches=True, ids=False, parentlines=True,explode=True, edge=False)
+    print('Plotting all')
+    plotBlob2ds(all_b2ds, stitches=False, ids=False, parentlines=True,explode=True, edge=False, coloring='depth')
+    # plotBlob2ds(depth_0or2, coloring='depth')
+
+    height_0 = [b2d for b2d in Blob2d.all.values() if b2d.height == 0]
+    print("The number at height 0:" + str(len(height_0)))
+    plotBlob2ds(height_0, stitches=False, ids=False, parentlines=True,explode=True, edge=False, coloring='depth')
 
 
     depth_1 = [b2d.id for b2d in Blob2d.all.values() if b2d.recursive_depth == 1]
@@ -399,6 +385,7 @@ def main():
         plotBlob2ds([b2d] + [Blob2d.get(p) for p in b2d.possible_partners], ids=True,edge=False)
         # Seem to be correctly setting partners
 
+    print('Plotting depth 1')
     plotBlob2ds(depth_1, stitches=True, ids=False, parentlines=True,explode=True, edge=False)
 
 
