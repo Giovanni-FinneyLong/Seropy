@@ -70,6 +70,8 @@ class Blob2d:
             res = res + Blob2d.all[child].getdescendants(rdepth=rdepth+1)
         return res
 
+
+
     def getrelated(self, rdepth=0):
         desc = self.getdescendants()
         par = self.getparents()
@@ -192,6 +194,9 @@ class Blob2d:
         #  minx2 <= (minx1 | max1) <= maxx2
         #  miny2 <= (miny1 | maxy1) <= maxy2
 
+        my_pixel_coor = set([(Pixel.get(pix).x, Pixel.get(pix).y) for b2d in self.getdescendants() for pix in b2d.pixels])
+
+
         for b_num, blob in enumerate(blob2dlist):
             blob = Blob2d.get(blob)
             inBounds = False
@@ -210,33 +215,45 @@ class Blob2d:
                         partnerSmaller = True
             # If either of the above was true, then one blob is within the bounding box of the other
             if inBounds:
-                self.possible_partners.append(blob.id)
-                if partnerSmaller:
-                    # Use partner's (blob) midpoints, and expand a proportion of minx, maxx, miny, maxy
-                    midx = blob.avgx
-                    midy = blob.avgy
-                    left_bound = midx - ((blob.avgx - blob.minx) * overscan_coefficient)
-                    right_bound = midx + ((blob.maxx - blob.avgx) * overscan_coefficient)
-                    down_bound = midy - ((blob.avgy - blob.miny) * overscan_coefficient)
-                    up_bound = midy + ((blob.maxy - blob.avgy) * overscan_coefficient)
+
+                pair_coor = set((Pixel.get(pix).x, Pixel.get(pix).y) for b2d in blob.getdescendants() for pix in b2d.pixels)
+
+                #
+                # print('DEBUG running extra tests to narrow possible partners')
+                # print('Pair_coor:' + str(pair_coor))
+                # print('Len of my_pixel_coor: ' + str(len(my_pixel_coor)) + ' len of pair_coor: ' + str(len(pair_coor)))
+                # print('Len of difference:' + str(len(my_pixel_coor - pair_coor)))
+
+                if(len(my_pixel_coor - pair_coor) != len(my_pixel_coor)): # Overlapping coordinates
+                    self.possible_partners.append(blob.id)
+                    if partnerSmaller:
+                        # Use partner's (blob) midpoints, and expand a proportion of minx, maxx, miny, maxy
+                        midx = blob.avgx
+                        midy = blob.avgy
+                        left_bound = midx - ((blob.avgx - blob.minx) * overscan_coefficient)
+                        right_bound = midx + ((blob.maxx - blob.avgx) * overscan_coefficient)
+                        down_bound = midy - ((blob.avgy - blob.miny) * overscan_coefficient)
+                        up_bound = midy + ((blob.maxy - blob.avgy) * overscan_coefficient)
+                    else:
+                        # Use partner's (blob) midpoints, and expand a proportion of minx, maxx, miny, maxy
+                        midx = self.avgx
+                        midy = self.avgy
+                        left_bound = midx - ((self.avgx - self.minx) * overscan_coefficient)
+                        right_bound = midx + ((self.maxx - self.avgx) * overscan_coefficient)
+                        down_bound = midy - ((self.avgy - self.miny) * overscan_coefficient)
+                        up_bound = midy + ((self.maxy - self.avgy) * overscan_coefficient)
+                    partner_subpixel_indeces = []
+                    my_subpixel_indeces = []
+                    for p_num, pixel in enumerate(blob.edge_pixels):
+                        pixel = Pixel.get(pixel)
+                        if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
+                            partner_subpixel_indeces.append(p_num)
+                    for p_num, pixel in enumerate(self.edge_pixels):
+                        pixel = Pixel.get(pixel)
+                        if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
+                            my_subpixel_indeces.append(p_num)
                 else:
-                    # Use partner's (blob) midpoints, and expand a proportion of minx, maxx, miny, maxy
-                    midx = self.avgx
-                    midy = self.avgy
-                    left_bound = midx - ((self.avgx - self.minx) * overscan_coefficient)
-                    right_bound = midx + ((self.maxx - self.avgx) * overscan_coefficient)
-                    down_bound = midy - ((self.avgy - self.miny) * overscan_coefficient)
-                    up_bound = midy + ((self.maxy - self.avgy) * overscan_coefficient)
-                partner_subpixel_indeces = []
-                my_subpixel_indeces = []
-                for p_num, pixel in enumerate(blob.edge_pixels):
-                    pixel = Pixel.get(pixel)
-                    if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
-                        partner_subpixel_indeces.append(p_num)
-                for p_num, pixel in enumerate(self.edge_pixels):
-                    pixel = Pixel.get(pixel)
-                    if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
-                        my_subpixel_indeces.append(p_num)
+                    print('-> Avoided setting ' + str(self) + ' and ' + str(blob) + ' as possible partners')
         # self.partner_costs = [0] * len(self.possible_partners) # Note: May want to use this later
         # Could this method to do better filtering, like checking if the blobs are within each other etc
         # TODO update entry in Blob2d...?
@@ -315,7 +332,7 @@ class Blob2d:
             return []
         blob2dlist = []
         followstitches(self, blob2dlist)
-        del self.possible_partners
+        #del self.possible_partners # TODO see if theres a safe way to do this later
         return blob2dlist
 
     @staticmethod

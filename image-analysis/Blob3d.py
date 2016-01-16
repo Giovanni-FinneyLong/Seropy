@@ -20,8 +20,6 @@ class Blob3d:
         self.pairings = []
         self.lowslideheight = min(Blob2d.get(blob).height for blob in self.blob2ds)
         self.highslideheight = max(Blob2d.get(blob).height for blob in self.blob2ds)
-        self.pixels = []
-        self.edge_pixels = []
         self.recursive_depth = 0
         for blobid in self.blob2ds:
             blob = Blob2d.get(blobid)
@@ -33,8 +31,6 @@ class Blob3d:
                 buf = Blob2d.all
                 debug()
 
-            self.pixels += blob.pixels
-            self.edge_pixels += blob.edge_pixels
             for stitch in blob.pairings:
                 if stitch not in self.pairings: # TODO set will be faster
                     self.pairings.append(stitch)

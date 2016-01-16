@@ -638,23 +638,8 @@ def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None,
     edge_pixel_arrays = [] # One array per 3d blob
     markerlist = []
 
-    # colors = vispy.color.get_color_names() # ALl possible colors
-    # # note getting rid of annoying colors
-    # colors.remove('antiquewhite')
-    # colors.remove('aliceblue')
-    # colors.remove('azure')
-    # colors.remove('blanchedalmond')
-    # colors.remove('b')
-    # colors.remove('aquamarine')
-    # colors.remove('beige')
-    # colors.remove('bisque')
-    # colors.remove('black')
-    # # colors.remove('cadetblue')
-    # print('The available colors are: ' + str(colors))
-
     lineendpoints = 0
 
-    colors = colors[::2] # HACK
 
     if coloring == 'blob': # Note: This is very graphics intensive.
         markers_per_color = [0 for i in range(min(len(colors), len(blob3dlist)))]
@@ -875,8 +860,8 @@ def showSlide(slide):
         print('Cannot show slide with no pixels:' + str(slide))
 
 def showBlob2d(b2d):
-    width = b2d.maxx - b2d.minx + 1 #max(pixel.x for pixel in b2d.pixels) + 1
-    height = b2d.maxy - b2d.miny + 1#max(pixel.y for pixel in b2d.pixels) + 1
+    width = b2d.maxx - b2d.minx + 1
+    height = b2d.maxy - b2d.miny + 1
     array = np.zeros([width, height])
     for pixel in b2d.pixels:
         array[pixel.x - b2d.minx][pixel.y - b2d.miny] = pixel.val
