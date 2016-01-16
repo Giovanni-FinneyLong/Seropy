@@ -132,9 +132,6 @@ if mayPlot:
 
 # NOTE  Setting up global vars:
 current_path = os.getcwd()
-xdim = -1
-ydim = -1
-zdim = -1
 
 def warn(string):
     print('\n>\n->\n--> WARNING: ' + str(string) + ' <--\n->\n>')
@@ -440,6 +437,12 @@ def contrastSaturatedBlob2ds(blob2ds, minimal_edge_pixels=350):
         else:
             print('Skipping, as blob2d had only: ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
 
+def getBloomedHeight(b2d, explode, zdim):
+    if explode:
+        return b2d.height + b2d.recursive_depth / (zdim * max([len(b2d.getrelated()), 1]))
+    else:
+        return b2d.height
+
 def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitches=False, titleNote='', edge=True, parentlines=False, explode=False):
     global canvas
     global view
@@ -457,7 +460,6 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
         blob2ds = [Blob2d.get(b2d) for b2d in blob2ds]
 
 
-
     xmin = min(blob2d.minx for blob2d in blob2ds)
     ymin = min(blob2d.miny for blob2d in blob2ds)
     xmax = max(blob2d.maxx for blob2d in blob2ds)
@@ -470,11 +472,12 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
     zdim = zmax - zmin + 1
 
 
+
     if explode:
         if not all(b2d.height == blob2ds[0].height for b2d in blob2ds):
             warn('Attempting to explode blob2ds that are not all at the same height')
-        for b2d in blob2ds:
-            b2d.height += b2d.recursive_depth / (zdim * max([len(b2d.getrelated()), 1])) # HACK 1.2 to try to correct allignment, may need function worst case
+        # for b2d in blob2ds:
+        #     b2d.height += b2d.recursive_depth / (zdim * max([len(b2d.getrelated()), 1])) # HACK 1.2 to try to correct allignment, may need function worst case
 
 
 
@@ -503,12 +506,12 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
             if edge:
                 for p_num, pixel in enumerate(blob2d.edge_pixels):
                     pixel = Pixel.get(pixel)
-                    pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (blob2d.height - zmin) / ( z_compression * zdim)]
+                    pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (getBloomedHeight(blob2d, explode, zdim) - zmin) / ( z_compression * zdim)]
                 offsets[index] += len(blob2d.edge_pixels)
             else:
                 for p_num, pixel in enumerate(blob2d.pixels):
                     pixel = Pixel.get(pixel)
-                    pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (blob2d.height - zmin) / ( z_compression * zdim)]
+                    pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (getBloomedHeight(blob2d, explode, zdim)  - zmin) / ( z_compression * zdim)]
                 offsets[index] += len(blob2d.pixels)
 
         for color_num, edge_array in enumerate(pixel_arrays):
@@ -529,21 +532,23 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
             index = blob2d.recursive_depth % len(markers_per_color)
             for p_num, pixel in enumerate(blob2d.edge_pixels):
                 pixel = Pixel.get(pixel)
-                pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (blob2d.height - zmin) / ( z_compression * zdim)]
+                pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (getBloomedHeight(blob2d, explode, zdim)  - zmin) / ( z_compression * zdim)]
             offsets[index] += len(blob2d.edge_pixels)
-        print('----DB adding edge arrays :' + str(pixel_arrays))
 
         for color_num, edge_array in enumerate(pixel_arrays):
-            buf = visuals.Markers()
-            buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
-            view.add(buf)
+            if len(edge_array) == 0:
+                print('Skipping plotting depth ' + str(color_num) + ' as there are no blob2ds at that depth')
+            else:
+                buf = visuals.Markers()
+                buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
+                view.add(buf)
 
 
     if ids is True:
         midpoints = []
         midpoints.append(np.zeros([1,3]))
         for b2d_num, b2d in enumerate(blob2ds): #FIXME! For some reason overloads the ram.
-            midpoints[-1] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, ((b2d.height + .25 - zmin) / (z_compression * zdim))]
+            midpoints[-1] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, ((getBloomedHeight(b2d, explode, zdim)  + .25 - zmin) / (z_compression * zdim))]
             textStr = str(b2d.id)
             if coloring == '' or coloring == 'blob2d':
                 color = colors[b2d_num % len(colors)]
@@ -586,8 +591,8 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
             for b2d in blob2ds:
                 for child in b2d.children:
                     child = Blob2d.get(child)
-                    line_locations[line_index] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, (b2d.height - zmin) / ( z_compression * zdim)]
-                    line_locations[line_index + 1] = [(child.avgx - xmin) / xdim, (child.avgy - ymin) / ydim, (child.height - zmin) / ( z_compression * zdim)]
+                    line_locations[line_index] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, (getBloomedHeight(b2d, explode, zdim)  - zmin) / ( z_compression * zdim)]
+                    line_locations[line_index + 1] = [(child.avgx - xmin) / xdim, (child.avgy - ymin) / ydim, (getBloomedHeight(child, explode, zdim) - zmin) / ( z_compression * zdim)]
                     line_index += 2
             parent_lines = visuals.Line(method=linemethod)
             parent_lines.set_data(pos=line_locations, connect='segments', color='y')
