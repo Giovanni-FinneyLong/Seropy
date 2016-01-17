@@ -287,22 +287,23 @@ def plotBlob3d(blob3d, coloring='', b2dids=False,canvas_size=(800,800), **kwargs
     # FIXME TODO can remove this once repickled
 
 
-    blob3d.minx = blob3d.blob2ds[0].minx
-    blob3d.miny = blob3d.blob2ds[0].miny
-    blob3d.maxx = blob3d.blob2ds[0].maxx
-    blob3d.maxy = blob3d.blob2ds[0].maxy
+    blob3d.minx = Blob2d.get(blob3d.blob2ds[0]).getminx()
+    blob3d.miny = Blob2d.get(blob3d.blob2ds[0]).getminy()
+    blob3d.maxx = Blob2d.get(blob3d.blob2ds[0]).getmaxx()
+    blob3d.maxy = Blob2d.get(blob3d.blob2ds[0]).getmaxy()
 
     # NOTE TODO add this to blob3d
     midx = 0
     midy = 0
 
     for blob in blob3d.blob2ds:
-        blob3d.minx = min(blob.minx, blob3d.minx)
-        blob3d.miny = min(blob.miny, blob3d.miny)
-        blob3d.maxx = max(blob.maxx, blob3d.maxx)
-        blob3d.maxy = max(blob.maxy, blob3d.maxy)
-        midx += blob.avgx
-        midy += blob.avgy
+        blob = Blob2d.get(blob)
+        blob3d.minx = min(blob.getminx(), blob3d.minx)
+        blob3d.miny = min(blob.getminy(), blob3d.miny)
+        blob3d.maxx = max(blob.getmaxx(), blob3d.maxx)
+        blob3d.maxy = max(blob.getmaxy(), blob3d.maxy)
+        midx += blob.getavgx()
+        midy += blob.getavgy()
     midx /= len(blob3d.blob2ds)
     midy /= len(blob3d.blob2ds)
     midz = (blob3d.highslideheight + blob3d.lowslideheight) / 2
@@ -346,8 +347,9 @@ def plotBlob3d(blob3d, coloring='', b2dids=False,canvas_size=(800,800), **kwargs
     midpoints = []
     # FIXME This is repairing incorrect averages in blob2ds
     for b2d in blob3d.blob2ds:
-        b2d.avgx = sum(pixel.x for pixel in b2d.edge_pixels) / len(b2d.edge_pixels)
-        b2d.avgy = sum(pixel.y for pixel in b2d.edge_pixels) / len(b2d.edge_pixels)
+        b2d = Blob2d.get(b2d)
+        b2d.avgx = sum(Pixel.get(pixel).x for pixel in b2d.edge_pixels) / len(b2d.edge_pixels)
+        b2d.avgy = sum(Pixel.get(pixel).y for pixel in b2d.edge_pixels) / len(b2d.edge_pixels)
     # /FIXME
 
 
@@ -374,9 +376,9 @@ def plotBlob3d(blob3d, coloring='', b2dids=False,canvas_size=(800,800), **kwargs
             markers[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[b2d_num], size=8)
             view.add(markers[-1])
     else:
-        edge_pixel_array = np.zeros([len(blob3d.edge_pixels), 3])
+        edge_pixel_array = np.zeros([blob3d.get_edge_pixel_count(), 3])
 
-        for (p_num, pixel) in enumerate(blob3d.edge_pixels):
+        for (p_num, pixel) in enumerate(blob3d.get_edge_pixels()):
                 edge_pixel_array[p_num] = [(pixel.x - offsetx) / xdim, (pixel.y - offsety) / ydim, pixel.z /  (z_compression * zdim)]
         markers = visuals.Markers()
         markers.set_data(edge_pixel_array, edge_color=None, face_color='green', size=8)
@@ -608,9 +610,6 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
 def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None, costs=0, maxcolors=-1, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800,800), b2d_midpoint_values=0, titleNote=''):
     global canvas
     global view
-    global xdim
-    global ydim
-    global zdim
     global colors
     # canvas_size = kwargs.get('canvas_size', (800,800))
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size,
@@ -621,6 +620,9 @@ def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None,
     # Finding the maximal slide, so that the vertical dimension of the plot can be evenly divided
     total_slides = 0
     print('DB plotting a total of ' + str(len(blob3dlist)) + ' blob3ds')
+    xdim = 0
+    ydim = 0
+    zdim = 0
 
     for blob3d in blob3dlist: # TODO make gen functions
         if blob3d.highslideheight > total_slides:
@@ -650,16 +652,21 @@ def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None,
         markers_per_color = [0 for i in range(min(len(colors), len(blob3dlist)))]
         offsets = [0] * min(len(colors), len(blob3dlist))
         for blobnum, blob3d in enumerate(blob3dlist):
-            markers_per_color[blobnum % len(markers_per_color)] += len(blob3d.edge_pixels)
+            # markers_per_color[blobnum % len(markers_per_color)] += len(blob3d.edge_pixels)
+            markers_per_color[blobnum % len(markers_per_color)] += blob3d.get_edge_pixel_count()
+
+
         for num,i in enumerate(markers_per_color):
             edge_pixel_arrays.append(np.zeros([i, 3]))
         for blobnum, blob3d in enumerate(blob3dlist):
             index = blobnum % len(markers_per_color)
-            for p_num, pixel in enumerate(blob3d.edge_pixels):
+            for p_num, pixel in enumerate(blob3d.get_edge_pixels()):
                 edge_pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * total_slides)]
-            offsets[index] += len(blob3d.edge_pixels)
+            offsets[index] += blob3d.get_edge_pixel_count()
         for color_num, edge_array in enumerate(edge_pixel_arrays):
-            view.add(visuals.Markers(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 ))
+            buf = visuals.Markers()
+            buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
+            view.add(buf)
 
         # for blob_num, blob3d in enumerate(blob3dlist):
         #     edge_pixel_arrays.append(np.zeros([len(blob3d.edge_pixels), 3]))
@@ -717,11 +724,12 @@ def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None,
                 current_index += 1
             b3ds_by_depth.append(b3ds_at_depth)
         for depth, depth_list in enumerate(b3ds_by_depth):
-            num_edge_pixels_at_depth = sum(len(b3d.edge_pixels) for b3d in depth_list)
+            num_edge_pixels_at_depth = sum(b3d.get_edge_pixel_count() for b3d in depth_list)
             edge_pixel_arrays.append(np.zeros([num_edge_pixels_at_depth, 3]))
             p_num = 0
             for b3d in depth_list:
-                for pixel in b3d.edge_pixels:
+                ep_buf = b3d.get_edge_pixels()
+                for pixel in ep_buf:
                     edge_pixel_arrays[-1][p_num] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * total_slides)]
                     p_num += 1
 
@@ -790,10 +798,10 @@ def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None,
             for blob3d in blob3dlist:
                 for pairing in blob3d.pairings:
                     for stitch in pairing.stitches:
-                        lowerpixel = stitch.lowerpixel
-                        upperpixel = stitch.upperpixel
-                        line_locations[line_index] = [lowerpixel.x / xdim, lowerpixel.y / ydim, (pairing.lowerslidenum ) / ( z_compression * total_slides)]
-                        line_locations[line_index + 1] = [upperpixel.x / xdim, upperpixel.y / ydim, (pairing.upperslidenum ) / ( z_compression * total_slides)]
+                        lowerpixel = Pixel.get(stitch.lowerpixel)
+                        upperpixel = Pixel.get(stitch.upperpixel)
+                        line_locations[line_index] = [lowerpixel.x / xdim, lowerpixel.y / ydim, (pairing.lowerheight ) / ( z_compression * total_slides)]
+                        line_locations[line_index + 1] = [upperpixel.x / xdim, upperpixel.y / ydim, (pairing.upperheight ) / ( z_compression * total_slides)]
                         line_index += 2
             stitch_lines = visuals.Line(method=linemethod)
             stitch_lines.set_data(pos=line_locations, connect='segments')

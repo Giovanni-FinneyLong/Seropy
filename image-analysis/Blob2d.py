@@ -47,7 +47,18 @@ class Blob2d:
         self.id = -1
         self.validateID() # self is added to Blob2d.all dict here
 
-
+    def getminx(self):
+        return min(Pixel.get(pix).x for pix in self.edge_pixels)
+    def getmaxx(self):
+        return max(Pixel.get(pix).x for pix in self.edge_pixels)
+    def getminy(self):
+        return min(Pixel.get(pix).y for pix in self.edge_pixels)
+    def getmaxy(self):
+        return max(Pixel.get(pix).y for pix in self.edge_pixels)
+    def getavgx(self):
+        return sum(Pixel.get(pix).x for pix in self.edge_pixels) / len(self.edge_pixels)
+    def getavgy(self):
+        return sum(Pixel.get(pix).y for pix in self.edge_pixels) / len(self.edge_pixels)
 
     @staticmethod
     def get(id):

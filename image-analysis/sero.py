@@ -327,38 +327,49 @@ def main():
 
     # depth_0 = [b2d.id for b2d in Blob2d.all.values() if b2d.recursive_depth == 0]
     # print(len(depth_0))
-    depth_1 = [b2d.id for b2d in Blob2d.all.values() if b2d.recursive_depth == 1]
-    print(depth_1)
-    max_h_d0 = max(Blob2d.all[b2d].height for b2d in depth_1)
-    min_h_d0 = min(Blob2d.all[b2d].height for b2d in depth_1)
-    print('Number at depth 1: ' + str(len(depth_1)))
-    print('Min max heights at depth 1: (' + str(min_h_d0) + ', ' + str(max_h_d0) + ')')
-    ids_by_height = [[] for i in range(max_h_d0 - min_h_d0 + 1)]
-    print('len of ids:' + str(len(ids_by_height)))
-    for b2d in depth_1:
-        ids_by_height[Blob2d.get(b2d).height - min_h_d0].append(b2d)
-    print('Ids by height:')
-    for height_val,h in enumerate(ids_by_height[:-1]): # All but the last one
-        print('Height:' + str(height_val))
-        for b2d in h:
-            b2d = Blob2d.all[b2d]
-            print('Setting partners for:' + str(b2d))
-            b2d.setPossiblePartners(ids_by_height[height_val + 1])
-            print('Set possible partners = :' + str(b2d.possible_partners))
-            b2d.setShapeContexts(36)
 
+
+
+    max_avail_depth = max(b2d.recursive_depth for b2d in Blob2d.all.values())
+    print('Db max_avail_depth = ' + str(max_avail_depth))
+
+    for cur_depth in range(max_avail_depth)[1:]: # Skip those at depth 0
+        print('CUR DEPTH = ' + str(cur_depth))
+        depth = [b2d.id for b2d in Blob2d.all.values() if b2d.recursive_depth == cur_depth]
+        max_h_d0 = max(Blob2d.all[b2d].height for b2d in depth)
+        min_h_d0 = min(Blob2d.all[b2d].height for b2d in depth)
+        print(' Number at depth ' + str(cur_depth) + ' : ' + str(len(depth)))
+        print(' Min max heights at depth ' + str(cur_depth) + ' : (' + str(min_h_d0) + ', ' + str(max_h_d0) + ')')
+        ids_by_height = [[] for i in range(max_h_d0 - min_h_d0 + 1)]
+        for b2d in depth:
+            ids_by_height[Blob2d.get(b2d).height - min_h_d0].append(b2d)
+        print(' Ids by height:')
+        for height_val,h in enumerate(ids_by_height[:-1]): # All but the last one
+            print('  Height:' + str(height_val))
+            for b2d in h:
+                b2d = Blob2d.all[b2d]
+                # print('   Setting partners for:' + str(b2d))
+                b2d.setPossiblePartners(ids_by_height[height_val + 1])
+                # print('   Set possible partners = :' + str(b2d.possible_partners))
+        for h in ids_by_height:
+            for b2d in h:
+                b2d = Blob2d.all[b2d]
+                b2d.setShapeContexts(36)
+
+
+
+    new_b3ds = []
     for b3d in blob3dlist:
         all_d1_with_pp_in_this_b3d = []
         for b2d in b3d.blob2ds:
             #Note this is the alternative to storing b3dID with b2ds
             b2d = Blob2d.get(b2d)
-            # print(' B2d: ' + str(b2d))
-            d_1 = b2d.getdirectdescendants()
+            print(' DB b2d: ' + str(b2d))
+            print(' DB r_depth of all descendants: ' + str(set([blob2d.recursive_depth for blob2d in b2d.getdescendants()])))
+            d_1 = [blob for blob in b2d.getdescendants() if blob.recursive_depth == b2d.recursive_depth + 1]
             if len(d_1):
-                # print('  Direct descendants: ' + str(d_1))
                 for desc in d_1:
                     if len(desc.possible_partners):
-                        # print('   desc:' + str(desc) + ' pp:' + str(desc.possible_partners))
                         all_d1_with_pp_in_this_b3d.append(desc.id)
         print('For b3d: ' + str(b3d) + ' found ' + str(all_d1_with_pp_in_this_b3d))
         all_d1_with_pp_in_this_b3d = set(all_d1_with_pp_in_this_b3d)
@@ -374,10 +385,17 @@ def main():
                 # plotBlob2ds(cur_matches)
                 matches_with_parents = cur_matches + list(set([Blob2d.get(b2d.parentID) for b2d in cur_matches]))
                 print('Matches with parents: (' + str(len(matches_with_parents)) + '), ' + str(matches_with_parents))
-                plotBlob2ds(matches_with_parents, stitches=False)
+                # plotBlob2ds(matches_with_parents, stitches=False)
+                new_b3ds.append(Blob3d([blob.id for blob in cur_matches], subblob=True, r_depth = b2d.recursive_depth))
+    print('All new_b3ds: (' + str(len(new_b3ds)) + ') : ' + str(new_b3ds))
+    plotBlob3ds(new_b3ds, coloring='blob')
+    plotBlob3ds(new_b3ds + blob3dlist, coloring='depth')
+    # for b3d in new_b3ds:
+    #     plotBlob3d(b3d)
 
 
-    # plotBlob2ds(depth_1, stitches=True, ids=False, parentlines=False,explode=True, edge=False)
+
+    # plotBlob2ds(depth, stitches=True, ids=False, parentlines=False,explode=True, edge=False)
 
 
 
