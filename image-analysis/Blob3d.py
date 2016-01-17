@@ -22,7 +22,10 @@ class Blob3d:
         self.highslideheight = max(Blob2d.get(blob).height for blob in self.blob2ds)
         self.recursive_depth = 0
         for blobid in self.blob2ds:
+
             blob = Blob2d.get(blobid)
+            Blob2d.all[blob.id].b3did = self.id
+
             if blob is None:
                 print('WARNING got None when looking for a blob2d with id:' + str(blobid))
                 print('All:' + str(Blob2d.getall()))
@@ -50,7 +53,10 @@ class Blob3d:
             sb = str(self.recursive_depth)
         else:
             sb = '0'
-        return str('B3D(' + str(sb) + '): #b2ds:' + str(len(self.blob2ds)) + ', r_depth:' + str(self.recursive_depth) + ' lowslideheight=' + str(self.lowslideheight) + ' highslideheight=' + str(self.highslideheight) + ' #edgepixels=' + str(len(self.edge_pixels)) + ' #pixels=' + str(len(self.pixels)) + ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) + ')')
+        return str('B3D(' + str(sb) + '): #b2ds:' + str(len(self.blob2ds)) + ', r_depth:' + str(self.recursive_depth) +
+                   ' lowslideheight=' + str(self.lowslideheight) + ' highslideheight=' + str(self.highslideheight) +
+                   #' #edgepixels=' + str(len(self.edge_pixels)) + ' #pixels=' + str(len(self.pixels)) +
+                   ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) + ')')
 
     def add_note(self, str):
         if hasattr(self, 'note'):

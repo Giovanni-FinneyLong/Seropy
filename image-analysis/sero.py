@@ -290,7 +290,7 @@ def main():
         print("Setting shape contexts for all blob2ds",flush=True)
         Slide.setAllShapeContexts(all_slides)
         t_start_munkres = time.time()
-        stitchlist = Pairing.stitchAllBlobs(all_slides, debug=False)
+        stitchlist = Pairing.stitchAllBlobs(all_slides, debug=False) # TODO change this to work with a list of ids or blob2ds
         t_finish_munkres = time.time()
         print('Done stitching together blobs, total time for all: ', end='')
         printElapsedTime(t_start_munkres, t_finish_munkres)
@@ -305,17 +305,17 @@ def main():
         for blob2dlist in list3ds:
             blob3dlist.append(Blob3d(blob2dlist))
         print('There are a total of ' + str(len(blob3dlist)) + ' blob3ds')
-        Blob3d.tagBlobsSingular(blob3dlist) # TODO improve the simple classification
+        Blob3d.tagBlobsSingular(blob3dlist)
 
         print('Pickling the results of stitching:')
         doPickle2(blob3dlist, picklefile)
 
     else:
 
-
         if False:
-
             blob3dlist = unPickle2(picklefile) # DEBUG DEBUG DEBUG
+            # debug()
+
             experiment(blob3dlist)
             doPickle2(blob3dlist, picklefile + '_BLOOMED')
 
@@ -326,8 +326,9 @@ def main():
     # Time to try to pair together inner b2ds
 
     # depth_0 = [b2d.id for b2d in Blob2d.all.values() if b2d.recursive_depth == 0]
+    # print(len(depth_0))
     depth_1 = [b2d.id for b2d in Blob2d.all.values() if b2d.recursive_depth == 1]
-
+    print(depth_1)
     max_h_d0 = max(Blob2d.all[b2d].height for b2d in depth_1)
     min_h_d0 = min(Blob2d.all[b2d].height for b2d in depth_1)
     print('Number at depth 1: ' + str(len(depth_1)))
@@ -344,34 +345,40 @@ def main():
             print('Setting partners for:' + str(b2d))
             b2d.setPossiblePartners(ids_by_height[height_val + 1])
             print('Set possible partners = :' + str(b2d.possible_partners))
-        print('Plotting b2ds from height=' + str(height_val) + ' and all their possible partners')
-        for b2d in h:
+            b2d.setShapeContexts(36)
+
+    for b3d in blob3dlist:
+        all_d1_with_pp_in_this_b3d = []
+        for b2d in b3d.blob2ds:
+            #Note this is the alternative to storing b3dID with b2ds
             b2d = Blob2d.get(b2d)
-            print(' Plotting b2d: ' + str(b2d) + ' and possible partners: ' + str([Blob2d.get(b2d) for b2d in b2d.possible_partners]))
-            plotBlob2ds([b2d] + [Blob2d.get(p) for p in b2d.possible_partners], ids=True,edge=False)
+            # print(' B2d: ' + str(b2d))
+            d_1 = b2d.getdirectdescendants()
+            if len(d_1):
+                # print('  Direct descendants: ' + str(d_1))
+                for desc in d_1:
+                    if len(desc.possible_partners):
+                        # print('   desc:' + str(desc) + ' pp:' + str(desc.possible_partners))
+                        all_d1_with_pp_in_this_b3d.append(desc.id)
+        print('For b3d: ' + str(b3d) + ' found ' + str(all_d1_with_pp_in_this_b3d))
+        all_d1_with_pp_in_this_b3d = set(all_d1_with_pp_in_this_b3d)
+        for b2d in all_d1_with_pp_in_this_b3d:
+            b2d = Blob2d.get(b2d)
+            cur_matches = [b2d]
+            for pp in b2d.possible_partners:
+                if pp in all_d1_with_pp_in_this_b3d:
+                    print('--> Found a partner to b2d: ' + str(b2d) + ' which is: ' + str(Blob2d.get(pp)))
+                    cur_matches.append(Blob2d.get(pp))
+            if len(cur_matches) > 1:
+                print('All cur_matches: (' + str(len(cur_matches)) + ')' + str(cur_matches))
+                # plotBlob2ds(cur_matches)
+                matches_with_parents = cur_matches + list(set([Blob2d.get(b2d.parentID) for b2d in cur_matches]))
+                print('Matches with parents: (' + str(len(matches_with_parents)) + '), ' + str(matches_with_parents))
+                plotBlob2ds(matches_with_parents, stitches=False)
 
 
-    all_b2ds = [b2d for b2d in Blob2d.all.values()]
-    plotBlob2ds(all_b2ds, stitches=True, ids=False, parentlines=True,explode=True, edge=False)
+    # plotBlob2ds(depth_1, stitches=True, ids=False, parentlines=False,explode=True, edge=False)
 
-    # print('The number of base b2ds: ' + str(depth_1) + ' = ' + str(depth_1))
-
-    for b_num, b2d in enumerate(depth_1):
-        b2d = Blob2d.get(b2d)
-
-        print('Working on b2d ' + str(b_num) + ' / ' + str(len(depth_1)) + ' = ' + str(b2d))
-        # for pairing in b2d.pairings:
-        #     print(' ' + str(pairing))
-        b2d.setPossiblePartners(depth_1)
-        for p in b2d.possible_partners:
-            print(' partner:' + str(Blob2d.get(p)))
-        plotBlob2ds([b2d] + [Blob2d.get(p) for p in b2d.possible_partners], ids=True,edge=False)
-        # Seem to be correctly setting partners
-
-    plotBlob2ds(depth_1, stitches=True, ids=False, parentlines=True,explode=True, edge=False)
-
-
-    # explorememoryusage(blob3dlist)
 
 
 if __name__ == '__main__':

@@ -11,7 +11,7 @@ from PIL import Image
 # import numpy as np
 import time
 import math
-
+from Pixel import Pixel
 
 
 def setglobaldims(x, y, z):
@@ -87,23 +87,12 @@ class Slide:
                     self.sum_pixels += pixel_value
         if not quiet:
             print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(self.local_xdim * self.local_ydim) + ' pixels')
-        print(' --> Pixel.total_pixels = ' + str(Pixel.total_pixels) + ' Pixel.all = ' + str(len(Pixel.all)))
-        print('-----len of pixel.all = ' + str(len(Pixel.all)))
 
-        # pixels.sort(key=lambda pix: pix.val, reverse=True)# Note that sorting is being done like so to sort based on value not position as is normal with pixels. Sorting is better as no new list
-
-        # Lets go further and grab the maximal pixels, which are at the front
-        endmax = 0
-        while (endmax < len(pixels) and pixels[endmax].val >= min_val_threshold ):
-            endmax += 1
-        if not self.isSubslide:
-            if not quiet:
-                print('There are ' + str(endmax) + ' pixels above the minimal threshold')
         # Time to pre-process the maximal pixels; try and create groups/clusters
-        print(' --> Pixel.total_pixels = ' + str(Pixel.total_pixels) + ' Pixel.all = ' + str(len(Pixel.all)))
+        self.alive_pixels = filterSparsePixelsFromList(pixels, (self.local_xdim, self.local_ydim), quiet=quiet)
+        for pixel in self.alive_pixels:
+            pixel.validate()
 
-        self.alive_pixels = filterSparsePixelsFromList(pixels[0:endmax], (self.local_xdim, self.local_ydim), quiet=quiet)
-        # self.alive_pixels.sort() # Sorted here so that in y,x order instead of value order
         alive_pixel_array = np.zeros([self.local_xdim, self.local_ydim], dtype=object)
         for pixel in self.alive_pixels:
             alive_pixel_array[pixel.x][pixel.y] = pixel
@@ -112,7 +101,6 @@ class Slide:
         total_ids = len(counter.items())
         if not quiet:
             print('There were: ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(total_ids) + ' blobs.')
-        print(' --> Pixel.total_pixels = ' + str(Pixel.total_pixels) + ' Pixel.all = ' + str(len(Pixel.all)))
         most_common_ids = counter.most_common()# HACK Grabbing all for now, +1 b/c we start at 0 # NOTE Stored as (id, count)
         id_lists = getIdLists(self.alive_pixels, remap=remap_ids_by_group_size, id_counts=most_common_ids) # Hack, don't ned to supply id_counts of remap is false; just convenient for now
         self.blob2dlist = [] # Note that blobs in the blob list are ordered by number of pixels, not id, this makes merging faster
@@ -306,9 +294,6 @@ class Slide:
         id_to_reuse = []
 
         maxid = max(pixel.blob_id for pixel in pixel_list)
-        # for id in range(self.id_num): # NOTE CHANGED 12/9/15 to allow compatibility without needing slide # TODO
-        print('Max id:' + str(maxid))
-
         for id in range(maxid):
             if id not in equivalent_labels:
                 if debug_blob_ids:

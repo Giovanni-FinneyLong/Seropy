@@ -31,6 +31,7 @@ class Blob2d:
         self.maxy = max(pixel.y for pixel in list_of_pixels)
         self.avgx = sum(pixel.x for pixel in list_of_pixels) / len(list_of_pixels)
         self.avgy = sum(pixel.y for pixel in list_of_pixels) / len(list_of_pixels)
+        self.b3did = -1
 
         self.pixels = [pixel.id for pixel in list_of_pixels]
         self.assignedto3d = False # Set to true once a blod2d has been added to a list that will be used to construct a blob3d
@@ -60,7 +61,7 @@ class Blob2d:
     def getkeys():
         return Blob2d.all.keys()
 
-    def getdescendants(self, include_self=True, rdepth=0):
+    def getdescendants(self, include_self=False, rdepth=0):
 
         if include_self or rdepth != 0:
             res = [self]
@@ -70,8 +71,12 @@ class Blob2d:
             res = res + Blob2d.all[child].getdescendants(rdepth=rdepth+1)
         return res
 
-
-
+    def getdirectdescendants(self, include_self=False):
+        if include_self:
+            res = []
+        else:
+            res = []
+        return res + [Blob2d.get(b2d) for b2d in self.children]
     def getrelated(self, rdepth=0):
         desc = self.getdescendants()
         par = self.getparents()
@@ -223,8 +228,13 @@ class Blob2d:
                 # print('Pair_coor:' + str(pair_coor))
                 # print('Len of my_pixel_coor: ' + str(len(my_pixel_coor)) + ' len of pair_coor: ' + str(len(pair_coor)))
                 # print('Len of difference:' + str(len(my_pixel_coor - pair_coor)))
+                overlap_amount = len(my_pixel_coor) - len(my_pixel_coor - pair_coor)
+                # print('DB overlap with self = ' + str(overlap_amount / len(my_pixel_coor) > minimal_pixel_overlap_to_be_possible_partners))
+                # print('DB overlap with other = ' + str(overlap_amount / len(pair_coor) > minimal_pixel_overlap_to_be_possible_partners))
 
-                if(len(my_pixel_coor - pair_coor) != len(my_pixel_coor)): # Overlapping coordinates
+                if len(pair_coor) and len(my_pixel_coor) and ((overlap_amount / len(my_pixel_coor) > minimal_pixel_overlap_to_be_possible_partners  and len(my_pixel_coor) > 7)
+                or ((overlap_amount / len(pair_coor) > minimal_pixel_overlap_to_be_possible_partners) and len(pair_coor) > 7)): #HACK
+                    # len(my_pixel_coor - pair_coor) != len(my_pixel_coor)): # Overlapping coordinates
                     self.possible_partners.append(blob.id)
                     if partnerSmaller:
                         # Use partner's (blob) midpoints, and expand a proportion of minx, maxx, miny, maxy
@@ -252,8 +262,11 @@ class Blob2d:
                         pixel = Pixel.get(pixel)
                         if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
                             my_subpixel_indeces.append(p_num)
-                else:
-                    print('-> Avoided setting ' + str(self) + ' and ' + str(blob) + ' as possible partners')
+                # else:# DEBUG
+                #     print('-> Avoided setting ' + str(self) + ' and ' + str(blob) + ' as possible partners')
+                #     if len(my_pixel_coor) > 20 and len(pair_coor) > 20:
+                #         from serodraw import plotBlob2ds
+                #         plotBlob2ds([self] + [blob])
         # self.partner_costs = [0] * len(self.possible_partners) # Note: May want to use this later
         # Could this method to do better filtering, like checking if the blobs are within each other etc
         # TODO update entry in Blob2d...?
@@ -296,7 +309,7 @@ class Blob2d:
         pairingidsl = [pairing.lowerblob.id for pairing in self.pairings if pairing.lowerblob.id != self.id]
         pairingidsu = [pairing.upperblob.id for pairing in self.pairings if pairing.upperblob.id != self.id]
         pairingids = sorted(pairingidsl + pairingidsu)
-        return str('B{id:' + str(self.id) + ', #P=' + str(len(self.pixels))) + ', #EP=' + str(len(self.edge_pixels)) + ', recur_depth=' + str(self.recursive_depth) + ', parentID=' + str(self.parentID) + ', pairedids=' + str(pairingids)  + ', height=' + str(self.height) + ', (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) +'), Avg(X,Y):(%.1f' % self.avgx + ',%.1f' % self.avgy + ', children=' + str(self.children) +')}'
+        return str('B{id:' + str(self.id) + ', #P=' + str(len(self.pixels))) + ', #EP=' + str(len(self.edge_pixels)) + ', recur_depth=' + str(self.recursive_depth) + ', parentID=' + str(self.parentID) + ', b3did=' + str(self.b3did) + ', pairedids=' + str(pairingids)  + ', height=' + str(self.height) + ', (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) +'), Avg(X,Y):(%.1f' % self.avgx + ',%.1f' % self.avgy + ', children=' + str(self.children) +')}'
 
     __repr__ = __str__
 

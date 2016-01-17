@@ -34,7 +34,6 @@ class Pixel:
             self.validate();
 
     def validate(self):
-        # self.id = Pixel.total_pixels
         Pixel.all[self.id] = self
 
     def setBlobID(self, new_val):
