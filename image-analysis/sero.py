@@ -210,27 +210,17 @@ def bloomInwards(blob2d, depth=0):
 
 
 # @profile
-def experiment(blob3dlist):
+def bloom_b3ds(blob3dlist):
 
-    allb2ds = [b2d for b2d in Blob2d.all.values()]
+    allb2ds = [Blob2d.get(b2d) for b3d in blob3dlist for b2d in b3d.blob2ds]
 
-    start_offset = 0
-
-    all_desc = []
     t_start_bloom = time.time()
     num_unbloomed = len(allb2ds)
     prev_count = len(Blob2d.all)
-    for bnum, blob2d in enumerate(allb2ds[start_offset:]): # HACK need to put the colon on the right of start_offset
+    for bnum, blob2d in enumerate(allb2ds): # HACK need to put the colon on the right of start_offset
         # showBlob2d(b2d)
-        print('Blooming b2d: ' + str(bnum + start_offset) + '/' + str(len(allb2ds)) + ' = ' + str(blob2d) )
-        # print(' The current number of B2ds = ' + str(len(Blob2d.all)) + ', the previous count = ' + str(prev_count))
-        # prev_count = len(Blob2d.all)
+        print('Blooming b2d: ' + str(bnum) + '/' + str(len(allb2ds)) + ' = ' + str(blob2d) )
         bloomInwards(blob2d) # NOTE will have len 0 if no blooming can be done
-        # print(' After blooming the above blob, len(Blob2d.all) = ' + str(len(Blob2d.all)))
-        # base = Blob2d.get(blob2d.id)
-        # desc = base.getdescendants()
-        # all_desc += desc
-
     print('To complete all blooming:')
     printElapsedTime(t_start_bloom, time.time())
     print('Before blooming there were: ' + str(num_unbloomed) + ' b2ds, there are now ' + str(len(Blob2d.all)))
@@ -315,8 +305,7 @@ def main():
         if False:
             blob3dlist = unPickle2(picklefile) # DEBUG DEBUG DEBUG
             # debug()
-
-            experiment(blob3dlist)
+            bloom_b3ds(blob3dlist)
             doPickle2(blob3dlist, picklefile + '_BLOOMED')
 
         else:
@@ -324,11 +313,16 @@ def main():
                 blob3dlist = unPickle2(picklefile + '_BLOOMED') # DEBUG DEBUG DEBUG
             else:
                 blob3dlist = unPickle2(picklefile + '_BLOOMED_stitched') # DEBUG DEBUG DEBUG
-                chosen_depths = [0, 2]
+                chosen_depths = [0,1]
                 chosen_b3ds = [b3d for b3d in blob3dlist if b3d.recursive_depth in chosen_depths]
+                b3ds_d1 = [b3d for b3d in blob3dlist if b3d.recursive_depth == 1]
+                print('Number of b3ds at depth 1:' + str(len(b3ds_d1)))
+                for b3d in b3ds_d1:
+                    print(' ' + str(b3d))
                 plotBlob3ds(blob3dlist, color='blob')
                 plotBlob3ds(chosen_b3ds, color='blob')
                 plotBlob2ds(Blob2d.all.values())
+                exit()
 
     # Time to try to pair together inner b2ds
 
@@ -358,6 +352,9 @@ def main():
                 # print('   Setting partners for:' + str(b2d))
                 b2d.setPossiblePartners(ids_by_height[height_val + 1])
                 # print('   Set possible partners = :' + str(b2d.possible_partners))
+            # print('  DB set possible partners for b2ds at height')
+            # plotBlob2ds([Blob2d.get(b2d) for b2d in h])
+
         for h in ids_by_height:
             for b2d in h:
                 b2d = Blob2d.all[b2d]
@@ -365,7 +362,7 @@ def main():
 
     print('DB the max depth available is:' + str(max_avail_depth))
     b3ds_by_depth_offset = []
-    for depth_offset in range(max_avail_depth)[1:]: # Skip offset of zero
+    for depth_offset in range(max_avail_depth+1)[1:]: # Skip offset of zero, which refers to the b3ds which have already been stitched
         print('Depth_offset: ' + str(depth_offset))
 
         new_b3ds = []
@@ -412,7 +409,7 @@ def main():
             Pairing.stitchBlob2ds(b3d.blob2ds)
         # plotBlob3ds(depth_offset_b3ds, coloring='blob')
         all_gen_b3ds += depth_offset_b3ds
-    plotBlob3ds(all_gen_b3ds, coloring='blob')
+    plotBlob3ds(all_gen_b3ds, color='blob')
     doPickle2(all_gen_b3ds + blob3dlist, picklefile + '_BLOOMED_stitched')
 
 
