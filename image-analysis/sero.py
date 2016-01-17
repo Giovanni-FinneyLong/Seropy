@@ -320,8 +320,15 @@ def main():
             doPickle2(blob3dlist, picklefile + '_BLOOMED')
 
         else:
-            blob3dlist = unPickle2(picklefile + '_BLOOMED') # DEBUG DEBUG DEBUG
-
+            if False:
+                blob3dlist = unPickle2(picklefile + '_BLOOMED') # DEBUG DEBUG DEBUG
+            else:
+                blob3dlist = unPickle2(picklefile + '_BLOOMED_stitched') # DEBUG DEBUG DEBUG
+                chosen_depths = [0, 2]
+                chosen_b3ds = [b3d for b3d in blob3dlist if b3d.recursive_depth in chosen_depths]
+                plotBlob3ds(blob3dlist, color='blob')
+                plotBlob3ds(chosen_b3ds, color='blob')
+                plotBlob2ds(Blob2d.all.values())
 
     # Time to try to pair together inner b2ds
 
@@ -356,42 +363,59 @@ def main():
                 b2d = Blob2d.all[b2d]
                 b2d.setShapeContexts(36)
 
+    print('DB the max depth available is:' + str(max_avail_depth))
+    b3ds_by_depth_offset = []
+    for depth_offset in range(max_avail_depth)[1:]: # Skip offset of zero
+        print('Depth_offset: ' + str(depth_offset))
+
+        new_b3ds = []
+        for b3d in blob3dlist:
+            all_d1_with_pp_in_this_b3d = []
+            for b2d in b3d.blob2ds:
+                #Note this is the alternative to storing b3dID with b2ds
+                b2d = Blob2d.get(b2d)
+                # print(' DB b2d: ' + str(b2d))
+                # print(' DB r_depth of all descendants: ' + str(set([blob2d.recursive_depth for blob2d in b2d.getdescendants()])))
+                d_1 = [blob for blob in b2d.getdescendants() if blob.recursive_depth == b2d.recursive_depth + depth_offset]
+                if len(d_1):
+                    for desc in d_1:
+                        if len(desc.possible_partners):
+                            all_d1_with_pp_in_this_b3d.append(desc.id)
+            print(' For b3d: ' + str(b3d) + ' found ' + str(all_d1_with_pp_in_this_b3d))
+            all_d1_with_pp_in_this_b3d = set(all_d1_with_pp_in_this_b3d)
+            for b2d in all_d1_with_pp_in_this_b3d:
+                b2d = Blob2d.get(b2d)
+                cur_matches = [b2d]
+                for pp in b2d.possible_partners:
+                    if pp in all_d1_with_pp_in_this_b3d:
+                        # print('--> Found a partner to b2d: ' + str(b2d) + ' which is: ' + str(Blob2d.get(pp)))
+                        cur_matches.append(Blob2d.get(pp))
+                if len(cur_matches) > 1:
+                    # print('  All cur_matches: (' + str(len(cur_matches)) + ')' + str(cur_matches))
+                    # plotBlob2ds(cur_matches)
+                    # matches_with_parents = cur_matches + list(set([Blob2d.get(b2d.parentID) for b2d in cur_matches]))
+                    # print(' Matches with parents: (' + str(len(matches_with_parents)) + '), ' + str(matches_with_parents))
+                    # plotBlob2ds(matches_with_parents, stitches=False)
+                    new_b3ds.append(Blob3d([blob.id for blob in cur_matches], subblob=True, r_depth = b2d.recursive_depth))
+        print('All new_b3ds: (' + str(len(new_b3ds)) + ') : ' + str(new_b3ds))
+        b3ds_by_depth_offset.append(new_b3ds)
+        # plotBlob3ds(new_b3ds, coloring='blob')
+        # plotBlob3ds(new_b3ds + blob3dlist, coloring='depth')
+
+        # for b3d in new_b3ds:
+        #     plotBlob3d(b3d)
+    all_gen_b3ds = []
+    for offset_num, depth_offset_b3ds in enumerate(b3ds_by_depth_offset):
+        print('Working on offset ' + str(offset_num) + ' / ' + str(len(b3ds_by_depth_offset)))
+        for b3d_num,b3d in enumerate(depth_offset_b3ds):
+            print(' Working on b3d: ' + str(b3d_num) + ' / ' + str(len(depth_offset_b3ds)))
+            Pairing.stitchBlob2ds(b3d.blob2ds)
+        # plotBlob3ds(depth_offset_b3ds, coloring='blob')
+        all_gen_b3ds += depth_offset_b3ds
+    plotBlob3ds(all_gen_b3ds, coloring='blob')
+    doPickle2(all_gen_b3ds + blob3dlist, picklefile + '_BLOOMED_stitched')
 
 
-    new_b3ds = []
-    for b3d in blob3dlist:
-        all_d1_with_pp_in_this_b3d = []
-        for b2d in b3d.blob2ds:
-            #Note this is the alternative to storing b3dID with b2ds
-            b2d = Blob2d.get(b2d)
-            print(' DB b2d: ' + str(b2d))
-            print(' DB r_depth of all descendants: ' + str(set([blob2d.recursive_depth for blob2d in b2d.getdescendants()])))
-            d_1 = [blob for blob in b2d.getdescendants() if blob.recursive_depth == b2d.recursive_depth + 1]
-            if len(d_1):
-                for desc in d_1:
-                    if len(desc.possible_partners):
-                        all_d1_with_pp_in_this_b3d.append(desc.id)
-        print('For b3d: ' + str(b3d) + ' found ' + str(all_d1_with_pp_in_this_b3d))
-        all_d1_with_pp_in_this_b3d = set(all_d1_with_pp_in_this_b3d)
-        for b2d in all_d1_with_pp_in_this_b3d:
-            b2d = Blob2d.get(b2d)
-            cur_matches = [b2d]
-            for pp in b2d.possible_partners:
-                if pp in all_d1_with_pp_in_this_b3d:
-                    print('--> Found a partner to b2d: ' + str(b2d) + ' which is: ' + str(Blob2d.get(pp)))
-                    cur_matches.append(Blob2d.get(pp))
-            if len(cur_matches) > 1:
-                print('All cur_matches: (' + str(len(cur_matches)) + ')' + str(cur_matches))
-                # plotBlob2ds(cur_matches)
-                matches_with_parents = cur_matches + list(set([Blob2d.get(b2d.parentID) for b2d in cur_matches]))
-                print('Matches with parents: (' + str(len(matches_with_parents)) + '), ' + str(matches_with_parents))
-                # plotBlob2ds(matches_with_parents, stitches=False)
-                new_b3ds.append(Blob3d([blob.id for blob in cur_matches], subblob=True, r_depth = b2d.recursive_depth))
-    print('All new_b3ds: (' + str(len(new_b3ds)) + ') : ' + str(new_b3ds))
-    plotBlob3ds(new_b3ds, coloring='blob')
-    plotBlob3ds(new_b3ds + blob3dlist, coloring='depth')
-    # for b3d in new_b3ds:
-    #     plotBlob3d(b3d)
 
 
 

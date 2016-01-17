@@ -607,13 +607,13 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
     view.camera.distance = .5
     vispy.app.run()
 
-def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None, costs=0, maxcolors=-1, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800,800), b2d_midpoint_values=0, titleNote=''):
+def plotBlob3ds(blob3dlist, showStitches=True, color=None, lineColoring=None, costs=0, maxcolors=-1, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800,800), b2d_midpoint_values=0, titleNote=''):
     global canvas
     global view
     global colors
     # canvas_size = kwargs.get('canvas_size', (800,800))
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size,
-                                     title='plotBlob3ds(' + str(len(blob3dlist)) + '-Blob3ds, coloring=' + str(coloring) + ', canvas_size=' + str(canvas_size) + ') ' + titleNote)
+                                     title='plotBlob3ds(' + str(len(blob3dlist)) + '-Blob3ds, coloring=' + str(color) + ', canvas_size=' + str(canvas_size) + ') ' + titleNote)
     if maxcolors > 0 and maxcolors < len(colors):
         colors = colors[:maxcolors]
 
@@ -648,7 +648,7 @@ def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None,
     lineendpoints = 0
 
 
-    if coloring == 'blob': # Note: This is very graphics intensive.
+    if color == 'blob': # Note: This is very graphics intensive.
         markers_per_color = [0 for i in range(min(len(colors), len(blob3dlist)))]
         offsets = [0] * min(len(colors), len(blob3dlist))
         for blobnum, blob3d in enumerate(blob3dlist):
@@ -678,7 +678,7 @@ def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None,
         #     print('DB blob #' + str(blob3d.id) + ' is colored ' + str(colors[blob_num % len(colors)]))
         #     view.add(markerlist[-1])
 
-    elif coloring == 'singular':
+    elif color == 'singular':
         total_singular_points = 0
         total_multi_points = 0 # Points from blob3ds that may be part of strands
         for blob3d in blob3dlist:
@@ -708,7 +708,7 @@ def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None,
         multi_markers.set_data(multi_edge_array, edge_color=None, face_color='red', size=8)
         view.add(singular_markers)
         view.add(multi_markers)
-    elif coloring == 'depth': # Coloring based on recursive depth
+    elif color == 'depth': # Coloring based on recursive depth
         # HACK can be removed when repickled # FIXME
         print('Coloring based on depth')
         max_depth = max(blob.recursive_depth for blob in blob3dlist)
@@ -745,11 +745,12 @@ def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None,
     else: # All colored the same
         total_points = 0
         for blob_num, blob3d in enumerate(blob3dlist):
-            total_points += len(blob3d.edge_pixels)
+            total_points += blob3d.get_edge_pixel_count()
         edge_pixel_array = np.zeros([total_points, 3])
         index = 0
         for blob3d in blob3dlist:
-            for pixel in blob3d.edge_pixels:
+            ep_buf = blob3d.get_edge_pixels()
+            for pixel in ep_buf:
                 edge_pixel_array[index] = [pixel.x / xdim, pixel.y / ydim, pixel.z / (z_compression * total_slides)]
                 index += 1
             for stitch in blob3d.pairings:

@@ -192,8 +192,37 @@ class Pairing:
                         print('    -Blobs not connected')
             if quiet:
                 print('.', flush=True)
-
         return pairlist
+
+    @staticmethod
+    def stitchBlob2ds(b2ds, debug=False):
+        pairlist = []
+        last_print = 0
+
+        for b_num, blob1 in enumerate(b2ds):
+            blob1 = Blob2d.get(blob1)
+            # if ((b_num - last_print) / len(b2ds)) >= .1:
+            #     print('.', end='', flush=True)
+            #     last_print = b_num
+            if len(blob1.possible_partners) > 0:
+                if debug:
+                    print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
+            for b2_num, blob2 in enumerate(blob1.possible_partners):
+                blob2 = Blob2d.get(blob2)
+                if debug:
+                    print('   Comparing to blob2:' + str(blob2))
+                t0 = time.time()
+                bufStitch = Pairing(blob1, blob2, 1.1, 36, quiet=True)
+                if bufStitch.isConnected:
+                    if debug:
+                        print('    +Blobs connected')
+                    pairlist.append(bufStitch)
+                elif debug:
+                    print('    -Blobs not connected')
+            # print('.', flush=True)
+        return pairlist
+
+
 
     def __str__(self):
         if self.cost == -1:
