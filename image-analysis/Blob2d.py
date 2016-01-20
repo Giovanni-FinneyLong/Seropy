@@ -93,7 +93,16 @@ class Blob2d:
         par = self.getparents()
         return desc + par #TODO This does not operate through branching. Not critical currently, but needs fixing or an modified alternative
 
+    def getpartnerschain(self):
+        return list(self.getpartnerschain_recur(set()))
 
+    def getpartnerschain_recur(self, partnerset):
+        old_set = partnerset.copy()
+        partnerset.add(self.id)
+        for p in self.possible_partners:
+            if p not in partnerset:
+                partnerset.update(Blob2d.all[p].getpartnerschain_recur(partnerset))
+        return partnerset.difference(old_set)
     def getparents(self): # Excludes self
         buf = self.getparentsrecur([])
         return buf

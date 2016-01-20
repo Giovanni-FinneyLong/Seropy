@@ -96,7 +96,12 @@ class Slide:
         alive_pixel_array = np.zeros([self.local_xdim, self.local_ydim], dtype=object)
         for pixel in self.alive_pixels:
             alive_pixel_array[pixel.x][pixel.y] = pixel
+        if not quiet:
+            print("Assigning pixels to ids")
         (derived_ids, derived_count, num_ids_equiv) = self.assignPixelsToIds(self.alive_pixels, not self.isSubslide) # Note only printing when primary slide
+        if not quiet:
+            print("Done assigning pixels to ids")
+
         counter = collections.Counter(derived_ids)
         total_ids = len(counter.items())
         if not quiet:
@@ -242,7 +247,9 @@ class Slide:
         pixel_array = np.zeros([local_xdim, local_ydim], dtype=object) # Can use zeros instead of empty; moderately slower, but better to have non-empty entries incase of issues
         for pixel in pixel_list:
             pixel_array[pixel.x][pixel.y] = pixel # Pointer :) Modifications to the pixels in the list affect the array
-        for pixel in pixel_list: # Need second iteration so that all of the pixels of the array have been set
+        for p_num, pixel in enumerate(pixel_list): # Need second iteration so that all of the pixels of the array have been set
+            # print('DB assigning pixel #' + str(p_num) + ' / ' + str(len(pixel_list)) + ' an id')
+
             if pixel.blob_id == -1: # Value not yet set
                 xpos = pixel.x
                 ypos = pixel.y
@@ -293,8 +300,12 @@ class Slide:
         # Time to clean up the first member of each id group-as they are skipped from the remapping
         id_to_reuse = []
 
+        print(' DB about to set maxid')
+
         maxid = max(pixel.blob_id for pixel in pixel_list)
-        for id in range(maxid):
+        for id_num, id in enumerate(range(maxid)):
+            if id_num % 1000 == 0:
+                print('DB Working on id #' + str(id_num) + ' / ' + str(maxid))
             if id not in equivalent_labels:
                 if debug_blob_ids:
                     print('ID #' + str(id) + ' wasnt in the list, adding to ids_to _replace')
@@ -311,6 +322,8 @@ class Slide:
                     id_to_reuse.pop(0)
             if debug_blob_ids:
                 print('New equiv labels:' + str(equivalent_labels))
+
+        print('DB about to go through pixels again')
 
         for pixel in pixel_list:
             # print('DB:' + str(pixel.blob_id) + ' len el:' + str(len(equivalent_labels)))

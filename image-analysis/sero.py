@@ -290,9 +290,8 @@ def main():
         print('About to merge 2d blobs into 3d', flush=True)
         list3ds = []
         for slide_num, slide in enumerate(all_slides):
-            print('Working on slide_num:' + str(slide_num) + ' which has a blob2dlist of: ' + str(slide.blob2dlist))
-            for blob_num, blob in enumerate(slide.blob2dlist):
-                print(' Working on blob_num: ' + str(blob_num) + ' = ' + str(Blob2d.get(blob)) + ' which has possible_partners = ' + str(Blob2d.get(blob).possible_partners))
+            for blob in slide.blob2dlist:
+                print(' Working on b2d: ' + str(blob))
                 buf = Blob2d.get(blob).getconnectedblob2ds()
                 print('  buf = ' + str(buf))
                 if len(buf) != 0:
@@ -318,7 +317,7 @@ def main():
             doPickle2(blob3dlist, picklefile + '_BLOOMED')
 
         else:
-            if False:
+            if True:
                 blob3dlist = unPickle2(picklefile + '_BLOOMED') # DEBUG DEBUG DEBUG
                 # Fall through to do computations below
             else:
@@ -405,15 +404,21 @@ def main():
             all_d1_with_pp_in_this_b3d = set(all_d1_with_pp_in_this_b3d)
             for b2d in all_d1_with_pp_in_this_b3d:
                 b2d = Blob2d.get(b2d)
-                cur_matches = set([b2d]) # NOTE THIS WAS CHANGED BY REMOVED .getdescendants() #HACK
+                cur_matches = [b2d] # NOTE THIS WAS CHANGED BY REMOVED .getdescendants() #HACK
                 for pp in b2d.possible_partners:
                     if pp in all_d1_with_pp_in_this_b3d:
                         print('--> Found a partner to b2d: ' + str(b2d) + ' which is: ' + str(Blob2d.get(pp)))
-                        print('     Adding related:' + str(Blob2d.get(pp).getrelated()))
-                        print('     -DB FROM related, the different recursive depths are:' + str(set([blob2d.recursive_depth for blob2d in Blob2d.get(pp).getrelated()])))
-                        cur_matches.add(Blob2d.get(pp))
+                        print('     Adding related:' + str(Blob2d.get(pp).getpartnerschain()))
+                        print('     -DB FROM related, the different recursive depths are:' + str(set([Blob2d.get(blob2d).recursive_depth for blob2d in Blob2d.get(pp).getpartnerschain()])))
+                        print('     len of cur_matches before: ' + str(len(cur_matches)))
+                        cur_matches += [Blob2d.get(b) for b in Blob2d.get(pp).getpartnerschain()]
+                        print('     len of cur_matches after: ' + str(len(cur_matches)))
+
                 if len(cur_matches) > 1:
-                    print('  All cur_matches: (' + str(len(cur_matches)) + ')' + str(cur_matches) + '    from b2d: ' + str(b2d))
+                    print('  All cur_matches: (' + str(len(cur_matches)) + ') ' + str(cur_matches) + '    from b2d: ' + str(b2d))
+                    if len(cur_matches) != len(set(cur_matches)):
+                        warn(' There are duplicates in cur_matches!')
+                        print('CUR_MATCHES=' + str(cur_matches))
                     # plotBlob2ds(cur_matches)
                     # matches_with_parents = cur_matches + list(set([Blob2d.get(b2d.parentID) for b2d in cur_matches]))
                     # print(' Matches with parents: (' + str(len(matches_with_parents)) + '), ' + str(matches_with_parents))
