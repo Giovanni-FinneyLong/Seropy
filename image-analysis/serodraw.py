@@ -568,7 +568,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
     if ids is True:
         midpoints = []
         midpoints.append(np.zeros([1,3]))
-        for b2d_num, b2d in enumerate(blob2ds): #FIXME! For some reason overloads the ram.
+        for b2d_num, b2d in enumerate(blob2ds):
             midpoints[-1] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, ((getBloomedHeight(b2d, explode, zdim)  + .25 - zmin) / (z_compression * zdim))]
             textStr = str(b2d.id)
             if coloring == '' or coloring == 'blob2d':

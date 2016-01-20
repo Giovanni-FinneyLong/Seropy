@@ -103,6 +103,9 @@ class Blob2d:
             if p not in partnerset:
                 partnerset.update(Blob2d.all[p].getpartnerschain_recur(partnerset))
         return partnerset.difference(old_set)
+
+
+
     def getparents(self): # Excludes self
         buf = self.getparentsrecur([])
         return buf
@@ -346,15 +349,17 @@ class Blob2d:
             :param: cursorblob: The blob whose stitching is examined for connected blob2ds
             :param: blob2dlist: The accumulated list of a blob2ds which are connected directly or indirectly to the inital seed blob
             '''
-
             if hasattr(cursorblob, 'pairings') and len(cursorblob.pairings) != 0:
                 if cursorblob not in blob2dlist:
                     if hasattr(cursorblob, 'assignedto3d') and cursorblob.assignedto3d:
                         print('====> DB Warning, adding a blob to list that has already been assigned: ' + str(cursorblob))
                     cursorblob.assignedto3d = True
                     blob2dlist.append(cursorblob)
+                    # print('    DB going through pairings:')
                     for pairing in cursorblob.pairings:
+                        # print('     Cur pairing: ' + str(pairing))
                         for blob in (pairing.lowerblob, pairing.upperblob):
+                            # print('      Cur blob in pairing: ' + str(blob))
                             followstitches(blob, blob2dlist)
             else:
                  Blob2d.blobswithoutstitches += 1

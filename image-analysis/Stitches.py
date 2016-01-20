@@ -284,14 +284,16 @@ class Pairing:
 
 
             # print('******DEBUG before, lowerblob = ' + str(lowerblob) + ' and entry = ' + str(Blob2d.all[lowerblob.id]))
+            # print('******DEBUG before, lowerblob = ' + str(len(lowerblob.pairings)) + ' and entry = ' + str(len(Blob2d.all[lowerblob.id].pairings)))
 
             Blob2d.all[lowerblob.id].pairings.append(self)
             Blob2d.all[upperblob.id].pairings.append(self)
             # HACK
-            # lowerblob.pairings.append(self)
-            # upperblob.pairings.append(self)
+            lowerblob.pairings.append(self)
+            upperblob.pairings.append(self)
             # HACK
             # print('******DEBUG after, lowerblob = ' + str(lowerblob) + ' and entry = ' + str(Blob2d.all[lowerblob.id]))
+            # print('******DEBUG after, lowerblob = ' + str(len(lowerblob.pairings)) + ' and entry = ' + str(len(Blob2d.all[lowerblob.id].pairings)))
 
         else:
             self.isConnected = False

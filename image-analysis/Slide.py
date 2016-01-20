@@ -98,21 +98,22 @@ class Slide:
             alive_pixel_array[pixel.x][pixel.y] = pixel
         if not quiet:
             print("Assigning pixels to ids")
-        (derived_ids, derived_count, num_ids_equiv) = self.assignPixelsToIds(self.alive_pixels, not self.isSubslide) # Note only printing when primary slide
+        self.assignPixelsToIds(self.alive_pixels, True)
         if not quiet:
             print("Done assigning pixels to ids")
 
-        counter = collections.Counter(derived_ids)
-        total_ids = len(counter.items())
-        if not quiet:
-            print('There were: ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(total_ids) + ' blobs.')
-        most_common_ids = counter.most_common()# HACK Grabbing all for now, +1 b/c we start at 0 # NOTE Stored as (id, count)
-        id_lists = getIdLists(self.alive_pixels, remap=remap_ids_by_group_size, id_counts=most_common_ids) # Hack, don't ned to supply id_counts of remap is false; just convenient for now
+        # counter = collections.Counter(derived_ids)
+        # total_ids = len(counter.items())
+        # if not quiet:
+        #     print('There were: ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(total_ids) + ' blobs.')
+        # most_common_ids = counter.most_common()# HACK Grabbing all for now, +1 b/c we start at 0 # NOTE Stored as (id, count)
+        id_lists = getIdLists(self.alive_pixels) # Hack, don't ned to supply id_counts of remap is false; just convenient for now
         self.blob2dlist = [] # Note that blobs in the blob list are ordered by number of pixels, not id, this makes merging faster
 
         for (blobnum, blobslist) in enumerate(id_lists):
-            newb2d = Blob2d(blobslist, self.height)
-            self.blob2dlist.append(newb2d.id)
+            if len(blobslist): # This is now needed, as no longer compressing out unused ids
+                newb2d = Blob2d(blobslist, self.height)
+                self.blob2dlist.append(newb2d.id)
 
         # Note that we can now sort the Blob2d.equivalency_set b/c all blobs have been sorted
         self.equivalency_set = sorted(self.equivalency_set)
@@ -295,33 +296,69 @@ class Slide:
                 equivalent_labels.append(pixel.blob_id) # Map the new pixel to itself until a low equivalent is found
                 if debug_pixel_ops:
                     print('**Never derived a value for pixel:' + str(pixel) + ', assigning it a new one:' + str(pixel.blob_id))
-        if debug_pixel_ops:
-            print('EQUIVALENT LABELS: ' + str(equivalent_labels))
+
         # Time to clean up the first member of each id group-as they are skipped from the remapping
         id_to_reuse = []
 
-        print(' DB about to set maxid')
-
+        print('DB eq labels len (' + str(len(equivalent_labels)) + ')')
         maxid = max(pixel.blob_id for pixel in pixel_list)
+
+        equivalent_labels_set = set(equivalent_labels)
+
+        print('DB number of pixels: ' + str(len(pixel_list)))
+        print('DB maxid: ' + str(maxid))
+        print('Printing first 1000 of eq_labels:')
+        for index,l in enumerate(equivalent_labels):
+            if index != l:
+                print(' Mismatch- Index:' + str(index) + ', eq_label:' + str(l))
+
+
         for id_num, id in enumerate(range(maxid)):
-            if id_num % 1000 == 0:
+            dbprint = False
+
+            if id_num % 100 == 0 and debug_blob_ids:
                 print('DB Working on id #' + str(id_num) + ' / ' + str(maxid))
-            if id not in equivalent_labels:
-                if debug_blob_ids:
-                    print('ID #' + str(id) + ' wasnt in the list, adding to ids_to _replace')
+                dbprint = True
+            t_test =time.time()
+            # if id not in equivalent_labels_set:
+            if id != equivalent_labels[id]: # HACK trying this instead of the above for speeed
+
                 id_to_reuse.append(id)
             else:
+                if dbprint and debug_blob_ids:
+                    printElapsedTime(t_test,time.time())
+                    print(' ID #' + str(id) + ' WAS in the list, adding to ids_to _replace')
+                    print('  ids entry is' + str(equivalent_labels[id]))
+                    if id != equivalent_labels[id]:
+                        print('\n\n\n Found an id in eq labels that didnt have a correspondig entry!!!!!')
+
                 if(len(id_to_reuse) != 0):
                     buf = id_to_reuse[0]
-                    if debug_blob_ids:
-                        print('Replacing ' + str(id) + ' with ' + str(buf) + ' and adding ' + str(id) + ' to the ids to be reused')
+
+                    if dbprint and debug_blob_ids:
+                        print('   Replacing ' + str(id) + ' with ' + str(buf) + ' and adding ' + str(id) + ' to the ids to be reused')
                     id_to_reuse.append(id)
+                    if dbprint and debug_blob_ids:
+
+                        print(' -> Now updating ids...',flush=True) # TODO do the below outside for speed
+                    update_count = 0
                     for id_fix in range(len(equivalent_labels)):
                         if equivalent_labels[id_fix] == id:
+                            print('Updating index of eql:' + str(id_fix) + ' from ' + str(id) + ' to ' + str(buf),flush=True)
                             equivalent_labels[id_fix] = buf
+                            update_count+=1
+                    if update_count > 1:
+                        print('\n\nMORE THAN ONE UPDATE!!!!')
+
+                    print('DONE UPDATING INDECES, update_count=' + str(update_count), flush=True)
                     id_to_reuse.pop(0)
-            if debug_blob_ids:
-                print('New equiv labels:' + str(equivalent_labels))
+                    if dbprint and debug_blob_ids:
+
+                        print(' -> Done updating ids',flush=True) # TODO do
+                else:
+                    if dbprint and debug_blob_ids:
+                        print('   no change b/c ids to reuse is empty')
+
 
         print('DB about to go through pixels again')
 
@@ -340,7 +377,7 @@ class Slide:
 
         # TODO: See if we can reverse the adjusting of the actual pixel ids until after the equivalent labels are cleaned up, to reflect the merged labels
 
-        return (derived_ids, derived_count, removed_id_count)
+        # return (derived_ids, derived_count, removed_id_count)
 
     def __str__(self):
         return str('Slide <Id:' + str(self.id_num) + ' Num of Blob2ds:' + str(len(self.blob2dlist)) + '>')
@@ -388,30 +425,14 @@ def getIdLists(pixels, **kwargs):
             Requires id_counts
         id_counts=Counter(~).most_common()
     '''
-    do_remap = kwargs.get('remap', False)
-    id_counts =  kwargs.get('id_counts',None)
-    kwargs_ok = True
-    if do_remap:
-        if id_counts is None:
-            print('>>>ERROR, if remapping, must supply id_counts (the n-most_common elements of a counter')
-            kwargs_ok = False
-    if kwargs_ok:
-        id_lists = [[] for i in range(len(id_counts))]
-        if do_remap:
-            remap = dict()
-            for id_index, id in enumerate(range(len(id_counts))): # Supposedly up to 2.5x faster than using numpy's .tolist()
-                # print(' id=' + str(id) + ' id_counts[id]=' + str(id_counts[id]) + ' id_counts[id][0]=' + str(id_counts[id][0]))
-                remap[id_counts[id][0]] = id
-            for pixel in pixels:
-                id_lists[remap[pixel.blob_id]].append(pixel)
-        else:
-            for pixel in pixels:
-                if pixel.blob_id >= len(id_counts):
-                    print('DEBUG: About to fail:' + str(pixel)) # DEBUG
-                id_lists[pixel.blob_id].append(pixel)
-        return id_lists
-    else:
-        print('Issue with kwargs in call to getIdLists!!')
+
+    id_lists = [[] for i in range(max(pixel.blob_id for pixel in pixels) + 1)]
+
+    for pixel in pixels:
+        if pixel.blob_id >= len(id_lists):
+            print('DEBUG: About to fail:' + str(pixel)) # DEBUG
+        id_lists[pixel.blob_id].append(pixel)
+    return id_lists
 
 def filterSparsePixelsFromList(listin, local_dim_tuple, quiet=False):
     # TODO convert to ids
@@ -459,4 +480,4 @@ def  printElapsedTime(t0, tf, pad=''): # HACK FIXME REMOVE THIS AND IMPORT CORRE
     if m > 0:
         print(pad + 'Elapsed Time: ' + str(m) + ' minute' + str(plural_minutes) + ' & %.0f seconds' % (temp % 60))
     else:
-        print(pad + 'Elapsed Time: %.2f seconds' % (temp % 60))
+        print(pad + 'Elapsed Time: %.5f seconds' % (temp % 60))
