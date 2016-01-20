@@ -245,7 +245,7 @@ class Pairing:
                    '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels. ' + 'Cost:' + cost_str + '>')
     __repr__ = __str__
 
-    def __init__(self, lowerblob, upperblob, overscan_scale, num_bins, quiet=True):
+    def __init__(self, lowerblob, upperblob, overscan_scale, num_bins, quiet=False):
         self.overscan_scale = overscan_scale
         self.num_bins = num_bins
         self.lowerheight = lowerblob.height
@@ -281,8 +281,18 @@ class Pairing:
             if not quiet:
                 print('   ' + str(self))
             self.munkresCost() # Now have set self.cost and self.indeces and self.connect
+
+
+            # print('******DEBUG before, lowerblob = ' + str(lowerblob) + ' and entry = ' + str(Blob2d.all[lowerblob.id]))
+
             Blob2d.all[lowerblob.id].pairings.append(self)
             Blob2d.all[upperblob.id].pairings.append(self)
+            # HACK
+            # lowerblob.pairings.append(self)
+            # upperblob.pairings.append(self)
+            # HACK
+            # print('******DEBUG after, lowerblob = ' + str(lowerblob) + ' and entry = ' + str(Blob2d.all[lowerblob.id]))
+
         else:
             self.isConnected = False
 

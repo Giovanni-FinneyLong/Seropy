@@ -210,8 +210,7 @@ class Blob2d:
         #  minx2 <= (minx1 | max1) <= maxx2
         #  miny2 <= (miny1 | maxy1) <= maxy2
 
-        my_pixel_coor = set([(Pixel.get(pix).x, Pixel.get(pix).y) for b2d in self.getdescendants() for pix in b2d.pixels])
-
+        my_pixel_coor = set([(Pixel.get(pix).x, Pixel.get(pix).y) for b2d in self.getdescendants(include_self=True) for pix in b2d.pixels])
 
         for b_num, blob in enumerate(blob2dlist):
             blob = Blob2d.get(blob)
@@ -232,7 +231,7 @@ class Blob2d:
             # If either of the above was true, then one blob is within the bounding box of the other
             if inBounds:
 
-                pair_coor = set((Pixel.get(pix).x, Pixel.get(pix).y) for b2d in blob.getdescendants() for pix in b2d.pixels)
+                pair_coor = set((Pixel.get(pix).x, Pixel.get(pix).y) for b2d in blob.getdescendants(include_self=True) for pix in b2d.pixels)
 
                 #
                 # print('DEBUG running extra tests to narrow possible partners')
@@ -240,13 +239,12 @@ class Blob2d:
                 # print('Len of my_pixel_coor: ' + str(len(my_pixel_coor)) + ' len of pair_coor: ' + str(len(pair_coor)))
                 # print('Len of difference:' + str(len(my_pixel_coor - pair_coor)))
                 overlap_amount = len(my_pixel_coor) - len(my_pixel_coor - pair_coor)
-                # print('DB overlap with self = ' + str(overlap_amount / len(my_pixel_coor) > minimal_pixel_overlap_to_be_possible_partners))
-                # print('DB overlap with other = ' + str(overlap_amount / len(pair_coor) > minimal_pixel_overlap_to_be_possible_partners))
 
                 if len(pair_coor) and len(my_pixel_coor) and ((overlap_amount / len(my_pixel_coor) > minimal_pixel_overlap_to_be_possible_partners  and len(my_pixel_coor) > 7)
                 or ((overlap_amount / len(pair_coor) > minimal_pixel_overlap_to_be_possible_partners) and len(pair_coor) > 7)): #HACK
                     # len(my_pixel_coor - pair_coor) != len(my_pixel_coor)): # Overlapping coordinates
                     self.possible_partners.append(blob.id)
+                    Blob2d.get(self.id).possible_partners.append(blob.id)
                     if partnerSmaller:
                         # Use partner's (blob) midpoints, and expand a proportion of minx, maxx, miny, maxy
                         midx = blob.avgx
@@ -326,7 +324,7 @@ class Blob2d:
 
 
 
-    def getconnectedblob2ds(self, debug=False): # Note that doing this deletes possible_partners to opt mem usage
+    def getconnectedblob2ds(self, debug=False):
         '''
         Recursively finds all blobs that are directly or indirectly connected to this blob via stitching
         :return: The list of all blobs that are connected to this blob, including the seed blob

@@ -277,7 +277,7 @@ def main():
         # Note now that all slides are generated, and blobs are merged, time to start mapping blobs upward, to their possible partners
 
         print('Total # of pixels: ' + str(Pixel.total_pixels))
-
+        print('Total # of blob2ds: ' + str(len(Blob2d.all)))
         print("Pairing all blob2ds with their potential partners in adjacent slides", flush=True)
         Slide.setAllPossiblePartners(all_slides)
         print("Setting shape contexts for all blob2ds",flush=True)
@@ -287,11 +287,14 @@ def main():
         t_finish_munkres = time.time()
         print('Done stitching together blobs, total time for all: ', end='')
         printElapsedTime(t_start_munkres, t_finish_munkres)
-        print('About to merge 2d blobs into 3d')
+        print('About to merge 2d blobs into 3d', flush=True)
         list3ds = []
         for slide_num, slide in enumerate(all_slides):
-            for blob in slide.blob2dlist:
+            print('Working on slide_num:' + str(slide_num) + ' which has a blob2dlist of: ' + str(slide.blob2dlist))
+            for blob_num, blob in enumerate(slide.blob2dlist):
+                print(' Working on blob_num: ' + str(blob_num) + ' = ' + str(Blob2d.get(blob)) + ' which has possible_partners = ' + str(Blob2d.get(blob).possible_partners))
                 buf = Blob2d.get(blob).getconnectedblob2ds()
+                print('  buf = ' + str(buf))
                 if len(buf) != 0:
                     list3ds.append([b2d.id for b2d in buf])
         blob3dlist = []
@@ -305,8 +308,11 @@ def main():
 
     else:
 
+
         if False:
             blob3dlist = unPickle2(picklefile) # DEBUG DEBUG DEBUG
+            plotBlob3ds(blob3dlist, color='blob')
+
             # debug()
             bloom_b3ds(blob3dlist)
             doPickle2(blob3dlist, picklefile + '_BLOOMED')
@@ -317,7 +323,7 @@ def main():
                 # Fall through to do computations below
             else:
                 blob3dlist = unPickle2(picklefile + '_BLOOMED_stitched') # DEBUG DEBUG DEBUG
-                chosen_depths = [1]
+                chosen_depths = [1,2,3,4]
                 chosen_b3ds = [b3d for b3d in blob3dlist if b3d.recursive_depth in chosen_depths]
                 # for b3d in chosen_b3ds:
                 #     print('Plotting b3d: ' + str(b3d))
@@ -350,7 +356,6 @@ def main():
 
 
     max_avail_depth = max(b2d.recursive_depth for b2d in Blob2d.all.values())
-    print('Db max_avail_depth = ' + str(max_avail_depth))
 
     for cur_depth in range(max_avail_depth)[1:]: # Skip those at depth 0
         print('CUR DEPTH = ' + str(cur_depth))
@@ -425,9 +430,9 @@ def main():
     all_gen_b3ds = []
     for offset_num, depth_offset_b3ds in enumerate(b3ds_by_depth_offset):
         print('Working on offset ' + str(offset_num) + ' / ' + str(len(b3ds_by_depth_offset)))
-        for b3d_num,b3d in enumerate(depth_offset_b3ds):
-            print(' Working on b3d: ' + str(b3d_num) + ' / ' + str(len(depth_offset_b3ds)))
-            Pairing.stitchBlob2ds(b3d.blob2ds, debug=False)
+        # for b3d_num,b3d in enumerate(depth_offset_b3ds):
+        #     print(' Working on b3d: ' + str(b3d_num) + ' / ' + str(len(depth_offset_b3ds)))
+        #     Pairing.stitchBlob2ds(b3d.blob2ds, debug=False)
         # plotBlob3ds(depth_offset_b3ds, coloring='blob')
         all_gen_b3ds += depth_offset_b3ds
     print('Plotting all b3ds that were just generated')

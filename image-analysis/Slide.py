@@ -172,7 +172,7 @@ class Slide:
             print('')
 
     @staticmethod
-    def setAllPossiblePartners(slidelist):
+    def setAllPossiblePartners(slidelist): # FIXME FIXME THIS IS THE SOURCE OF THE ERROR???
         max_height = max(slide.height for slide in slidelist)
         slides_by_height = [[] for i in range(max_height + 1)]
         for slide in slidelist:
