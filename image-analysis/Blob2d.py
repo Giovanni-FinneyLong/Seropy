@@ -382,6 +382,8 @@ class Blob2d:
         if debug_set_merge:
             print('Blobs to merge:' + str(copylist))
         while len(copylist) > 0:
+            if debug_set_merge:
+                print('Len of copylist:' + str(len(copylist)))
             blob1 = copylist[0]
             newpixels = []
             merged = False

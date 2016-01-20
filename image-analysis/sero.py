@@ -280,6 +280,9 @@ def main():
         print('Total # of blob2ds: ' + str(len(Blob2d.all)))
         print("Pairing all blob2ds with their potential partners in adjacent slides", flush=True)
         Slide.setAllPossiblePartners(all_slides)
+        print('DB plotting all b2ds')
+        plotBlob2ds(Blob2d.all.values())
+
         print("Setting shape contexts for all blob2ds",flush=True)
         Slide.setAllShapeContexts(all_slides)
         t_start_munkres = time.time()
@@ -287,7 +290,7 @@ def main():
         t_finish_munkres = time.time()
         print('Done stitching together blobs, total time for all: ', end='')
         printElapsedTime(t_start_munkres, t_finish_munkres)
-        print('About to merge 2d blobs into 3d', flush=True)
+        print('About to combine 2d blobs into 3d', flush=True)
         list3ds = []
         for slide_num, slide in enumerate(all_slides):
             for blob in slide.blob2dlist:
