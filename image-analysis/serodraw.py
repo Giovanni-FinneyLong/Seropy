@@ -75,22 +75,31 @@ if mayPlot:
     colors.remove('beige')
     colors.remove('bisque')
     colors.remove('black')
+    colors.remove('blueviolet')
     colors.remove('brown')
     colors.remove('burlywood')
     colors.remove('cadetblue')
     colors.remove('chocolate')
+    colors.remove('coral')
     colors.remove('cornsilk')
     colors.remove('cornflowerblue')
     colors.remove('chartreuse')
+    colors.remove('crimson')
     colors.remove('cyan')
+    colors.remove('deepskyblue')
     colors.remove('dimgray')
     colors.remove('dodgerblue')
+    colors.remove('firebrick')
     colors.remove('forestgreen')
     colors.remove('fuchsia')
     colors.remove('gainsboro')
+    colors.remove('gold') # Named golden
     colors.remove('goldenrod')
     colors.remove('gray')
+    colors.remove('greenyellow')
     colors.remove('honeydew')
+    colors.remove('hotpink')
+    colors.remove('indianred')
     colors.remove('indigo')
     colors.remove('ivory')
     colors.remove('khaki')
@@ -99,12 +108,16 @@ if mayPlot:
     colors.remove('lawngreen')
     colors.remove('lemonchiffon')
     colors.remove('linen')
+    colors.remove('olive')
     colors.remove('olivedrab')
     colors.remove('limegreen')
     colors.remove('midnightblue')
     colors.remove('mintcream')
     colors.remove('mistyrose')
+    colors.remove('moccasin')
+    colors.remove('navy')
     colors.remove('orangered')
+    colors.remove('orchid')
     colors.remove('papayawhip')
     colors.remove('peachpuff')
     colors.remove('peru')
@@ -113,13 +126,19 @@ if mayPlot:
     colors.remove('plum')
     colors.remove('rosybrown')
     colors.remove('saddlebrown')
+    colors.remove('salmon')
     colors.remove('sandybrown')
+    colors.remove('seagreen')
     colors.remove('seashell')
     colors.remove('silver')
     colors.remove('sienna')
+    colors.remove('skyblue')
+    colors.remove('springgreen')
     colors.remove('tan')
     colors.remove('teal')
     colors.remove('thistle')
+    colors.remove('tomato')
+    colors.remove('turquoise')
     colors.remove('snow')
     colors.remove('steelblue')
     colors.remove('violet')
@@ -607,7 +626,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
     view.camera.distance = .5
     vispy.app.run()
 
-def plotBlob3ds(blob3dlist, showStitches=True, color=None, lineColoring=None, costs=0, maxcolors=-1, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800,800), b2d_midpoint_values=0, titleNote=''):
+def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=0, maxcolors=-1, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800, 800), b2d_midpoint_values=0, titleNote=''):
     global canvas
     global view
     global colors
@@ -619,7 +638,6 @@ def plotBlob3ds(blob3dlist, showStitches=True, color=None, lineColoring=None, co
 
     # Finding the maximal slide, so that the vertical dimension of the plot can be evenly divided
     total_slides = 0
-    print('DB plotting a total of ' + str(len(blob3dlist)) + ' blob3ds')
     xdim = 0
     ydim = 0
     zdim = 0
@@ -710,7 +728,7 @@ def plotBlob3ds(blob3dlist, showStitches=True, color=None, lineColoring=None, co
         view.add(multi_markers)
     elif color == 'depth': # Coloring based on recursive depth
         # HACK can be removed when repickled # FIXME
-        print('Coloring based on depth')
+        # print('Coloring based on depth')
         max_depth = max(blob.recursive_depth for blob in blob3dlist)
         # NOTE because of sorting, this needs to be done before any info (like midpoints) is extracted from blob3dslist
         blob3dlist = sorted(blob3dlist, key=lambda blob: blob.recursive_depth, reverse=False) # Now sorted by depth, lowest first (primary)
@@ -735,7 +753,7 @@ def plotBlob3ds(blob3dlist, showStitches=True, color=None, lineColoring=None, co
 
             markerlist.append(visuals.Markers())
             markerlist[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[depth % len(colors)], size=8)
-            print('Using color: ' + str(colors[depth % len(colors)]))
+            # print('Using color: ' + str(colors[depth % len(colors)]))
             view.add(markerlist[-1])
 
 
@@ -772,7 +790,7 @@ def plotBlob3ds(blob3dlist, showStitches=True, color=None, lineColoring=None, co
             view.add(visuals.Text(textStr, pos=midpoints[index], color='yellow'))
 
 
-    if showStitches:
+    if stitches:
         if lineColoring == 'blob3d':
             line_location_lists = []
             stitch_lines = []

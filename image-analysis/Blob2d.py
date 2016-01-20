@@ -88,8 +88,8 @@ class Blob2d:
         else:
             res = []
         return res + [Blob2d.get(b2d) for b2d in self.children]
-    def getrelated(self, rdepth=0):
-        desc = self.getdescendants()
+    def getrelated(self, rdepth=0, include_self=False):
+        desc = self.getdescendants(include_self=include_self)
         par = self.getparents()
         return desc + par #TODO This does not operate through branching. Not critical currently, but needs fixing or an modified alternative
 

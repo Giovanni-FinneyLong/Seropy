@@ -1,6 +1,8 @@
 from serodraw import plotBlob3d, showSlide, showBlob2d, plotBlob2ds, debug
 from Blob2d import Blob2d
 from Pixel import Pixel
+from serodraw import warn
+
 class Blob3d:
     '''
     A group of blob2ds that chain together with pairings into a 3d shape
@@ -21,6 +23,9 @@ class Blob3d:
         for blobid in self.blob2ds:
 
             blob = Blob2d.get(blobid)
+
+            if Blob2d.all[blob.id].b3did != -1: # DEBUG
+                warn('Assigning a new b3did (' + str(self.id) + ') to blob2d: ' + str(Blob2d.all[blob.id]))
             Blob2d.all[blob.id].b3did = self.id
 
             if blob is None:

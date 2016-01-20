@@ -212,14 +212,23 @@ class Pairing:
                 if debug:
                     print('   Comparing to blob2:' + str(blob2))
                 t0 = time.time()
+                # print('- DB b1, b2 before pairing:' + str(blob1) + ', ' + str(blob2))
                 bufStitch = Pairing(blob1, blob2, 1.1, 36, quiet=True)
+                # print('- DB b1, b2 after pairing:' + str(blob1) + ', ' + str(blob2))
+
                 if bufStitch.isConnected:
-                    if debug:
-                        print('    +Blobs connected')
+                    # if debug:
+                    #     print('    +Blobs connected')
                     pairlist.append(bufStitch)
                 elif debug:
                     print('    -Blobs not connected')
             # print('.', flush=True)
+
+
+
+
+
+
         return pairlist
 
 
@@ -244,10 +253,10 @@ class Pairing:
         self.lowerblob = lowerblob
         self.upperblob = upperblob
         self.upperpixels = self.edgepixelsinbounds(upperblob, lowerblob)
-        self.lowerpixels = self.edgepixelsinbounds(lowerblob, upperblob) # TODO psoe on the order of lower and upper
+        self.lowerpixels = self.edgepixelsinbounds(lowerblob, upperblob)
         self.isReduced = False # True when have chosen a subset of the edge pixels to reduce computation
         self.stitches = []
-        self.cost = -1 # Just to indicate that it is unset
+        self.cost = -1 # -1 to indicate that it is unset
 
         if len(self.lowerpixels) != 0: # Optimization
             self.upperpixels = self.edgepixelsinbounds(upperblob, lowerblob)
@@ -272,8 +281,8 @@ class Pairing:
             if not quiet:
                 print('   ' + str(self))
             self.munkresCost() # Now have set self.cost and self.indeces and self.connect
-            lowerblob.pairings.append(self)
-            upperblob.pairings.append(self)
+            Blob2d.all[lowerblob.id].pairings.append(self)
+            Blob2d.all[upperblob.id].pairings.append(self)
         else:
             self.isConnected = False
 
