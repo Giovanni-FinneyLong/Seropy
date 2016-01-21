@@ -272,16 +272,17 @@ def main():
 
         all_slides = []
 
+        t_gen_slides_0 = time.time()
         for imagefile in all_images:
             all_slides.append(Slide(imagefile)) # Pixel computations are done here, as the slide is created.
         # Note now that all slides are generated, and blobs are merged, time to start mapping blobs upward, to their possible partners
 
-        print('Total # of pixels: ' + str(Pixel.total_pixels))
+        print('Total # of non-zero pixels: ' + str(Pixel.total_pixels) + ', total number of pixels kept:' + str(len(Pixel.all)))
         print('Total # of blob2ds: ' + str(len(Blob2d.all)))
+        print('To generate all slides:')
+        printElapsedTime(t_gen_slides_0, time.time())
         print("Pairing all blob2ds with their potential partners in adjacent slides", flush=True)
         Slide.setAllPossiblePartners(all_slides)
-        # print('DB plotting all b2ds')
-        # plotBlob2ds(Blob2d.all.values())
 
         print("Setting shape contexts for all blob2ds",flush=True)
         Slide.setAllShapeContexts(all_slides)
@@ -294,10 +295,7 @@ def main():
         list3ds = []
         for slide_num, slide in enumerate(all_slides):
             for blob in slide.blob2dlist:
-                # print(' Working on b2d: ' + str(blob) + ' = ' + str(Blob2d.get(blob)))
-                # print('  pairings:' + str(Blob2d.get(blob).pairings), flush=True)
                 buf = Blob2d.get(blob).getconnectedblob2ds()
-                # print('  buf = ' + str(buf))
                 if len(buf) != 0:
                     list3ds.append([b2d.id for b2d in buf])
         blob3dlist = []
@@ -312,12 +310,7 @@ def main():
         plotBlob3ds(blob3dlist, color='blob')
         print('Plotting all b2ds that were generated:')
         plotBlob2ds(Blob2d.all.values(), ids=(len(Blob2d.all) < 500)) # Only show ids if less that 500 blob2ds
-        print('All b3ds generated:')
-        for b3d in blob3dlist:
-            print(' ' + str( b3d))
-        print('All b2ds generated:')
-        for b2d in Blob2d.all.values():
-            print(' ' + str(b2d))
+
 
     else:
 
