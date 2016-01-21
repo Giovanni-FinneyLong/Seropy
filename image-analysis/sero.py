@@ -280,8 +280,8 @@ def main():
         print('Total # of blob2ds: ' + str(len(Blob2d.all)))
         print("Pairing all blob2ds with their potential partners in adjacent slides", flush=True)
         Slide.setAllPossiblePartners(all_slides)
-        print('DB plotting all b2ds')
-        plotBlob2ds(Blob2d.all.values())
+        # print('DB plotting all b2ds')
+        # plotBlob2ds(Blob2d.all.values())
 
         print("Setting shape contexts for all blob2ds",flush=True)
         Slide.setAllShapeContexts(all_slides)

@@ -519,8 +519,34 @@ class Slide:
                 print('Number of initial pixel ids before deriving equivalencies:' + str(self.id_num))
             id_to_reuse = []
 
+            ############################
+            # New code here:
+            # Each index of eql contains the new_id that this pixels with id = index should get mapped to
+            # Instead of this structure, will store indeces that will end up as the same id (as in their contents equal that id)
+            # together into a list of lists, which each index of this list of lists
+            # Can use the id that they would normally go into to sort into lists
+            # Then just just filter out empty lists from within the list of lists..?
+            maxid = max(pixel.blob_id for pixel in pixel_list)
+            print('Entering new code..')
+            print('Maxid = ' + str(maxid))
+            id_groups = [[] for i in range(maxid + 1)] # Note may need +1 todo
+            for id,val in enumerate(equivalent_labels):
+                id_groups[val].append(id)
+            num_non_empty_groups = 0
+            for index, idg in enumerate(id_groups):
+                if len(idg):
+                    print(' Index:' + str(index) + ', idg:' + str(idg))
+                    num_non_empty_groups += 1
+            id_groups = [idg for idg in id_groups if len(idg)] # Reduce to the non_empties
+
+        
+
+            # NOTE for the testing dataset, this above has 216 non_empty_groups, and so seems to be working
+            True # This is for breaking on
+
+
             for id in range(self.id_num):
-                if id not in equivalent_labels:
+                if id != equivalent_labels[id]:
                     if debug_blob_ids:
                         print('ID #' + str(id) + ' wasnt in the list, adding to ids_to _replace')
                     id_to_reuse.append(id)
