@@ -12,6 +12,7 @@ from PIL import Image
 import time
 import math
 from Pixel import Pixel
+from serodraw import warn
 
 
 def setglobaldims(x, y, z):
@@ -117,6 +118,9 @@ class Slide:
         print('Getting id lists')
         # most_common_ids = counter.most_common()# HACK Grabbing all for now, +1 b/c we start at 0 # NOTE Stored as (id, count)
         t_idlist_0 = time.time()
+
+        #FIXME this is failing b/c NONE of the pixels in self.alive_pixels have their b2d_id set
+
         id_lists = getIdLists(self.alive_pixels)
         t_idlist_f = time.time()
         # id_lists = getIdLists(self.alive_pixels) # Hack, don't ned to supply id_counts of remap is false; just convenient for now
@@ -182,6 +186,11 @@ class Slide:
         t_update_f = time.time()
         t_merge_0 = time.time()
         print('Merging blob2ds, size of current blob2dlist:' + str(len(self.blob2dlist)))
+        # DEBUG
+        print('First 100 of blob2dlist:')
+        for b in self.blob2dlist[:100]:
+            print(Blob2d.get(b))
+
         self.blob2dlist = Blob2d.mergeblobs(self.blob2dlist) # NOTE, by assigning the returned Blob2d list to a new var, the results of merging can be demonstrated
         print('After merging, size of blob2dlist:' + str(len(self.blob2dlist)))
         t_merge_f = time.time()
@@ -206,7 +215,7 @@ class Slide:
             print('')
 
     @staticmethod
-    def setAllPossiblePartners(slidelist): # FIXME FIXME THIS IS THE SOURCE OF THE ERROR???
+    def setAllPossiblePartners(slidelist):
         max_height = max(slide.height for slide in slidelist)
         slides_by_height = [[] for i in range(max_height + 1)]
         for slide in slidelist:
@@ -530,6 +539,10 @@ class Slide:
             # together into a list of lists, which each index of this list of lists
             # Can use the id that they would normally go into to sort into lists
             # Then just just filter out empty lists from within the list of lists..?
+            #----
+            #Updates to approach:
+            #
+
             maxid = max(pixel.blob_id for pixel in pixel_list)
             print('Entering new code, size of eql:' + str(len(equivalent_labels)))
             print('Maxid = ' + str(maxid))
@@ -540,7 +553,8 @@ class Slide:
                 id_groups[val].append(id)
 
             print('Eliminating empty entries from id_groups and casting into sets')
-            id_groups = [set(idg) for idg in id_groups if len(idg)] # Reduce to the non_empties, sets for faster searches
+            id_groups = [set(idg) for idg in id_groups] # HACK DEBUG trying without remove empties; does this cause a direct mapping?
+            # id_groups = [set(idg) for idg in id_groups if len(idg)] # Reduce to the non_empties, sets for faster searches
             # At this point, id_groups holds a list of sets, each set is a set of indeces that belong together
             print('Number of id_groups: ' +str(len(id_groups)))
 
@@ -553,9 +567,14 @@ class Slide:
 
             if_calls = 0
             else_calls = 0
+            t1_warn = 0
+            t2_warn = 0
+            t3_warn = 0
+            t4_warn = 0
+
             for pixel_index,pixel in enumerate(pixel_list): # HACK on 100
                 dbprint = False
-                if pixel_index % 100 == 0:
+                if pixel_index % 10000 == 0:
                     print('Now working on pixel_index:' + str(pixel_index) + ' / ' + str(len(pixel_list)))
                     print(' Working on pixel: ' + str(pixel))
                     dbprint = True
@@ -565,9 +584,21 @@ class Slide:
                 eq_val = equivalent_labels[pixel.blob_id]
                 if dbprint:
                     print(' The corresponding index(the final group #) of eql is: ' + str(eq_val) + ' which we will look in id_groups for')
+                    print('TEST:------->                                          ' + str(equivalent_labels[eq_val]))
+                if equivalent_labels[eq_val] != eq_val:
+                    warn("Found an area that could require fixing")
+                    t1_warn += 1
+                    # NOTE the direct mapping would be here
                 if eq_val >= len(remap): #DEBUG
-                    print(' ABout to fail, eq_val:' + str(eq_val))
+                    print(' About to fail, eq_val:' + str(eq_val))
+                # print('Updating pixel: ' + str(pixel) + '\n with blob_id:' + str(eq_val) + ' and ' + str(remap[eq_val]))
 
+
+
+
+
+                # pixel.blob_id = eq_val
+                # Pixel.all[pixel.id].blob_id = eq_val
 
 
                 if remap[eq_val] == -1: # Not yet looked up
@@ -579,19 +610,35 @@ class Slide:
                             if dbprint:
                                 print('  Found at index of id_groups:' + str(index))
                                 print('  eql[index]=' + str(equivalent_labels[index]))
+                            if index != equivalent_labels[index]:
+                                warn('warning #3!')
+                                t3_warn += 1
                             remap[eq_val] = index
                             found_eq_val.add(eq_val)
                             break # No need to continue the for loop
                 else:
                     else_calls += 1
                     # Have already looked this up, the correct new blob_id is in remap
+                    # if dbprint:
+                    #     print('  already had id_groups\'s index:' + str(remap[eq_val]))
+                    #     print('  eql[index]=' + str(equivalent_labels[remap[eq_val]]))
+                    if remap[eq_val] != eq_val: # DEBUG if this occurs, then have found sltn to be a recursive issue?
+                        print('DB setting pixel.blob_id to:' + str(remap[eq_val]))
+                        print('With other technique, would have set to: '  + str(eq_val))
+                        warn('This means need to fix!!!!') # NOTE this does not occur in test dataset
+                        t2_warn +=1
+                    if remap[eq_val] != equivalent_labels[remap[eq_val]]:
+                        t4_warn += 1
+
                     pixel.blob_id = remap[eq_val]
                     Pixel.all[pixel.id].blob_id = remap[eq_val]
                 if dbprint:
                     print('  *If calls: ' + str(if_calls) + ', else calls: ' + str(else_calls) + ' ratio:' + str((if_calls + 1.0) * 1.0 / (1.0 + else_calls)))
-
+                    print('  *t1_warn: ' +str(t1_warn) + ', t2_warn: ' + str(t2_warn) + ', t3_warn: ' + str(t3_warn) + ', t4_warn:' + str(t4_warn))
                 # Now need to find which
             print('Number of unique eq_val found:' + str(len(found_eq_val)) + ' (this is essentially the number of b2ds from this slide')
+            print('Final warning counts: t1_warn: ' +str(t1_warn) + ', t2_warn: ' + str(t2_warn) + ', t3_warn: ' + str(t3_warn) + ', t4_warn(linked with t3): ' + str(t4_warn))
+
             return len(found_eq_val)
 
             # NOTE for the testing dataset, this above has 216 non_empty_groups, and so seems to be working
@@ -677,10 +724,22 @@ def getIdLists(pixels, **kwargs):
         id_counts=Counter(~).most_common()
     '''
 
-    id_lists = [[] for i in range(max(pixel.blob_id for pixel in pixels) + 1)]
 
-    for pixel in pixels:
-        id_lists[pixel.blob_id].append(pixel)
+    id_lists = [[] for i in range(max(pixel.blob_id for pixel in pixels) + 1)]
+    print('DB len of id_lists: ' + str(len(id_lists)))
+
+
+    for index,pixel in enumerate(pixels):
+        try:
+            id_lists[pixel.blob_id].append(pixel)
+        except:
+            print('DB max:' + str(max(pixel.blob_id for pixel in pixels) + 1))
+            print('Index:' + str(index))
+            exit(-1)
+
+    print('DB printing each result of id_lists:')
+    # for i in id_lists:
+    #     print(i)
     return id_lists
 
 def filterSparsePixelsFromList(listin, local_dim_tuple, quiet=False):
