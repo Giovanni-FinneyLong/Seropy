@@ -548,9 +548,15 @@ class Slide:
             print('Maxid = ' + str(maxid))
             id_groups = [[] for i in range(maxid + 1)] # Note may need +1 todo
             print('Creating id groups', flush=True)
+
+            double_check_miss = 0
             for id,val in enumerate(equivalent_labels):
                 # print(' eql[' + str(id) + '] = ' + str(val))
                 id_groups[val].append(id)
+                # print(' double check:' + str(equivalent_labels[val]))
+                if equivalent_labels[val] != val:
+                    double_check_miss != 1
+            print("DOUBLE CHECK MISSES:" + str(double_check_miss)) #DEBUG
 
             print('Eliminating empty entries from id_groups and casting into sets')
             id_groups = [set(idg) for idg in id_groups] # HACK DEBUG trying without remove empties; does this cause a direct mapping?
@@ -561,7 +567,7 @@ class Slide:
             found_eq_val = set() #Debugging only
             print('Now moving on to pixel_list, which is of size: ' + str(len(pixel_list)))
 
-            max_eq_val = max(equivalent_labels)
+            max_eq_val = len(equivalent_labels)
             remap = [-1 for i in range(max_eq_val+1)]
             print('Len of remap:' + str(len(remap)))
 
@@ -571,6 +577,23 @@ class Slide:
             t2_warn = 0
             t3_warn = 0
             t4_warn = 0
+            t5_warn = 0
+            t6_warn = 0
+
+            reverse_map_conflicts = 0
+            eql_reverse_map = [-1 for i in range(max_eq_val+1)]
+            print('Len of eq_rev_map:' + str(len(eql_reverse_map)))
+            for index,val_list in enumerate(id_groups):
+                for val in val_list:
+                    #Eql is index => val, need val=> index
+                    # print('Val = ' + str(val) + ', Index = ' + str(index))
+                    if eql_reverse_map[val] != -1:
+                        warn('Reverse map conflict on eql index:' + str(index) + ' and val:' + str(val) + ' entry in rev_map is:' + str(eql_reverse_map[val]))
+                        reverse_map_conflicts += 1
+                    eql_reverse_map[val] = index
+            print('=>DB total conflicts when reverse mapping:' + str(reverse_map_conflicts)) #DEBUG
+
+
 
             for pixel_index,pixel in enumerate(pixel_list): # HACK on 100
                 dbprint = False
@@ -582,13 +605,19 @@ class Slide:
 
                 # First grab the value in the index at eq_labels
                 eq_val = equivalent_labels[pixel.blob_id]
-                if dbprint:
-                    print(' The corresponding index(the final group #) of eql is: ' + str(eq_val) + ' which we will look in id_groups for')
-                    print('TEST:------->                                          ' + str(equivalent_labels[eq_val]))
+                # if dbprint:
+                #     print(' The corresponding index(the final group #) of eql is: ' + str(eq_val) + ' which we will look in id_groups for')
+                #     print('Test:(t1_warn equivalant)             ---->            ' + str(equivalent_labels[eq_val]))
+                #     print('Test2(rev_map, corresponds to t5_warn):--->            ' + str(eql_reverse_map[pixel.blob_id]))
+                #     print('Test3:(rev_map, corresponds to t6_warn)--->            ' + str(eql_reverse_map[eq_val]))
+
+
                 if equivalent_labels[eq_val] != eq_val:
-                    warn("Found an area that could require fixing")
+                    # warn("Found an area that could require fixing")
                     t1_warn += 1
                     # NOTE the direct mapping would be here
+
+
                 if eq_val >= len(remap): #DEBUG
                     print(' About to fail, eq_val:' + str(eq_val))
                 # print('Updating pixel: ' + str(pixel) + '\n with blob_id:' + str(eq_val) + ' and ' + str(remap[eq_val]))
@@ -600,44 +629,68 @@ class Slide:
                 # pixel.blob_id = eq_val
                 # Pixel.all[pixel.id].blob_id = eq_val
 
+                pixel.blob_id = eql_reverse_map[eq_val]
+                Pixel.all[pixel.id].blob_id = eql_reverse_map[eq_val]
 
-                if remap[eq_val] == -1: # Not yet looked up
-                    if_calls += 1
-                    for index, idg in enumerate(id_groups):
-                        if eq_val in idg:
-                            pixel.blob_id = index
-                            Pixel.all[pixel.id].blob_id = index
-                            if dbprint:
-                                print('  Found at index of id_groups:' + str(index))
-                                print('  eql[index]=' + str(equivalent_labels[index]))
-                            if index != equivalent_labels[index]:
-                                warn('warning #3!')
-                                t3_warn += 1
-                            remap[eq_val] = index
-                            found_eq_val.add(eq_val)
-                            break # No need to continue the for loop
-                else:
-                    else_calls += 1
-                    # Have already looked this up, the correct new blob_id is in remap
-                    # if dbprint:
-                    #     print('  already had id_groups\'s index:' + str(remap[eq_val]))
-                    #     print('  eql[index]=' + str(equivalent_labels[remap[eq_val]]))
-                    if remap[eq_val] != eq_val: # DEBUG if this occurs, then have found sltn to be a recursive issue?
-                        print('DB setting pixel.blob_id to:' + str(remap[eq_val]))
-                        print('With other technique, would have set to: '  + str(eq_val))
-                        warn('This means need to fix!!!!') # NOTE this does not occur in test dataset
-                        t2_warn +=1
-                    if remap[eq_val] != equivalent_labels[remap[eq_val]]:
-                        t4_warn += 1
+                # if remap[eq_val] == -1: # Not yet looked up
+                #     if_calls += 1
+                #     for index, idg in enumerate(id_groups):
+                #         if eq_val in idg:
+                #             pixel.blob_id = index
+                #             Pixel.all[pixel.id].blob_id = index
+                #             if dbprint:
+                #                 print('  Found at index of id_groups:' + str(index))
+                #                 print('  eql[index]=' + str(equivalent_labels[index]))
+                #             if index != equivalent_labels[index]:
+                #                 # warn('warning #3!')
+                #                 t3_warn += 1
+                #             if index != eql_reverse_map[pixel.blob_id]:
+                #                 t5_warn += 1
+                #                 print('t5 warning incrementing in if')
+                #                 print('Test:(t1_warn equivalant)             ----> ' + str(equivalent_labels[eq_val]))
+                #                 print('Test2(rev_map, corresponds to t5_warn):---> ' + str(eql_reverse_map[pixel.blob_id]))
+                #                 print('Test3:(rev_map, corresponds to t6_warn)---> ' + str(eql_reverse_map[eq_val]))
+                #                 print(' ACTUAL:                                    ' + str(index))
+                #             if index != eql_reverse_map[eq_val]:
+                #                 t6_warn += 1
+                #                 print('t6 warning incrementing in if')
+                #             remap[eq_val] = index
+                #             found_eq_val.add(eq_val)
+                #             break # No need to continue the for loop
+                # else:
+                #     else_calls += 1
+                #     # Have already looked this up, the correct new blob_id is in remap
+                #     # if dbprint:
+                #     #     print('  already had id_groups\'s index:' + str(remap[eq_val]))
+                #     #     print('  eql[index]=' + str(equivalent_labels[remap[eq_val]]))
+                #     if remap[eq_val] != eq_val: # DEBUG if this occurs, then have found sltn to be a recursive issue?
+                #         print('DB setting pixel.blob_id to:' + str(remap[eq_val]))
+                #         print('With other technique, would have set to: '  + str(eq_val))
+                #         # warn('This means need to fix!!!!') # NOTE this does not occur in test dataset
+                #         t2_warn +=1
+                #     if remap[eq_val] != equivalent_labels[remap[eq_val]]:
+                #         t4_warn += 1
+                #     if remap[eq_val] != eql_reverse_map[pixel.blob_id]:
+                #         t5_warn += 1
+                #         print('t5 warning incrementing in else')
+                #         print('Test:(t1_warn equivalant)             ----> ' + str(equivalent_labels[eq_val]))
+                #         print('Test2(rev_map, corresponds to t5_warn)----> ' + str(eql_reverse_map[pixel.blob_id]))
+                #         print('Test3:(rev_map, corresponds to t6_warn)---> ' + str(eql_reverse_map[eq_val]))
+                #         print(' ACTUAL:                                    ' + str(remap[eq_val]))
+                #     if remap[eq_val] != eql_reverse_map[eq_val]:
+                #         t6_warn += 1
+                #         print('t6 warning incrementing in else')
+                #
+                #
+                #     pixel.blob_id = remap[eq_val]
+                #     Pixel.all[pixel.id].blob_id = remap[eq_val]
+                # if dbprint:
+                #     print('  *If calls: ' + str(if_calls) + ', else calls: ' + str(else_calls) + ' ratio:' + str((if_calls + 1.0) * 1.0 / (1.0 + else_calls)))
+                #     print('  *t1_warn: ' +str(t1_warn) + ', t2_warn: ' + str(t2_warn) + ', t3_warn: ' + str(t3_warn) + ', t4_warn:' + str(t4_warn) + ', t5_warn:' + str(t5_warn) + ', t6_warn: ' +str(t6_warn))
 
-                    pixel.blob_id = remap[eq_val]
-                    Pixel.all[pixel.id].blob_id = remap[eq_val]
-                if dbprint:
-                    print('  *If calls: ' + str(if_calls) + ', else calls: ' + str(else_calls) + ' ratio:' + str((if_calls + 1.0) * 1.0 / (1.0 + else_calls)))
-                    print('  *t1_warn: ' +str(t1_warn) + ', t2_warn: ' + str(t2_warn) + ', t3_warn: ' + str(t3_warn) + ', t4_warn:' + str(t4_warn))
-                # Now need to find which
+
             print('Number of unique eq_val found:' + str(len(found_eq_val)) + ' (this is essentially the number of b2ds from this slide')
-            print('Final warning counts: t1_warn: ' +str(t1_warn) + ', t2_warn: ' + str(t2_warn) + ', t3_warn: ' + str(t3_warn) + ', t4_warn(linked with t3): ' + str(t4_warn))
+            print('Final warning counts: t1_warn: ' +str(t1_warn) + ', t2_warn: ' + str(t2_warn) + ', t3_warn: ' + str(t3_warn) + ', t4_warn(linked with t3): ' + str(t4_warn) + ', t5_warn:' + str(t5_warn) + ', t6_warn: ' +str(t6_warn))
 
             return len(found_eq_val)
 
