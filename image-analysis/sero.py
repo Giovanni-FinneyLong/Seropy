@@ -86,7 +86,7 @@ def doPickle2(blob3dlist, filename, directory=PICKLEDIR):
         else:
             slash = ''
     filename = directory + slash + filename
-    print('Saving to pickle:'+ str(filename) +  'current recursion limit:' + str(sys.getrecursionlimit()))
+    print('Saving to pickle:'+ str(filename) +  '\n current recursion limit:' + str(sys.getrecursionlimit()))
     done = False
     while not done:
         try:
@@ -178,14 +178,9 @@ def unPickle(filename, directory=PICKLEDIR):
 
 
 def bloomInwards(blob2d, depth=0):
-    # TODO this will require a method to determine if a point is inside a polygon
-    # See: https://en.wikipedia.org/wiki/Point_in_polygon
     livepix = set(set(blob2d.pixels) - set(blob2d.edge_pixels))
-    # else:
-    #     livepix = set(blob2d.edge_pixels)
     last_edge = set(blob2d.edge_pixels)
 
-    # print('     DB CALLING WITHIN BLOOM INWARDS with args:' + str(livepix))
     alldict = Pixel.pixelidstodict(livepix)
     edge_neighbors = set()
     for pixel in last_edge:
@@ -194,73 +189,43 @@ def bloomInwards(blob2d, depth=0):
     bloomstage = livepix
     livepix = livepix - edge_neighbors
 
-    # print('DB the result of bloomstages (should be ids): ' + str(bloomstage))
     b2ds = Blob2d.pixels_to_blob2ds(bloomstage, parentID=blob2d.id, recursive_depth=blob2d.recursive_depth+1, modify=False) # NOTE making new pixels, rather than messing with existing
-    # print("DB done converting pixels to b2ds")
 
-    depth_offset = ''
-    for d in range(depth):
-        depth_offset += '-'
-    # print(depth_offset + ' DB: Done blooming b2d:' + str(blob2d) + ' at depth ' + str(depth))
-    # print(depth_offset + ' Total children: ' + str(len(blob2d.getdescendants())) + ' = ' + str(blob2d.getdescendants()))
-    # NEW trying to 'steal' / inheret non-edgepixels from parents..
-    # print(' Parent was originally:' + str(blob2d))
-    # print(' DB stealing from parent: ' + str(blob2d) + ' # children: ' + str(len(b2ds)))
-    # print('  Currently entry for parent is:' + str(Blob2d.get(blob2d.id)))
+    # depth_offset = ''
+    # for d in range(depth):
+    #     depth_offset += '-'
 
     for num,b2d in enumerate(b2ds):
         b2d = Blob2d.get(b2d)
-        # print(' Child ' + str(num) + ' has ' + str(len(b2d.pixels)) + ' pixels and ' + str(len(b2d.edge_pixels)) + ' edge pixels')
-        old_size = len(blob2d.pixels)
         Blob2d.all[blob2d.id].pixels = list(set(Blob2d.all[blob2d.id].pixels) - set(b2d.pixels))
-        # Blob2d.all[blob2d.id].children.append(b2d.id) #Todo remove or needed?
 
-
-
-
-
-        # print("  Updated parent from " + str(old_size) + ' pixels to ' + str(len(blob2d.pixels)))
-    print(depth_offset + ' After being bloomed the parent is:' + str(Blob2d.get(blob2d.id)))
+    # print(depth_offset + ' After being bloomed the parent is:' + str(Blob2d.get(blob2d.id)))
     if (len(blob2d.pixels) < len(Blob2d.get(blob2d.id).pixels)):
         warn('Gained pixels!!!! (THIS SHOULD NEVER HAPPEN!)')
 
-    if depth < max_depth:# HACK
+    if depth < max_depth:
         if len(livepix) > 1:
             for b2d in b2ds:
                 bloomInwards(Blob2d.get(b2d), depth=depth+1)
 
 
-
 # @profile
-def experiment(blob3dlist):
+def bloom_b3ds(blob3dlist):
 
-    # plotBlob3ds(blob3dlist)
-    allb2ds = sorted([Blob2d.get(blob2d) for blob3d in blob3dlist for blob2d in blob3d.blob2ds], key=lambda b2d: len(b2d.edge_pixels), reverse=True)
+    allb2ds = [Blob2d.get(b2d) for b3d in blob3dlist for b2d in b3d.blob2ds]
 
-
-    start_offset = 0
-
-    all_desc = []
     t_start_bloom = time.time()
     num_unbloomed = len(allb2ds)
     prev_count = len(Blob2d.all)
-    for bnum, blob2d in enumerate(allb2ds[start_offset:]): # HACK need to put the colon on the right of start_offset
-        # showBlob2d(b2d)
-        print('Blooming b2d: ' + str(bnum + start_offset) + '/' + str(len(allb2ds)) + ' = ' + str(blob2d) )
-        print(' The current number of B2ds = ' + str(len(Blob2d.all)) + ', the previous count = ' + str(prev_count))
-        prev_count = len(Blob2d.all)
+    for bnum, blob2d in enumerate(allb2ds): # HACK need to put the colon on the right of start_offset
+        print('Blooming b2d: ' + str(bnum) + '/' + str(len(allb2ds)) + ' = ' + str(blob2d) )
         bloomInwards(blob2d) # NOTE will have len 0 if no blooming can be done
-        # print(' After blooming the above blob, len(Blob2d.all) = ' + str(len(Blob2d.all)))
-        # base = Blob2d.get(blob2d.id)
-        # desc = base.getdescendants()
-        # all_desc += desc
-
+        # rel = blob2d.getrelated(include_self=True)
+        # plotBlob2ds(rel)
     print('To complete all blooming:')
     printElapsedTime(t_start_bloom, time.time())
     print('Before blooming there were: ' + str(num_unbloomed) + ' b2ds, there are now ' + str(len(Blob2d.all)))
     #Note that at this point memory usage is 3.4gb, with 12.2K b2ds
-
-    plotBlob2ds([b2d for b2d in Blob2d.all.values()], edge=True, ids=False, parentlines=True,explode=True)
 
 
 
@@ -283,38 +248,15 @@ def explorememoryusage(blob3dlist):
                 pixel_dict = {'pixel' : pixel}
                 pickle.dump(pixel_dict, open(dir + 'pixel/pixel_size' + str(b3d_num) + '_' + str(b2d_num) + '_' + str(p_num) + '.pickle', "wb"))
 
-        # pixel = Pixel.get(b2d.edge_pixels[0])
-        # # pickle.dump(pickledict, open(filename, "wb"))
-        #
-        # b2d_dict = {'b2d' : b2d}
-        # pickle.dump(b2d_dict, open(dir + 'b2d_size.pickle', "wb"))
-        # pixel_dict = {'pixel' : pixel}
-        # pickle.dump(pixel_dict, open(dir + 'pixel_size.pickle', "wb"))
-
-
-
-    # from Pixel import Pixel
-
-    # to_check = [b3d]
-    # for check in to_check:
-    #     print('Checking the memory of :' + str(check) + '=' + str(sys.getsizeof(check)))
-    #     for attr in check.__dict__.items():
-    #         print(str(attr) + ' => ' + str(sys.getsizeof(attr[1])))
-    #         if attr[0] == 'pixels':
-    #             pixel =
-    #             print(' size of a pixel:' + str(sys.getsizeof(Pixel.get(attr[1][0]))))
-
-
 
 # @profile
 def main():
+
+    # showColors()
     print('Current recusion limit:' + str(sys.getrecursionlimit()) + ' updating to:' + str(recursion_limit))
     sys.setrecursionlimit(recursion_limit) # HACK
 
-    note = 'Was created by setting distance cost log to base 2 instead of 10, and multiplying by contour_cost'
     if test_instead_of_data:
-         # picklefile = 'pickletest_refactor4.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
-         # picklefile = 'pickletest_converting_blob2ds_to_static.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
          picklefile = 'All_test_redone_with_maximal_blooming.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
     else:
         picklefile = 'All_data_redone_1-5_with_maximal_blooming.pickle'
@@ -330,22 +272,26 @@ def main():
 
         all_slides = []
 
+        t_gen_slides_0 = time.time()
         for imagefile in all_images:
             all_slides.append(Slide(imagefile)) # Pixel computations are done here, as the slide is created.
         # Note now that all slides are generated, and blobs are merged, time to start mapping blobs upward, to their possible partners
 
-        print('Total # of pixels: ' + str(Pixel.total_pixels))
-
+        print('Total # of non-zero pixels: ' + str(Pixel.total_pixels) + ', total number of pixels kept:' + str(len(Pixel.all)))
+        print('Total # of blob2ds: ' + str(len(Blob2d.all)))
+        print('To generate all slides:')
+        printElapsedTime(t_gen_slides_0, time.time())
         print("Pairing all blob2ds with their potential partners in adjacent slides", flush=True)
         Slide.setAllPossiblePartners(all_slides)
+
         print("Setting shape contexts for all blob2ds",flush=True)
         Slide.setAllShapeContexts(all_slides)
         t_start_munkres = time.time()
-        stitchlist = Pairing.stitchAllBlobs(all_slides, debug=False)
+        stitchlist = Pairing.stitchAllBlobs(all_slides, debug=False) # TODO change this to work with a list of ids or blob2ds
         t_finish_munkres = time.time()
         print('Done stitching together blobs, total time for all: ', end='')
         printElapsedTime(t_start_munkres, t_finish_munkres)
-        print('About to merge 2d blobs into 3d')
+        print('About to combine 2d blobs into 3d', flush=True)
         list3ds = []
         for slide_num, slide in enumerate(all_slides):
             for blob in slide.blob2dlist:
@@ -356,59 +302,157 @@ def main():
         for blob2dlist in list3ds:
             blob3dlist.append(Blob3d(blob2dlist))
         print('There are a total of ' + str(len(blob3dlist)) + ' blob3ds')
-        Blob3d.tagBlobsSingular(blob3dlist) # TODO improve the simple classification
-        for blob3d in blob3dlist:
-            blob3d.set_note(note)
+        Blob3d.tagBlobsSingular(blob3dlist)
+
         print('Pickling the results of stitching:')
         doPickle2(blob3dlist, picklefile)
+        print('Plotting all b3ds that were generated:')
+        plotBlob3ds(blob3dlist, color='blob')
+        print('Plotting all b2ds that were generated:')
+        plotBlob2ds(Blob2d.all.values(), ids=(len(Blob2d.all) < 500)) # Only show ids if less that 500 blob2ds
+
 
     else:
 
 
         if False:
-
             blob3dlist = unPickle2(picklefile) # DEBUG DEBUG DEBUG
-            # used_b2ds = [b2d for b3d in blob3dlist for b2d in b3d.blob2ds ]
-            # print(len(Blob2d.all.values()))
-            # plotBlob2ds(Blob2d.all.values(), stitches=False, explode=False, parentlines=False)
-            # print('DONE PICKLING THE NORMAL BLOBS, NOW BLOOMING')
-            print('DB blob3dlist:' + str(blob3dlist))
-            experiment(blob3dlist)
+            bloom_b3ds(blob3dlist)
             doPickle2(blob3dlist, picklefile + '_BLOOMED')
 
         else:
-            blob3dlist = unPickle2(picklefile + '_BLOOMED') # DEBUG DEBUG DEBUG
+            if False:
+                blob3dlist = unPickle2(picklefile + '_BLOOMED') # DEBUG DEBUG DEBUG
+                # Fall through to do computations below
+            else:
+                blob3dlist = unPickle2(picklefile + '_BLOOMED_stitched') # DEBUG DEBUG DEBUG
+                chosen_depths = [1,2,3,4]
+                chosen_b3ds = [b3d for b3d in blob3dlist if b3d.recursive_depth in chosen_depths]
+                # for b3d in chosen_b3ds:
+                #     print('Plotting b3d: ' + str(b3d))
+                #     for b2d in b3d.blob2ds:
+                #         print(' ' + str(Blob2d.get(b2d)))
+                #     plotBlob2ds([Blob2d.get(b2d) for b2d in b3d.blob2ds],ids=True)
+                #
+                # for b3d in chosen_b3ds:
+                #     print(b3d)
 
 
-    all_b2ds = [b2d for b2d in Blob2d.all.values()]
-    plotBlob2ds(all_b2ds, stitches=True, ids=False, parentlines=True,explode=True, edge=False)
+                print('Plotting entire blob3dslist 1')
+                plotBlob3ds(blob3dlist, color='depth')
+                print('Plotting entire blob3dslist 2')
+                plotBlob3ds(blob3dlist, color='blob')
+                print('Plotting chosen b2ds 1')
+                plotBlob3ds(chosen_b3ds, color='blob')
+                plotBlob3ds(chosen_b3ds, color='depth')
+                # print('Plotting chosen b2ds 2')
+                # plotBlob3ds(chosen_b3ds, color='depth')
+
+                plotBlob2ds(Blob2d.all.values())
+                exit()
+
+    # Time to try to pair together inner b2ds
+
+    # depth_0 = [b2d.id for b2d in Blob2d.all.values() if b2d.recursive_depth == 0]
+    # print(len(depth_0))
+
+    if dePickle:
+
+        max_avail_depth = max(b2d.recursive_depth for b2d in Blob2d.all.values())
+
+        for cur_depth in range(max_avail_depth)[1:]: # Skip those at depth 0
+            print('CUR DEPTH = ' + str(cur_depth))
+            depth = [b2d.id for b2d in Blob2d.all.values() if b2d.recursive_depth == cur_depth]
+            max_h_d0 = max(Blob2d.all[b2d].height for b2d in depth)
+            min_h_d0 = min(Blob2d.all[b2d].height for b2d in depth)
+            print(' Number at depth ' + str(cur_depth) + ' : ' + str(len(depth)))
+            print(' Min max heights at depth ' + str(cur_depth) + ' : (' + str(min_h_d0) + ', ' + str(max_h_d0) + ')')
+            ids_by_height = [[] for i in range(max_h_d0 - min_h_d0 + 1)]
+            for b2d in depth:
+                ids_by_height[Blob2d.get(b2d).height - min_h_d0].append(b2d)
+            print(' Ids by height:')
+            for height_val,h in enumerate(ids_by_height[:-1]): # All but the last one
+                print('  Height:' + str(height_val))
+                for b2d in h:
+                    b2d = Blob2d.all[b2d]
+                    # print('   Setting partners for:' + str(b2d))
+                    b2d.setPossiblePartners(ids_by_height[height_val + 1])
+                    # print('   Set possible partners = :' + str(b2d.possible_partners))
+                # print('  DB set possible partners for b2ds at height')
+                # plotBlob2ds([Blob2d.get(b2d) for b2d in h])
+
+            for h in ids_by_height:
+                for b2d in h:
+                    b2d = Blob2d.all[b2d]
+                    b2d.setShapeContexts(36)
+
+        print('DB the max depth available is:' + str(max_avail_depth))
+        b3ds_by_depth_offset = []
+        for depth_offset in range(max_avail_depth+1)[1:]: # Skip offset of zero, which refers to the b3ds which have already been stitched
+            print('Depth_offset: ' + str(depth_offset))
+
+            new_b3ds = []
+            for b3d in blob3dlist:
+                all_d1_with_pp_in_this_b3d = []
+                for b2d in b3d.blob2ds:
+                    #Note this is the alternative to storing b3dID with b2ds
+                    b2d = Blob2d.get(b2d)
+                    # print(' DB b2d: ' + str(b2d))
+                    # print(' DB r_depth of all descendants: ' + str(set([blob2d.recursive_depth for blob2d in b2d.getdescendants()])))
+                    d_1 = [blob for blob in b2d.getdescendants() if blob.recursive_depth == b2d.recursive_depth + depth_offset]
+                    if len(d_1):
+                        for desc in d_1:
+                            if len(desc.possible_partners):
+                                all_d1_with_pp_in_this_b3d.append(desc.id)
+                print(' For b3d: ' + str(b3d) + ' found ' + str(all_d1_with_pp_in_this_b3d))
+                all_d1_with_pp_in_this_b3d = set(all_d1_with_pp_in_this_b3d)
+                for b2d in all_d1_with_pp_in_this_b3d:
+                    b2d = Blob2d.get(b2d)
+                    cur_matches = [b2d] # NOTE THIS WAS CHANGED BY REMOVED .getdescendants() #HACK
+                    for pp in b2d.possible_partners:
+                        if pp in all_d1_with_pp_in_this_b3d:
+                            print('--> Found a partner to b2d: ' + str(b2d) + ' which is: ' + str(Blob2d.get(pp)))
+                            print('     Adding related:' + str(Blob2d.get(pp).getpartnerschain()))
+                            print('     -DB FROM related, the different recursive depths are:' + str(set([Blob2d.get(blob2d).recursive_depth for blob2d in Blob2d.get(pp).getpartnerschain()])))
+                            print('     len of cur_matches before: ' + str(len(cur_matches)))
+                            cur_matches += [Blob2d.get(b) for b in Blob2d.get(pp).getpartnerschain()]
+                            print('     len of cur_matches after: ' + str(len(cur_matches)))
+
+                    if len(cur_matches) > 1:
+                        print('  All cur_matches: (' + str(len(cur_matches)) + ') ' + str(cur_matches) + '    from b2d: ' + str(b2d))
+                        if len(cur_matches) != len(set(cur_matches)):
+                            warn(' There are duplicates in cur_matches!')
+                            print('CUR_MATCHES=' + str(cur_matches))
+                        # plotBlob2ds(cur_matches)
+                        # matches_with_parents = cur_matches + list(set([Blob2d.get(b2d.parentID) for b2d in cur_matches]))
+                        # print(' Matches with parents: (' + str(len(matches_with_parents)) + '), ' + str(matches_with_parents))
+                        # plotBlob2ds(matches_with_parents, stitches=False)
+                        # print('  DB appending a new b3d from: ' + str([blob for blob in cur_matches])
+                        new_b3ds.append(Blob3d([blob.id for blob in cur_matches if blob.recursive_depth == b2d.recursive_depth], subblob=True, r_depth = b2d.recursive_depth))
+            print('All new_b3ds: (' + str(len(new_b3ds)) + ') : ' + str(new_b3ds))
+            b3ds_by_depth_offset.append(new_b3ds)
+            # plotBlob3ds(new_b3ds, coloring='blob')
+            # plotBlob3ds(new_b3ds + blob3dlist, coloring='depth')
+
+            # for b3d in new_b3ds:
+            #     plotBlob3d(b3d)
+        all_gen_b3ds = []
+        for offset_num, depth_offset_b3ds in enumerate(b3ds_by_depth_offset):
+            print('Working on offset ' + str(offset_num) + ' / ' + str(len(b3ds_by_depth_offset)))
+            # for b3d_num,b3d in enumerate(depth_offset_b3ds):
+            #     print(' Working on b3d: ' + str(b3d_num) + ' / ' + str(len(depth_offset_b3ds)))
+            #     Pairing.stitchBlob2ds(b3d.blob2ds, debug=False)
+            # plotBlob3ds(depth_offset_b3ds, coloring='blob')
+            all_gen_b3ds += depth_offset_b3ds
+        print('Plotting all b3ds that were just generated')
+        plotBlob3ds(all_gen_b3ds, color='blob')
+        doPickle2(all_gen_b3ds + blob3dlist, picklefile + '_BLOOMED_stitched')
 
 
-    depth_1 = [b2d.id for b2d in Blob2d.all.values() if b2d.recursive_depth == 1]
-    print('The number of base b2ds: ' + str(depth_1) + ' = ' + str(depth_1))
-
-    for b_num, b2d in enumerate(depth_1):
-        b2d = Blob2d.get(b2d)
-
-        print('Working on b2d ' + str(b_num) + ' / ' + str(len(depth_1)) + ' = ' + str(b2d))
-        # for pairing in b2d.pairings:
-        #     print(' ' + str(pairing))
-        b2d.setPossiblePartners(depth_1)
-        for p in b2d.possible_partners:
-            print(' partner:' + str(Blob2d.get(p)))
-        plotBlob2ds([b2d] + [Blob2d.get(p) for p in b2d.possible_partners], ids=True,edge=False)
-        # Seem to be correctly setting partners
-
-    plotBlob2ds(depth_1, stitches=True, ids=False, parentlines=True,explode=True, edge=False)
 
 
-    # explorememoryusage(blob3dlist)
 
-    # print('Blob2d.all=' + str(Blob2d.all))
-    # print(len(all_b2ds))
-    # # print('DB printing all b2ds:')
-    # for b2d in all_b2ds:
-    #     print(b2d)
+    # plotBlob2ds(depth, stitches=True, ids=False, parentlines=False,explode=True, edge=False)
 
 
 

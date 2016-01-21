@@ -31,6 +31,7 @@ class Blob2d:
         self.maxy = max(pixel.y for pixel in list_of_pixels)
         self.avgx = sum(pixel.x for pixel in list_of_pixels) / len(list_of_pixels)
         self.avgy = sum(pixel.y for pixel in list_of_pixels) / len(list_of_pixels)
+        self.b3did = -1
 
         self.pixels = [pixel.id for pixel in list_of_pixels]
         self.assignedto3d = False # Set to true once a blod2d has been added to a list that will be used to construct a blob3d
@@ -46,7 +47,18 @@ class Blob2d:
         self.id = -1
         self.validateID() # self is added to Blob2d.all dict here
 
-
+    def getminx(self):
+        return min(Pixel.get(pix).x for pix in self.edge_pixels)
+    def getmaxx(self):
+        return max(Pixel.get(pix).x for pix in self.edge_pixels)
+    def getminy(self):
+        return min(Pixel.get(pix).y for pix in self.edge_pixels)
+    def getmaxy(self):
+        return max(Pixel.get(pix).y for pix in self.edge_pixels)
+    def getavgx(self):
+        return sum(Pixel.get(pix).x for pix in self.edge_pixels) / len(self.edge_pixels)
+    def getavgy(self):
+        return sum(Pixel.get(pix).y for pix in self.edge_pixels) / len(self.edge_pixels)
 
     @staticmethod
     def get(id):
@@ -60,7 +72,7 @@ class Blob2d:
     def getkeys():
         return Blob2d.all.keys()
 
-    def getdescendants(self, include_self=True, rdepth=0):
+    def getdescendants(self, include_self=False, rdepth=0):
 
         if include_self or rdepth != 0:
             res = [self]
@@ -70,10 +82,28 @@ class Blob2d:
             res = res + Blob2d.all[child].getdescendants(rdepth=rdepth+1)
         return res
 
-    def getrelated(self, rdepth=0):
-        desc = self.getdescendants()
+    def getdirectdescendants(self, include_self=False):
+        if include_self:
+            res = []
+        else:
+            res = []
+        return res + [Blob2d.get(b2d) for b2d in self.children]
+    def getrelated(self, rdepth=0, include_self=False):
+        desc = self.getdescendants(include_self=include_self)
         par = self.getparents()
         return desc + par #TODO This does not operate through branching. Not critical currently, but needs fixing or an modified alternative
+
+    def getpartnerschain(self):
+        return list(self.getpartnerschain_recur(set()))
+
+    def getpartnerschain_recur(self, partnerset):
+        old_set = partnerset.copy()
+        partnerset.add(self.id)
+        for p in self.possible_partners:
+            if p not in partnerset:
+                partnerset.update(Blob2d.all[p].getpartnerschain_recur(partnerset))
+        return partnerset.difference(old_set)
+
 
 
     def getparents(self): # Excludes self
@@ -192,6 +222,8 @@ class Blob2d:
         #  minx2 <= (minx1 | max1) <= maxx2
         #  miny2 <= (miny1 | maxy1) <= maxy2
 
+        my_pixel_coor = set([(Pixel.get(pix).x, Pixel.get(pix).y) for b2d in self.getdescendants(include_self=True) for pix in b2d.pixels])
+
         for b_num, blob in enumerate(blob2dlist):
             blob = Blob2d.get(blob)
             inBounds = False
@@ -210,33 +242,52 @@ class Blob2d:
                         partnerSmaller = True
             # If either of the above was true, then one blob is within the bounding box of the other
             if inBounds:
-                self.possible_partners.append(blob.id)
-                if partnerSmaller:
-                    # Use partner's (blob) midpoints, and expand a proportion of minx, maxx, miny, maxy
-                    midx = blob.avgx
-                    midy = blob.avgy
-                    left_bound = midx - ((blob.avgx - blob.minx) * overscan_coefficient)
-                    right_bound = midx + ((blob.maxx - blob.avgx) * overscan_coefficient)
-                    down_bound = midy - ((blob.avgy - blob.miny) * overscan_coefficient)
-                    up_bound = midy + ((blob.maxy - blob.avgy) * overscan_coefficient)
-                else:
-                    # Use partner's (blob) midpoints, and expand a proportion of minx, maxx, miny, maxy
-                    midx = self.avgx
-                    midy = self.avgy
-                    left_bound = midx - ((self.avgx - self.minx) * overscan_coefficient)
-                    right_bound = midx + ((self.maxx - self.avgx) * overscan_coefficient)
-                    down_bound = midy - ((self.avgy - self.miny) * overscan_coefficient)
-                    up_bound = midy + ((self.maxy - self.avgy) * overscan_coefficient)
-                partner_subpixel_indeces = []
-                my_subpixel_indeces = []
-                for p_num, pixel in enumerate(blob.edge_pixels):
-                    pixel = Pixel.get(pixel)
-                    if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
-                        partner_subpixel_indeces.append(p_num)
-                for p_num, pixel in enumerate(self.edge_pixels):
-                    pixel = Pixel.get(pixel)
-                    if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
-                        my_subpixel_indeces.append(p_num)
+
+                pair_coor = set((Pixel.get(pix).x, Pixel.get(pix).y) for b2d in blob.getdescendants(include_self=True) for pix in b2d.pixels)
+
+                #
+                # print('DEBUG running extra tests to narrow possible partners')
+                # print('Pair_coor:' + str(pair_coor))
+                # print('Len of my_pixel_coor: ' + str(len(my_pixel_coor)) + ' len of pair_coor: ' + str(len(pair_coor)))
+                # print('Len of difference:' + str(len(my_pixel_coor - pair_coor)))
+                overlap_amount = len(my_pixel_coor) - len(my_pixel_coor - pair_coor)
+
+                if len(pair_coor) and len(my_pixel_coor) and ((overlap_amount / len(my_pixel_coor) > minimal_pixel_overlap_to_be_possible_partners  and len(my_pixel_coor) > 7)
+                or ((overlap_amount / len(pair_coor) > minimal_pixel_overlap_to_be_possible_partners) and len(pair_coor) > 7)): #HACK
+                    # len(my_pixel_coor - pair_coor) != len(my_pixel_coor)): # Overlapping coordinates
+                    self.possible_partners.append(blob.id)
+                    Blob2d.get(self.id).possible_partners.append(blob.id)
+                    if partnerSmaller:
+                        # Use partner's (blob) midpoints, and expand a proportion of minx, maxx, miny, maxy
+                        midx = blob.avgx
+                        midy = blob.avgy
+                        left_bound = midx - ((blob.avgx - blob.minx) * overscan_coefficient)
+                        right_bound = midx + ((blob.maxx - blob.avgx) * overscan_coefficient)
+                        down_bound = midy - ((blob.avgy - blob.miny) * overscan_coefficient)
+                        up_bound = midy + ((blob.maxy - blob.avgy) * overscan_coefficient)
+                    else:
+                        # Use partner's (blob) midpoints, and expand a proportion of minx, maxx, miny, maxy
+                        midx = self.avgx
+                        midy = self.avgy
+                        left_bound = midx - ((self.avgx - self.minx) * overscan_coefficient)
+                        right_bound = midx + ((self.maxx - self.avgx) * overscan_coefficient)
+                        down_bound = midy - ((self.avgy - self.miny) * overscan_coefficient)
+                        up_bound = midy + ((self.maxy - self.avgy) * overscan_coefficient)
+                    partner_subpixel_indeces = []
+                    my_subpixel_indeces = []
+                    for p_num, pixel in enumerate(blob.edge_pixels):
+                        pixel = Pixel.get(pixel)
+                        if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
+                            partner_subpixel_indeces.append(p_num)
+                    for p_num, pixel in enumerate(self.edge_pixels):
+                        pixel = Pixel.get(pixel)
+                        if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
+                            my_subpixel_indeces.append(p_num)
+                # else:# DEBUG
+                #     print('-> Avoided setting ' + str(self) + ' and ' + str(blob) + ' as possible partners')
+                #     if len(my_pixel_coor) > 20 and len(pair_coor) > 20:
+                #         from serodraw import plotBlob2ds
+                #         plotBlob2ds([self] + [blob])
         # self.partner_costs = [0] * len(self.possible_partners) # Note: May want to use this later
         # Could this method to do better filtering, like checking if the blobs are within each other etc
         # TODO update entry in Blob2d...?
@@ -279,13 +330,13 @@ class Blob2d:
         pairingidsl = [pairing.lowerblob.id for pairing in self.pairings if pairing.lowerblob.id != self.id]
         pairingidsu = [pairing.upperblob.id for pairing in self.pairings if pairing.upperblob.id != self.id]
         pairingids = sorted(pairingidsl + pairingidsu)
-        return str('B{id:' + str(self.id) + ', #P=' + str(len(self.pixels))) + ', #EP=' + str(len(self.edge_pixels)) + ', recur_depth=' + str(self.recursive_depth) + ', parentID=' + str(self.parentID) + ', pairedids=' + str(pairingids)  + ', height=' + str(self.height) + ', (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) +'), Avg(X,Y):(%.1f' % self.avgx + ',%.1f' % self.avgy + ', children=' + str(self.children) +')}'
+        return str('B{id:' + str(self.id) + ', #P=' + str(len(self.pixels))) + ', #EP=' + str(len(self.edge_pixels)) + ', recur_depth=' + str(self.recursive_depth) + ', parentID=' + str(self.parentID) + ', b3did=' + str(self.b3did) + ', pairedids=' + str(pairingids)  + ', height=' + str(self.height) + ', (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) +'), Avg(X,Y):(%.1f' % self.avgx + ',%.1f' % self.avgy + ', children=' + str(self.children) +')}'
 
     __repr__ = __str__
 
 
 
-    def getconnectedblob2ds(self, debug=False): # Note that doing this deletes possible_partners to opt mem usage
+    def getconnectedblob2ds(self, debug=False):
         '''
         Recursively finds all blobs that are directly or indirectly connected to this blob via stitching
         :return: The list of all blobs that are connected to this blob, including the seed blob
@@ -298,15 +349,17 @@ class Blob2d:
             :param: cursorblob: The blob whose stitching is examined for connected blob2ds
             :param: blob2dlist: The accumulated list of a blob2ds which are connected directly or indirectly to the inital seed blob
             '''
-
             if hasattr(cursorblob, 'pairings') and len(cursorblob.pairings) != 0:
                 if cursorblob not in blob2dlist:
                     if hasattr(cursorblob, 'assignedto3d') and cursorblob.assignedto3d:
                         print('====> DB Warning, adding a blob to list that has already been assigned: ' + str(cursorblob))
                     cursorblob.assignedto3d = True
                     blob2dlist.append(cursorblob)
+                    # print('    DB going through pairings:')
                     for pairing in cursorblob.pairings:
+                        # print('     Cur pairing: ' + str(pairing))
                         for blob in (pairing.lowerblob, pairing.upperblob):
+                            # print('      Cur blob in pairing: ' + str(blob))
                             followstitches(blob, blob2dlist)
             else:
                  Blob2d.blobswithoutstitches += 1
@@ -315,7 +368,7 @@ class Blob2d:
             return []
         blob2dlist = []
         followstitches(self, blob2dlist)
-        del self.possible_partners
+        #del self.possible_partners # TODO see if theres a safe way to do this later
         return blob2dlist
 
     @staticmethod
@@ -329,6 +382,8 @@ class Blob2d:
         if debug_set_merge:
             print('Blobs to merge:' + str(copylist))
         while len(copylist) > 0:
+            if debug_set_merge:
+                print('Len of copylist:' + str(len(copylist)))
             blob1 = copylist[0]
             newpixels = []
             merged = False

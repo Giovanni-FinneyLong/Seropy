@@ -75,22 +75,31 @@ if mayPlot:
     colors.remove('beige')
     colors.remove('bisque')
     colors.remove('black')
+    colors.remove('blueviolet')
     colors.remove('brown')
     colors.remove('burlywood')
     colors.remove('cadetblue')
     colors.remove('chocolate')
+    colors.remove('coral')
     colors.remove('cornsilk')
     colors.remove('cornflowerblue')
     colors.remove('chartreuse')
+    colors.remove('crimson')
     colors.remove('cyan')
+    colors.remove('deepskyblue')
     colors.remove('dimgray')
     colors.remove('dodgerblue')
+    colors.remove('firebrick')
     colors.remove('forestgreen')
     colors.remove('fuchsia')
     colors.remove('gainsboro')
+    colors.remove('gold') # Named golden
     colors.remove('goldenrod')
     colors.remove('gray')
+    colors.remove('greenyellow')
     colors.remove('honeydew')
+    colors.remove('hotpink')
+    colors.remove('indianred')
     colors.remove('indigo')
     colors.remove('ivory')
     colors.remove('khaki')
@@ -99,12 +108,16 @@ if mayPlot:
     colors.remove('lawngreen')
     colors.remove('lemonchiffon')
     colors.remove('linen')
+    colors.remove('olive')
     colors.remove('olivedrab')
     colors.remove('limegreen')
     colors.remove('midnightblue')
     colors.remove('mintcream')
     colors.remove('mistyrose')
+    colors.remove('moccasin')
+    colors.remove('navy')
     colors.remove('orangered')
+    colors.remove('orchid')
     colors.remove('papayawhip')
     colors.remove('peachpuff')
     colors.remove('peru')
@@ -113,13 +126,19 @@ if mayPlot:
     colors.remove('plum')
     colors.remove('rosybrown')
     colors.remove('saddlebrown')
+    colors.remove('salmon')
     colors.remove('sandybrown')
+    colors.remove('seagreen')
     colors.remove('seashell')
     colors.remove('silver')
     colors.remove('sienna')
+    colors.remove('skyblue')
+    colors.remove('springgreen')
     colors.remove('tan')
     colors.remove('teal')
     colors.remove('thistle')
+    colors.remove('tomato')
+    colors.remove('turquoise')
     colors.remove('snow')
     colors.remove('steelblue')
     colors.remove('violet')
@@ -132,9 +151,6 @@ if mayPlot:
 
 # NOTE  Setting up global vars:
 current_path = os.getcwd()
-xdim = -1
-ydim = -1
-zdim = -1
 
 def warn(string):
     print('\n>\n->\n--> WARNING: ' + str(string) + ' <--\n->\n>')
@@ -290,22 +306,23 @@ def plotBlob3d(blob3d, coloring='', b2dids=False,canvas_size=(800,800), **kwargs
     # FIXME TODO can remove this once repickled
 
 
-    blob3d.minx = blob3d.blob2ds[0].minx
-    blob3d.miny = blob3d.blob2ds[0].miny
-    blob3d.maxx = blob3d.blob2ds[0].maxx
-    blob3d.maxy = blob3d.blob2ds[0].maxy
+    blob3d.minx = Blob2d.get(blob3d.blob2ds[0]).getminx()
+    blob3d.miny = Blob2d.get(blob3d.blob2ds[0]).getminy()
+    blob3d.maxx = Blob2d.get(blob3d.blob2ds[0]).getmaxx()
+    blob3d.maxy = Blob2d.get(blob3d.blob2ds[0]).getmaxy()
 
     # NOTE TODO add this to blob3d
     midx = 0
     midy = 0
 
     for blob in blob3d.blob2ds:
-        blob3d.minx = min(blob.minx, blob3d.minx)
-        blob3d.miny = min(blob.miny, blob3d.miny)
-        blob3d.maxx = max(blob.maxx, blob3d.maxx)
-        blob3d.maxy = max(blob.maxy, blob3d.maxy)
-        midx += blob.avgx
-        midy += blob.avgy
+        blob = Blob2d.get(blob)
+        blob3d.minx = min(blob.getminx(), blob3d.minx)
+        blob3d.miny = min(blob.getminy(), blob3d.miny)
+        blob3d.maxx = max(blob.getmaxx(), blob3d.maxx)
+        blob3d.maxy = max(blob.getmaxy(), blob3d.maxy)
+        midx += blob.getavgx()
+        midy += blob.getavgy()
     midx /= len(blob3d.blob2ds)
     midy /= len(blob3d.blob2ds)
     midz = (blob3d.highslideheight + blob3d.lowslideheight) / 2
@@ -349,8 +366,9 @@ def plotBlob3d(blob3d, coloring='', b2dids=False,canvas_size=(800,800), **kwargs
     midpoints = []
     # FIXME This is repairing incorrect averages in blob2ds
     for b2d in blob3d.blob2ds:
-        b2d.avgx = sum(pixel.x for pixel in b2d.edge_pixels) / len(b2d.edge_pixels)
-        b2d.avgy = sum(pixel.y for pixel in b2d.edge_pixels) / len(b2d.edge_pixels)
+        b2d = Blob2d.get(b2d)
+        b2d.avgx = sum(Pixel.get(pixel).x for pixel in b2d.edge_pixels) / len(b2d.edge_pixels)
+        b2d.avgy = sum(Pixel.get(pixel).y for pixel in b2d.edge_pixels) / len(b2d.edge_pixels)
     # /FIXME
 
 
@@ -377,9 +395,9 @@ def plotBlob3d(blob3d, coloring='', b2dids=False,canvas_size=(800,800), **kwargs
             markers[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[b2d_num], size=8)
             view.add(markers[-1])
     else:
-        edge_pixel_array = np.zeros([len(blob3d.edge_pixels), 3])
+        edge_pixel_array = np.zeros([blob3d.get_edge_pixel_count(), 3])
 
-        for (p_num, pixel) in enumerate(blob3d.edge_pixels):
+        for (p_num, pixel) in enumerate(blob3d.get_edge_pixels()):
                 edge_pixel_array[p_num] = [(pixel.x - offsetx) / xdim, (pixel.y - offsety) / ydim, pixel.z /  (z_compression * zdim)]
         markers = visuals.Markers()
         markers.set_data(edge_pixel_array, edge_color=None, face_color='green', size=8)
@@ -440,6 +458,12 @@ def contrastSaturatedBlob2ds(blob2ds, minimal_edge_pixels=350):
         else:
             print('Skipping, as blob2d had only: ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
 
+def getBloomedHeight(b2d, explode, zdim):
+    if explode:
+        return b2d.height + b2d.recursive_depth / (zdim * max([len(b2d.getrelated()), 1]))
+    else:
+        return b2d.height
+
 def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitches=False, titleNote='', edge=True, parentlines=False, explode=False):
     global canvas
     global view
@@ -457,7 +481,6 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
         blob2ds = [Blob2d.get(b2d) for b2d in blob2ds]
 
 
-
     xmin = min(blob2d.minx for blob2d in blob2ds)
     ymin = min(blob2d.miny for blob2d in blob2ds)
     xmax = max(blob2d.maxx for blob2d in blob2ds)
@@ -470,11 +493,12 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
     zdim = zmax - zmin + 1
 
 
+
     if explode:
         if not all(b2d.height == blob2ds[0].height for b2d in blob2ds):
             warn('Attempting to explode blob2ds that are not all at the same height')
-        for b2d in blob2ds:
-            b2d.height += b2d.recursive_depth / (zdim * max([len(b2d.getrelated()), 1])) # HACK 1.2 to try to correct allignment, may need function worst case
+        # for b2d in blob2ds:
+        #     b2d.height += b2d.recursive_depth / (zdim * max([len(b2d.getrelated()), 1])) # HACK 1.2 to try to correct allignment, may need function worst case
 
 
 
@@ -503,12 +527,12 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
             if edge:
                 for p_num, pixel in enumerate(blob2d.edge_pixels):
                     pixel = Pixel.get(pixel)
-                    pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (blob2d.height - zmin) / ( z_compression * zdim)]
+                    pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (getBloomedHeight(blob2d, explode, zdim) - zmin) / ( z_compression * zdim)]
                 offsets[index] += len(blob2d.edge_pixels)
             else:
                 for p_num, pixel in enumerate(blob2d.pixels):
                     pixel = Pixel.get(pixel)
-                    pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (blob2d.height - zmin) / ( z_compression * zdim)]
+                    pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (getBloomedHeight(blob2d, explode, zdim)  - zmin) / ( z_compression * zdim)]
                 offsets[index] += len(blob2d.pixels)
 
         for color_num, edge_array in enumerate(pixel_arrays):
@@ -529,9 +553,8 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
             index = blob2d.recursive_depth % len(markers_per_color)
             for p_num, pixel in enumerate(blob2d.edge_pixels):
                 pixel = Pixel.get(pixel)
-                pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (blob2d.height - zmin) / ( z_compression * zdim)]
+                pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (getBloomedHeight(blob2d, explode, zdim)  - zmin) / ( z_compression * zdim)]
             offsets[index] += len(blob2d.edge_pixels)
-        print('----DB adding edge arrays :' + str(pixel_arrays))
 
         for color_num, edge_array in enumerate(pixel_arrays):
             if len(edge_array) == 0:
@@ -545,8 +568,8 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
     if ids is True:
         midpoints = []
         midpoints.append(np.zeros([1,3]))
-        for b2d_num, b2d in enumerate(blob2ds): #FIXME! For some reason overloads the ram.
-            midpoints[-1] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, ((b2d.height + .25 - zmin) / (z_compression * zdim))]
+        for b2d_num, b2d in enumerate(blob2ds):
+            midpoints[-1] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, ((getBloomedHeight(b2d, explode, zdim)  + .25 - zmin) / (z_compression * zdim))]
             textStr = str(b2d.id)
             if coloring == '' or coloring == 'blob2d':
                 color = colors[b2d_num % len(colors)]
@@ -589,8 +612,8 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
             for b2d in blob2ds:
                 for child in b2d.children:
                     child = Blob2d.get(child)
-                    line_locations[line_index] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, (b2d.height - zmin) / ( z_compression * zdim)]
-                    line_locations[line_index + 1] = [(child.avgx - xmin) / xdim, (child.avgy - ymin) / ydim, (child.height - zmin) / ( z_compression * zdim)]
+                    line_locations[line_index] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, (getBloomedHeight(b2d, explode, zdim)  - zmin) / ( z_compression * zdim)]
+                    line_locations[line_index + 1] = [(child.avgx - xmin) / xdim, (child.avgy - ymin) / ydim, (getBloomedHeight(child, explode, zdim) - zmin) / ( z_compression * zdim)]
                     line_index += 2
             parent_lines = visuals.Line(method=linemethod)
             parent_lines.set_data(pos=line_locations, connect='segments', color='y')
@@ -603,22 +626,21 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
     view.camera.distance = .5
     vispy.app.run()
 
-def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None, costs=0, maxcolors=-1, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800,800), b2d_midpoint_values=0, titleNote=''):
+def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=0, maxcolors=-1, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800, 800), b2d_midpoint_values=0, titleNote=''):
     global canvas
     global view
-    global xdim
-    global ydim
-    global zdim
     global colors
     # canvas_size = kwargs.get('canvas_size', (800,800))
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size,
-                                     title='plotBlob3ds(' + str(len(blob3dlist)) + '-Blob3ds, coloring=' + str(coloring) + ', canvas_size=' + str(canvas_size) + ') ' + titleNote)
+                                     title='plotBlob3ds(' + str(len(blob3dlist)) + '-Blob3ds, coloring=' + str(color) + ', canvas_size=' + str(canvas_size) + ') ' + titleNote)
     if maxcolors > 0 and maxcolors < len(colors):
         colors = colors[:maxcolors]
 
     # Finding the maximal slide, so that the vertical dimension of the plot can be evenly divided
     total_slides = 0
-    print('DB plotting a total of ' + str(len(blob3dlist)) + ' blob3ds')
+    xdim = 0
+    ydim = 0
+    zdim = 0
 
     for blob3d in blob3dlist: # TODO make gen functions
         if blob3d.highslideheight > total_slides:
@@ -641,38 +663,28 @@ def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None,
     edge_pixel_arrays = [] # One array per 3d blob
     markerlist = []
 
-    # colors = vispy.color.get_color_names() # ALl possible colors
-    # # note getting rid of annoying colors
-    # colors.remove('antiquewhite')
-    # colors.remove('aliceblue')
-    # colors.remove('azure')
-    # colors.remove('blanchedalmond')
-    # colors.remove('b')
-    # colors.remove('aquamarine')
-    # colors.remove('beige')
-    # colors.remove('bisque')
-    # colors.remove('black')
-    # # colors.remove('cadetblue')
-    # print('The available colors are: ' + str(colors))
-
     lineendpoints = 0
 
-    colors = colors[::2] # HACK
 
-    if coloring == 'blob': # Note: This is very graphics intensive.
+    if color == 'blob': # Note: This is very graphics intensive.
         markers_per_color = [0 for i in range(min(len(colors), len(blob3dlist)))]
         offsets = [0] * min(len(colors), len(blob3dlist))
         for blobnum, blob3d in enumerate(blob3dlist):
-            markers_per_color[blobnum % len(markers_per_color)] += len(blob3d.edge_pixels)
+            # markers_per_color[blobnum % len(markers_per_color)] += len(blob3d.edge_pixels)
+            markers_per_color[blobnum % len(markers_per_color)] += blob3d.get_edge_pixel_count()
+
+
         for num,i in enumerate(markers_per_color):
             edge_pixel_arrays.append(np.zeros([i, 3]))
         for blobnum, blob3d in enumerate(blob3dlist):
             index = blobnum % len(markers_per_color)
-            for p_num, pixel in enumerate(blob3d.edge_pixels):
+            for p_num, pixel in enumerate(blob3d.get_edge_pixels()):
                 edge_pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * total_slides)]
-            offsets[index] += len(blob3d.edge_pixels)
+            offsets[index] += blob3d.get_edge_pixel_count()
         for color_num, edge_array in enumerate(edge_pixel_arrays):
-            view.add(visuals.Markers(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 ))
+            buf = visuals.Markers()
+            buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
+            view.add(buf)
 
         # for blob_num, blob3d in enumerate(blob3dlist):
         #     edge_pixel_arrays.append(np.zeros([len(blob3d.edge_pixels), 3]))
@@ -684,7 +696,7 @@ def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None,
         #     print('DB blob #' + str(blob3d.id) + ' is colored ' + str(colors[blob_num % len(colors)]))
         #     view.add(markerlist[-1])
 
-    elif coloring == 'singular':
+    elif color == 'singular':
         total_singular_points = 0
         total_multi_points = 0 # Points from blob3ds that may be part of strands
         for blob3d in blob3dlist:
@@ -714,9 +726,9 @@ def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None,
         multi_markers.set_data(multi_edge_array, edge_color=None, face_color='red', size=8)
         view.add(singular_markers)
         view.add(multi_markers)
-    elif coloring == 'depth': # Coloring based on recursive depth
+    elif color == 'depth': # Coloring based on recursive depth
         # HACK can be removed when repickled # FIXME
-        print('Coloring based on depth')
+        # print('Coloring based on depth')
         max_depth = max(blob.recursive_depth for blob in blob3dlist)
         # NOTE because of sorting, this needs to be done before any info (like midpoints) is extracted from blob3dslist
         blob3dlist = sorted(blob3dlist, key=lambda blob: blob.recursive_depth, reverse=False) # Now sorted by depth, lowest first (primary)
@@ -730,17 +742,18 @@ def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None,
                 current_index += 1
             b3ds_by_depth.append(b3ds_at_depth)
         for depth, depth_list in enumerate(b3ds_by_depth):
-            num_edge_pixels_at_depth = sum(len(b3d.edge_pixels) for b3d in depth_list)
+            num_edge_pixels_at_depth = sum(b3d.get_edge_pixel_count() for b3d in depth_list)
             edge_pixel_arrays.append(np.zeros([num_edge_pixels_at_depth, 3]))
             p_num = 0
             for b3d in depth_list:
-                for pixel in b3d.edge_pixels:
+                ep_buf = b3d.get_edge_pixels()
+                for pixel in ep_buf:
                     edge_pixel_arrays[-1][p_num] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * total_slides)]
                     p_num += 1
 
             markerlist.append(visuals.Markers())
             markerlist[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[depth % len(colors)], size=8)
-            print('Using color: ' + str(colors[depth % len(colors)]))
+            # print('Using color: ' + str(colors[depth % len(colors)]))
             view.add(markerlist[-1])
 
 
@@ -750,11 +763,12 @@ def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None,
     else: # All colored the same
         total_points = 0
         for blob_num, blob3d in enumerate(blob3dlist):
-            total_points += len(blob3d.edge_pixels)
+            total_points += blob3d.get_edge_pixel_count()
         edge_pixel_array = np.zeros([total_points, 3])
         index = 0
         for blob3d in blob3dlist:
-            for pixel in blob3d.edge_pixels:
+            ep_buf = blob3d.get_edge_pixels()
+            for pixel in ep_buf:
                 edge_pixel_array[index] = [pixel.x / xdim, pixel.y / ydim, pixel.z / (z_compression * total_slides)]
                 index += 1
             for stitch in blob3d.pairings:
@@ -776,7 +790,7 @@ def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None,
             view.add(visuals.Text(textStr, pos=midpoints[index], color='yellow'))
 
 
-    if showStitches:
+    if stitches:
         if lineColoring == 'blob3d':
             line_location_lists = []
             stitch_lines = []
@@ -803,10 +817,10 @@ def plotBlob3ds(blob3dlist, showStitches=True, coloring=None, lineColoring=None,
             for blob3d in blob3dlist:
                 for pairing in blob3d.pairings:
                     for stitch in pairing.stitches:
-                        lowerpixel = stitch.lowerpixel
-                        upperpixel = stitch.upperpixel
-                        line_locations[line_index] = [lowerpixel.x / xdim, lowerpixel.y / ydim, (pairing.lowerslidenum ) / ( z_compression * total_slides)]
-                        line_locations[line_index + 1] = [upperpixel.x / xdim, upperpixel.y / ydim, (pairing.upperslidenum ) / ( z_compression * total_slides)]
+                        lowerpixel = Pixel.get(stitch.lowerpixel)
+                        upperpixel = Pixel.get(stitch.upperpixel)
+                        line_locations[line_index] = [lowerpixel.x / xdim, lowerpixel.y / ydim, (pairing.lowerheight ) / ( z_compression * total_slides)]
+                        line_locations[line_index + 1] = [upperpixel.x / xdim, upperpixel.y / ydim, (pairing.upperheight ) / ( z_compression * total_slides)]
                         line_index += 2
             stitch_lines = visuals.Line(method=linemethod)
             stitch_lines.set_data(pos=line_locations, connect='segments')
@@ -878,8 +892,8 @@ def showSlide(slide):
         print('Cannot show slide with no pixels:' + str(slide))
 
 def showBlob2d(b2d):
-    width = b2d.maxx - b2d.minx + 1 #max(pixel.x for pixel in b2d.pixels) + 1
-    height = b2d.maxy - b2d.miny + 1#max(pixel.y for pixel in b2d.pixels) + 1
+    width = b2d.maxx - b2d.minx + 1
+    height = b2d.maxy - b2d.miny + 1
     array = np.zeros([width, height])
     for pixel in b2d.pixels:
         array[pixel.x - b2d.minx][pixel.y - b2d.miny] = pixel.val

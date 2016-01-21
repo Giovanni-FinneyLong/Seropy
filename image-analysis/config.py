@@ -32,10 +32,6 @@ hard_max_pixel_value = 255
 max_stitch_cost = 90 # The max cost a stitch can be before it is ignored
 max_distance = 7 # The max distance that two pixels can be apart and still be stitched together.
                  # If this threshold is breached, edge_pixels will not have any line to them, including a substitute
-min_pixels_to_be_independent = 9 # The minimum number of pixels in a Blob2d of a Subblob3d to be considered as possibly another b3d
-                        # This is currently experimental
-min_pixels_to_split = 9 # The minimum number of pixels in a Blob2d of a Subblob3d
-                        # This is currently experimental
 #NOTE these would be good for a sliding scale?
 assert 0 < z_compression <= 1
 assert 0 < slide_portion <= 1

@@ -192,8 +192,46 @@ class Pairing:
                         print('    -Blobs not connected')
             if quiet:
                 print('.', flush=True)
+        return pairlist
+
+    @staticmethod
+    def stitchBlob2ds(b2ds, debug=False):
+        pairlist = []
+        last_print = 0
+
+        for b_num, blob1 in enumerate(b2ds):
+            blob1 = Blob2d.get(blob1)
+            # if ((b_num - last_print) / len(b2ds)) >= .1:
+            #     print('.', end='', flush=True)
+            #     last_print = b_num
+            if len(blob1.possible_partners) > 0:
+                if debug:
+                    print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
+            for b2_num, blob2 in enumerate(blob1.possible_partners):
+                blob2 = Blob2d.get(blob2)
+                if debug:
+                    print('   Comparing to blob2:' + str(blob2))
+                t0 = time.time()
+                # print('- DB b1, b2 before pairing:' + str(blob1) + ', ' + str(blob2))
+                bufStitch = Pairing(blob1, blob2, 1.1, 36, quiet=True)
+                # print('- DB b1, b2 after pairing:' + str(blob1) + ', ' + str(blob2))
+
+                if bufStitch.isConnected:
+                    # if debug:
+                    #     print('    +Blobs connected')
+                    pairlist.append(bufStitch)
+                elif debug:
+                    print('    -Blobs not connected')
+            # print('.', flush=True)
+
+
+
+
+
 
         return pairlist
+
+
 
     def __str__(self):
         if self.cost == -1:
@@ -207,7 +245,7 @@ class Pairing:
                    '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels. ' + 'Cost:' + cost_str + '>')
     __repr__ = __str__
 
-    def __init__(self, lowerblob, upperblob, overscan_scale, num_bins, quiet=True):
+    def __init__(self, lowerblob, upperblob, overscan_scale, num_bins, quiet=False):
         self.overscan_scale = overscan_scale
         self.num_bins = num_bins
         self.lowerheight = lowerblob.height
@@ -215,10 +253,10 @@ class Pairing:
         self.lowerblob = lowerblob
         self.upperblob = upperblob
         self.upperpixels = self.edgepixelsinbounds(upperblob, lowerblob)
-        self.lowerpixels = self.edgepixelsinbounds(lowerblob, upperblob) # TODO psoe on the order of lower and upper
+        self.lowerpixels = self.edgepixelsinbounds(lowerblob, upperblob)
         self.isReduced = False # True when have chosen a subset of the edge pixels to reduce computation
         self.stitches = []
-        self.cost = -1 # Just to indicate that it is unset
+        self.cost = -1 # -1 to indicate that it is unset
 
         if len(self.lowerpixels) != 0: # Optimization
             self.upperpixels = self.edgepixelsinbounds(upperblob, lowerblob)
@@ -243,8 +281,20 @@ class Pairing:
             if not quiet:
                 print('   ' + str(self))
             self.munkresCost() # Now have set self.cost and self.indeces and self.connect
+
+
+            # print('******DEBUG before, lowerblob = ' + str(lowerblob) + ' and entry = ' + str(Blob2d.all[lowerblob.id]))
+            # print('******DEBUG before, lowerblob = ' + str(len(lowerblob.pairings)) + ' and entry = ' + str(len(Blob2d.all[lowerblob.id].pairings)))
+
+            Blob2d.all[lowerblob.id].pairings.append(self)
+            Blob2d.all[upperblob.id].pairings.append(self)
+            # HACK
             lowerblob.pairings.append(self)
             upperblob.pairings.append(self)
+            # HACK
+            # print('******DEBUG after, lowerblob = ' + str(lowerblob) + ' and entry = ' + str(Blob2d.all[lowerblob.id]))
+            # print('******DEBUG after, lowerblob = ' + str(len(lowerblob.pairings)) + ' and entry = ' + str(len(Blob2d.all[lowerblob.id].pairings)))
+
         else:
             self.isConnected = False
 

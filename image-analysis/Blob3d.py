@@ -1,9 +1,8 @@
-from Slide import Slide, SubSlide, printElapsedTime
-from Stitches import Pairing
-from sero import doPickle
 from serodraw import plotBlob3d, showSlide, showBlob2d, plotBlob2ds, debug
-import time
 from Blob2d import Blob2d
+from Pixel import Pixel
+from serodraw import warn
+
 class Blob3d:
     '''
     A group of blob2ds that chain together with pairings into a 3d shape
@@ -11,7 +10,7 @@ class Blob3d:
     '''
     total_blobs = 0
 
-    def __init__(self, blob2dlist, subblob=False):
+    def __init__(self, blob2dlist, subblob=False, r_depth=0):
         self.id = Blob3d.total_blobs
         Blob3d.total_blobs += 1
         self.blob2ds = blob2dlist          # List of the blob 2ds used to create this blob3d
@@ -20,11 +19,15 @@ class Blob3d:
         self.pairings = []
         self.lowslideheight = min(Blob2d.get(blob).height for blob in self.blob2ds)
         self.highslideheight = max(Blob2d.get(blob).height for blob in self.blob2ds)
-        self.pixels = []
-        self.edge_pixels = []
-        self.recursive_depth = 0
+        self.recursive_depth = r_depth
         for blobid in self.blob2ds:
+
             blob = Blob2d.get(blobid)
+
+            if Blob2d.all[blob.id].b3did != -1: # DEBUG
+                warn('Assigning a new b3did (' + str(self.id) + ') to blob2d: ' + str(Blob2d.all[blob.id]))
+            Blob2d.all[blob.id].b3did = self.id
+
             if blob is None:
                 print('WARNING got None when looking for a blob2d with id:' + str(blobid))
                 print('All:' + str(Blob2d.getall()))
@@ -33,8 +36,6 @@ class Blob3d:
                 buf = Blob2d.all
                 debug()
 
-            self.pixels += blob.pixels
-            self.edge_pixels += blob.edge_pixels
             for stitch in blob.pairings:
                 if stitch not in self.pairings: # TODO set will be faster
                     self.pairings.append(stitch)
@@ -54,7 +55,24 @@ class Blob3d:
             sb = str(self.recursive_depth)
         else:
             sb = '0'
-        return str('B3D(' + str(sb) + '): #b2ds:' + str(len(self.blob2ds)) + ', r_depth:' + str(self.recursive_depth) + ' lowslideheight=' + str(self.lowslideheight) + ' highslideheight=' + str(self.highslideheight) + ' #edgepixels=' + str(len(self.edge_pixels)) + ' #pixels=' + str(len(self.pixels)) + ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) + ')')
+        return str('B3D(' + str(sb) + '): #b2ds:' + str(len(self.blob2ds)) + ', r_depth:' + str(self.recursive_depth) +
+                   ' lowslideheight=' + str(self.lowslideheight) + ' highslideheight=' + str(self.highslideheight) +
+                   #' #edgepixels=' + str(len(self.edge_pixels)) + ' #pixels=' + str(len(self.pixels)) +
+                   ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) + ')')
+    __repr__ = __str__
+
+    def get_edge_pixel_count(self):
+        edge = 0
+        for b2d in self.blob2ds:
+            edge += len(Blob2d.get(b2d).edge_pixels)
+        return edge
+
+    def get_edge_pixels(self):
+        edge = []
+        for b2d in self.blob2ds:
+            b2d = Blob2d.get(b2d)
+            edge = edge + [Pixel.get(pix) for pix in b2d.edge_pixels]
+        return edge
 
     def add_note(self, str):
         if hasattr(self, 'note'):

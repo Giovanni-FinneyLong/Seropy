@@ -87,10 +87,8 @@ class Slide:
                     self.sum_pixels += pixel_value
         if not quiet:
             print('The are ' + str(len(pixels)) + ' non-zero pixels from the original ' + str(self.local_xdim * self.local_ydim) + ' pixels')
-        print(' --> Pixel.total_pixels = ' + str(Pixel.total_pixels) + ' Pixel.all = ' + str(len(Pixel.all)))
-        print('-----len of pixel.all = ' + str(len(Pixel.all)))
 
-        # pixels.sort(key=lambda pix: pix.val, reverse=True)# Note that sorting is being done like so to sort based on value not position as is normal with pixels. Sorting is better as no new list
+        pixels.sort(key=lambda pix: pix.val, reverse=True)# Note that sorting is being done like so to sort based on value not position as is normal with pixels. Sorting is better as no new list
 
         # Lets go further and grab the maximal pixels, which are at the front
         endmax = 0
@@ -100,20 +98,25 @@ class Slide:
             if not quiet:
                 print('There are ' + str(endmax) + ' pixels above the minimal threshold')
         # Time to pre-process the maximal pixels; try and create groups/clusters
-        print(' --> Pixel.total_pixels = ' + str(Pixel.total_pixels) + ' Pixel.all = ' + str(len(Pixel.all)))
 
         self.alive_pixels = filterSparsePixelsFromList(pixels[0:endmax], (self.local_xdim, self.local_ydim), quiet=quiet)
-        # self.alive_pixels.sort() # Sorted here so that in y,x order instead of value order
+        self.alive_pixels.sort() # Sorted here so that in y,x order instead of value order
         alive_pixel_array = np.zeros([self.local_xdim, self.local_ydim], dtype=object)
         for pixel in self.alive_pixels:
             alive_pixel_array[pixel.x][pixel.y] = pixel
+
+
+
         (derived_ids, derived_count, num_ids_equiv) = self.assignPixelsToIds(self.alive_pixels, not self.isSubslide) # Note only printing when primary slide
+
         counter = collections.Counter(derived_ids)
         total_ids = len(counter.items())
         if not quiet:
             print('There were: ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(total_ids) + ' blobs.')
-        print(' --> Pixel.total_pixels = ' + str(Pixel.total_pixels) + ' Pixel.all = ' + str(len(Pixel.all)))
         most_common_ids = counter.most_common()# HACK Grabbing all for now, +1 b/c we start at 0 # NOTE Stored as (id, count)
+
+        print('Getting id lists, remapping is:' + str(remap_ids_by_group_size))
+
         id_lists = getIdLists(self.alive_pixels, remap=remap_ids_by_group_size, id_counts=most_common_ids) # Hack, don't ned to supply id_counts of remap is false; just convenient for now
         self.blob2dlist = [] # Note that blobs in the blob list are ordered by number of pixels, not id, this makes merging faster
 
@@ -171,7 +174,7 @@ class Slide:
 
 
 
-
+        print('Calling mergeblobs on: ' + str(len(self.blob2dlist)) + ' blob2ds')
         self.blob2dlist = Blob2d.mergeblobs(self.blob2dlist) # NOTE, by assigning the returned Blob2d list to a new var, the results of merging can be demonstrated
         self.edge_pixels = []
         edge_lists = []
@@ -194,6 +197,7 @@ class Slide:
                 for blob in slide.blob2dlist:
                     for above_slide in slides_by_height[height + 1]:
                         Blob2d.get(blob).setPossiblePartners(above_slide.blob2dlist)
+
 
     @staticmethod
     def setAllShapeContexts(slidelist):
@@ -307,10 +311,9 @@ class Slide:
 
         maxid = max(pixel.blob_id for pixel in pixel_list)
         # for id in range(self.id_num): # NOTE CHANGED 12/9/15 to allow compatibility without needing slide # TODO
-        print('Max id:' + str(maxid))
 
         for id in range(maxid):
-            if id not in equivalent_labels:
+            if id != equivalent_labels[id]:
                 if debug_blob_ids:
                     print('ID #' + str(id) + ' wasnt in the list, adding to ids_to _replace')
                 id_to_reuse.append(id)
@@ -335,7 +338,7 @@ class Slide:
 
         removed_id_count = 0
         for id in range(len(equivalent_labels)):
-            if equivalent_labels[id] != id:
+            if equivalent_labels[id] != id: # Yields about a 10% speed increase vs in, however yielded less b2ds... # HACK psoe, results in 20 less b2ds in result on all dataset vs using  'if id not in equivalent_labels'
                 removed_id_count += 1
         if print_info:
             print('There were ' + str(removed_id_count) + ' removed ids')
@@ -347,40 +350,8 @@ class Slide:
     def __str__(self):
         return str('Slide <Id:' + str(self.id_num) + ' Num of Blob2ds:' + str(len(self.blob2dlist)) + '>')
 
-
-class SubSlide(Slide):
-    '''
-    A slide that is created from a portion of a blob3d (one of its blob2ds)
-    '''
-
-    def __init__(self, sourceBlob2d, sourceBlob3d):
-        super().__init__(matrix=sourceBlob2d.gen_saturated_array(), height=sourceBlob2d.slide.id_num, quiet=True) # NOTE can turn off quiet if desired
-
-        assert(isinstance(sourceBlob2d, Blob2d))
-        self.parentB3d = sourceBlob3d
-        self.parentB2d = sourceBlob2d
-        self.offsetx = sourceBlob2d.minx
-        self.offsety = sourceBlob2d.miny
-        # self.height = sourceBlob2d.slide.id_num
-        for pixel in self.alive_pixels: # TODO this is part of the source of error, need to update offsets
-            pixel.x += self.offsetx
-            pixel.y += self.offsety
-            pixel.z = self.height
-        for blob2d in self.blob2dlist:
-            blob2d.avgx += self.offsetx
-            blob2d.avgy += self.offsety
-            blob2d.minx += self.offsetx
-            blob2d.miny += self.offsety
-            blob2d.maxx += self.offsetx
-            blob2d.maxy += self.offsety
-
-
-    def __str__(self):
-        return super().__str__() + ' <subslide>: Offset(x,y):(' + str(self.offsetx) + ',' + str(self.offsety) + ')' + ' height:' + str(self.height)
-
 def timeNoSpaces():
     return time.ctime().replace(' ', '_').replace(':', '-')
-
 
 def getIdLists(pixels, **kwargs):
     '''
@@ -406,7 +377,7 @@ def getIdLists(pixels, **kwargs):
                 remap[id_counts[id][0]] = id
             for pixel in pixels:
                 id_lists[remap[pixel.blob_id]].append(pixel)
-        else:
+        else: # TODO doesnt work without remapping currently
             for pixel in pixels:
                 if pixel.blob_id >= len(id_counts):
                     print('DEBUG: About to fail:' + str(pixel)) # DEBUG
@@ -462,3 +433,4 @@ def  printElapsedTime(t0, tf, pad=''): # HACK FIXME REMOVE THIS AND IMPORT CORRE
         print(pad + 'Elapsed Time: ' + str(m) + ' minute' + str(plural_minutes) + ' & %.0f seconds' % (temp % 60))
     else:
         print(pad + 'Elapsed Time: %.2f seconds' % (temp % 60))
+
