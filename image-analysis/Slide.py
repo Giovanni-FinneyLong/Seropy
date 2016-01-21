@@ -116,7 +116,9 @@ class Slide:
             print('There were: ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(group_count) + ' blobs.')
         print('Getting id lists')
         # most_common_ids = counter.most_common()# HACK Grabbing all for now, +1 b/c we start at 0 # NOTE Stored as (id, count)
+        t_idlist_0 = time.time()
         id_lists = getIdLists(self.alive_pixels)
+        t_idlist_f = time.time()
         # id_lists = getIdLists(self.alive_pixels) # Hack, don't ned to supply id_counts of remap is false; just convenient for now
         self.blob2dlist = [] # Note that blobs in the blob list are ordered by number of pixels, not id, this makes merging faster
 
@@ -183,6 +185,8 @@ class Slide:
         self.blob2dlist = Blob2d.mergeblobs(self.blob2dlist) # NOTE, by assigning the returned Blob2d list to a new var, the results of merging can be demonstrated
         print('After merging, size of blob2dlist:' + str(len(self.blob2dlist)))
         t_merge_f = time.time()
+        print('Time to combine pixels into groups:')
+        printElapsedTime(t_idlist_0, t_idlist_f)
         print('Time to sort:')
         printElapsedTime(t_sort_0, t_sort_f)
         print('Time to update:')
@@ -527,36 +531,67 @@ class Slide:
             # Can use the id that they would normally go into to sort into lists
             # Then just just filter out empty lists from within the list of lists..?
             maxid = max(pixel.blob_id for pixel in pixel_list)
-            print('Entering new code..')
+            print('Entering new code, size of eql:' + str(len(equivalent_labels)))
             print('Maxid = ' + str(maxid))
             id_groups = [[] for i in range(maxid + 1)] # Note may need +1 todo
+            print('Creating id groups', flush=True)
             for id,val in enumerate(equivalent_labels):
-                print(' eql[' + str(id) + '] = ' + str(val))
+                # print(' eql[' + str(id) + '] = ' + str(val))
                 id_groups[val].append(id)
-            num_non_empty_groups = 0
-            for index, idg in enumerate(id_groups):
-                if len(idg):
-                    print(' Index:' + str(index) + ', idg:' + str(idg))
-                    num_non_empty_groups += 1
+
+            print('Eliminating empty entries from id_groups and casting into sets')
             id_groups = [set(idg) for idg in id_groups if len(idg)] # Reduce to the non_empties, sets for faster searches
             # At this point, id_groups holds a list of sets, each set is a set of indeces that belong together
+            print('Number of id_groups: ' +str(len(id_groups)))
 
             found_eq_val = set() #Debugging only
+            print('Now moving on to pixel_list, which is of size: ' + str(len(pixel_list)))
 
+            max_eq_val = max(equivalent_labels)
+            remap = [-1 for i in range(max_eq_val+1)]
+            print('Len of remap:' + str(len(remap)))
+
+            if_calls = 0
+            else_calls = 0
             for pixel_index,pixel in enumerate(pixel_list): # HACK on 100
-                # print('Working on pixel: ' + str(pixel))
+                dbprint = False
+                if pixel_index % 100 == 0:
+                    print('Now working on pixel_index:' + str(pixel_index) + ' / ' + str(len(pixel_list)))
+                    print(' Working on pixel: ' + str(pixel))
+                    dbprint = True
+
 
                 # First grab the value in the index at eq_labels
                 eq_val = equivalent_labels[pixel.blob_id]
-                # print('The corresponding index of eql is: ' + str(eq_val))
-                for index, idg in enumerate(id_groups):
-                    if eq_val in idg:
-                        pixel.blob_id = index
-                        Pixel.all[pixel.id].blob_id = index
-                found_eq_val.add(eq_val)
+                if dbprint:
+                    print(' The corresponding index(the final group #) of eql is: ' + str(eq_val) + ' which we will look in id_groups for')
+                if eq_val >= len(remap): #DEBUG
+                    print(' ABout to fail, eq_val:' + str(eq_val))
+
+
+
+                if remap[eq_val] == -1: # Not yet looked up
+                    if_calls += 1
+                    for index, idg in enumerate(id_groups):
+                        if eq_val in idg:
+                            pixel.blob_id = index
+                            Pixel.all[pixel.id].blob_id = index
+                            if dbprint:
+                                print('  Found at index of id_groups:' + str(index))
+                                print('  eql[index]=' + str(equivalent_labels[index]))
+                            remap[eq_val] = index
+                            found_eq_val.add(eq_val)
+                            break # No need to continue the for loop
+                else:
+                    else_calls += 1
+                    # Have already looked this up, the correct new blob_id is in remap
+                    pixel.blob_id = remap[eq_val]
+                    Pixel.all[pixel.id].blob_id = remap[eq_val]
+                if dbprint:
+                    print('  *If calls: ' + str(if_calls) + ', else calls: ' + str(else_calls) + ' ratio:' + str((if_calls + 1.0) * 1.0 / (1.0 + else_calls)))
 
                 # Now need to find which
-            print('Number of unique eq_val found:' + str(len(found_eq_val)))
+            print('Number of unique eq_val found:' + str(len(found_eq_val)) + ' (this is essentially the number of b2ds from this slide')
             return len(found_eq_val)
 
             # NOTE for the testing dataset, this above has 216 non_empty_groups, and so seems to be working
