@@ -100,7 +100,7 @@ class Slide:
             print("Assigning pixels to ids")
 
         #HACK
-        (derived_ids, derived_count, num_ids_equiv) = self.firstPass(self.alive_pixels, (self.local_xdim, self.local_ydim), not self.isSubslide) # Note only printing when primary slide
+        group_count = self.firstPass(self.alive_pixels, (self.local_xdim, self.local_ydim), not self.isSubslide) # Note only printing when primary slide
         #HACK
 
         # self.assignPixelsToIds(self.alive_pixels, True)
@@ -110,13 +110,13 @@ class Slide:
         if not quiet:
             print("Done assigning pixels to ids")
 
-        counter = collections.Counter(derived_ids)
-        total_ids = len(counter.items())
+        # counter = collections.Counter(derived_ids)
+        # total_ids = len(counter.items())
         if not quiet:
-            print('There were: ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(total_ids) + ' blobs.')
+            print('There were: ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(group_count) + ' blobs.')
         print('Getting id lists')
-        most_common_ids = counter.most_common()# HACK Grabbing all for now, +1 b/c we start at 0 # NOTE Stored as (id, count)
-        id_lists = getIdLists(self.alive_pixels, remap=remap_ids_by_group_size, id_counts=most_common_ids)
+        # most_common_ids = counter.most_common()# HACK Grabbing all for now, +1 b/c we start at 0 # NOTE Stored as (id, count)
+        id_lists = getIdLists(self.alive_pixels)
         # id_lists = getIdLists(self.alive_pixels) # Hack, don't ned to supply id_counts of remap is false; just convenient for now
         self.blob2dlist = [] # Note that blobs in the blob list are ordered by number of pixels, not id, this makes merging faster
 
@@ -521,7 +521,7 @@ class Slide:
 
             ############################
             # New code here:
-            # Each index of eql contains the new_id that this pixels with id = index should get mapped to
+            # Each index of eql contains the new_id that pixels with id = index should get mapped to
             # Instead of this structure, will store indeces that will end up as the same id (as in their contents equal that id)
             # together into a list of lists, which each index of this list of lists
             # Can use the id that they would normally go into to sort into lists
@@ -531,53 +531,72 @@ class Slide:
             print('Maxid = ' + str(maxid))
             id_groups = [[] for i in range(maxid + 1)] # Note may need +1 todo
             for id,val in enumerate(equivalent_labels):
+                print(' eql[' + str(id) + '] = ' + str(val))
                 id_groups[val].append(id)
             num_non_empty_groups = 0
             for index, idg in enumerate(id_groups):
                 if len(idg):
                     print(' Index:' + str(index) + ', idg:' + str(idg))
                     num_non_empty_groups += 1
-            id_groups = [idg for idg in id_groups if len(idg)] # Reduce to the non_empties
+            id_groups = [set(idg) for idg in id_groups if len(idg)] # Reduce to the non_empties, sets for faster searches
+            # At this point, id_groups holds a list of sets, each set is a set of indeces that belong together
 
-        
+            found_eq_val = set() #Debugging only
+
+            for pixel_index,pixel in enumerate(pixel_list): # HACK on 100
+                # print('Working on pixel: ' + str(pixel))
+
+                # First grab the value in the index at eq_labels
+                eq_val = equivalent_labels[pixel.blob_id]
+                # print('The corresponding index of eql is: ' + str(eq_val))
+                for index, idg in enumerate(id_groups):
+                    if eq_val in idg:
+                        pixel.blob_id = index
+                        Pixel.all[pixel.id].blob_id = index
+                found_eq_val.add(eq_val)
+
+                # Now need to find which
+            print('Number of unique eq_val found:' + str(len(found_eq_val)))
+            return len(found_eq_val)
 
             # NOTE for the testing dataset, this above has 216 non_empty_groups, and so seems to be working
             True # This is for breaking on
 
 
-            for id in range(self.id_num):
-                if id != equivalent_labels[id]:
-                    if debug_blob_ids:
-                        print('ID #' + str(id) + ' wasnt in the list, adding to ids_to _replace')
-                    id_to_reuse.append(id)
-                else:
-                    if(len(id_to_reuse) != 0):
-                        buf = id_to_reuse[0]
-                        if debug_blob_ids:
-                            print('Replacing ' + str(id) + ' with ' + str(buf) + ' and adding ' + str(id) + ' to the ids to be reused')
-                        id_to_reuse.append(id)
-                        for id_fix in range(len(equivalent_labels)):
-                            if equivalent_labels[id_fix] == id:
-                                equivalent_labels[id_fix] = buf
-                        id_to_reuse.pop(0)
-                if debug_blob_ids:
-                    print('New equiv labels:' + str(equivalent_labels))
-
-            for pixel in pixel_list:
-                pixel.blob_id = equivalent_labels[pixel.blob_id]
-            for id in range(len(derived_ids)):
-                derived_ids[id] = equivalent_labels[derived_ids[id]]
-
-            removed_id_count = 0
-            for id in range(len(equivalent_labels)):
-                if equivalent_labels[id] != id:
-                    removed_id_count += 1
-            if print_info:
-                print('There were ' + str(removed_id_count) + ' removed ids')
-
-            # TODO: See if we can reverse the adjusting of the actual pixel ids until after the equivalent labels are cleaned up, to reflect the merged labels
-
-            return (derived_ids, derived_count, removed_id_count)
+            # for id in range(self.id_num):
+            #     if id != equivalent_labels[id]: # Checking if it maps to itself, otherwise it maps to something else
+            #                                     # And so that id (index) is 'unused'
+            #         if debug_blob_ids:
+            #             print('ID #' + str(id) + ' wasnt in the list, adding to ids_to _replace')
+            #         id_to_reuse.append(id)
+            #     else:
+            #         if(len(id_to_reuse) != 0):
+            #             buf = id_to_reuse[0]
+            #             if debug_blob_ids:
+            #                 print('Replacing ' + str(id) + ' with ' + str(buf) + ' and adding ' + str(id) + ' to the ids to be reused')
+            #             id_to_reuse.append(id)
+            #             for id_fix in range(len(equivalent_labels)):
+            #                 if equivalent_labels[id_fix] == id:
+            #                     equivalent_labels[id_fix] = buf
+            #             id_to_reuse.pop(0)
+            #     if debug_blob_ids:
+            #         print('New equiv labels:' + str(equivalent_labels))
+            #
+            # for pixel in pixel_list:
+            #     pixel.blob_id = equivalent_labels[pixel.blob_id]
+            # for id in range(len(derived_ids)):
+            #     derived_ids[id] = equivalent_labels[derived_ids[id]]
+            #
+            # removed_id_count = 0
+            # for id in range(len(equivalent_labels)):
+            #     if equivalent_labels[id] != id:
+            #         removed_id_count += 1
+            # if print_info:
+            #     print('There were ' + str(removed_id_count) + ' removed ids')
+            #
+            # # TODO: See if we can reverse the adjusting of the actual pixel ids until after the equivalent labels are cleaned up, to reflect the merged labels
+            #
+            # return (derived_ids, derived_count, removed_id_count)
 
 
 class SubSlide(Slide):
@@ -622,30 +641,12 @@ def getIdLists(pixels, **kwargs):
             Requires id_counts
         id_counts=Counter(~).most_common()
     '''
-    do_remap = kwargs.get('remap', False)
-    id_counts =  kwargs.get('id_counts',None)
-    kwargs_ok = True
-    if do_remap:
-        if id_counts is None:
-            print('>>>ERROR, if remapping, must supply id_counts (the n-most_common elements of a counter')
-            kwargs_ok = False
-    if kwargs_ok:
-        id_lists = [[] for i in range(len(id_counts))]
-        if do_remap:
-            remap = dict()
-            for id_index, id in enumerate(range(len(id_counts))): # Supposedly up to 2.5x faster than using numpy's .tolist()
-                # print(' id=' + str(id) + ' id_counts[id]=' + str(id_counts[id]) + ' id_counts[id][0]=' + str(id_counts[id][0]))
-                remap[id_counts[id][0]] = id
-            for pixel in pixels:
-                id_lists[remap[pixel.blob_id]].append(pixel)
-        else:
-            for pixel in pixels:
-                if pixel.blob_id >= len(id_counts):
-                    print('DEBUG: About to fail:' + str(pixel)) # DEBUG
-                id_lists[pixel.blob_id].append(pixel)
-        return id_lists
-    else:
-        print('Issue with kwargs in call to getIdLists!!')
+
+    id_lists = [[] for i in range(max(pixel.blob_id for pixel in pixels) + 1)]
+
+    for pixel in pixels:
+        id_lists[pixel.blob_id].append(pixel)
+    return id_lists
 
 def filterSparsePixelsFromList(listin, local_dim_tuple, quiet=False):
     # TODO convert to ids
