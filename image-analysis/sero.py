@@ -1,92 +1,24 @@
 __author__ = 'gio'
 
-
-import munkres as Munkres
-from Slide import *
-from Blob3d import *
+from Slide import Slide, printElapsedTime
+from Blob3d import Blob3d
+from Blob2d import Blob2d
 import pickle # Note uses cPickle automatically ONLY IF python 3
 from Stitches import Pairing
 from serodraw import *
 import glob
+import sys
 
-
-
-
-def munkresCompare(blob1, blob2):
-    '''
-    Uses the Hungarian Algorithm implementation from the munkres package to find an optimal combination of points
-    between blob1 and blob2 as well as deriving the point->point relationships and storing them in indeces
-    '''
-    # TODO try this with and without manual padding; change min/max for ndim and change the end padding portion of makeCostArray
-
-    def costBetweenPoints(bins1, bins2):
-        assert len(bins1) == len(bins2)
-        cost = 0
-        for i in range(len(bins1)):
-            if (bins1[i] + bins2[i]) != 0:
-                cost += math.pow(bins1[i] - bins2[i], 2) / (bins1[i] + bins2[i])
-        return cost / 2
-
-    def makeCostArray(blob1, blob2):
-        # Setting up cost array with the costs between respective points
-        ndim = max(len(blob1.edge_pixels), len(blob2.edge_pixels)) # HACK HACK min for now, in the hopes that munkres can handle non-square matrices.
-        cost_array = np.zeros([len(blob1.edge_pixels), len(blob2.edge_pixels)])
-
-        for i in range(len(blob1.edge_pixels)):
-            for j in range(len(blob2.edge_pixels)):
-                cost_array[i][j] = costBetweenPoints(blob1.context_bins[i], blob2.context_bins[j])
-        return cost_array
-
-    # TODO run this on some simple examples provided online to confirm it is accurate.
-    cost_array = makeCostArray(blob1, blob2)
-    munk = Munkres()
-    indeces = munk.compute(np.copy(cost_array).tolist())
-    total_cost = 0
-    for row, col in indeces:
-        value = cost_array[row][col]
-        total_cost += value
-        # print ('(%d, %d) -> %d' % (row, col, value))
-    # print('Total Cost = ' + str(total_cost))
-    return total_cost, indeces
-
-
-def doPickle(blob3dlist, filename, directory=PICKLEDIR, note=''):
-    pickledict = dict()
-    pickledict['blob3ds'] = blob3dlist
-    pickledict['xdim'] = xdim
-    pickledict['ydim'] = ydim
-    pickledict['zdim'] = zdim
-    pickledict['allb2ds'] = Blob2d.all
-    pickledict['allpixels'] = Pixel.all
-    pickledict['usedb2ds'] = Blob2d.used_ids
-    pickledict['note'] = note # TODO use info to rememeber info about different pickles
-    if directory != '':
-        if directory[-1] not in ['/', '\\']:
-            slash = '/'
-        else:
-            slash = ''
-        filename = directory + slash + filename
-    try:
-        print('Saving to pickle:'+ str(filename))
-        if note != '':
-            print('Including note:' + str(note))
-        pickle.dump(pickledict, open(filename, "wb"))
-    except RuntimeError:
-        print('\nIf recursion depth has been exceeded, you may increase the maximal depth with: sys.setrecursionlimit(<newdepth>)')
-        print('The current max recursion depth is: ' + str(sys.getrecursionlimit()))
-        print('Opening up an interactive console, press \'n\' then \'enter\' to load variables before interacting, and enter \'exit\' to resume execution')
-        debug()
-        pass
 
 # @profile
-def doPickle2(blob3dlist, filename, directory=PICKLEDIR):
+def save(blob3dlist, filename, directory=PICKLEDIR):
     if directory != '':
         if directory[-1] not in ['/', '\\']:
             slash = '/'
         else:
             slash = ''
     filename = directory + slash + filename
-    print('Saving to pickle:'+ str(filename) +  '\n current recursion limit:' + str(sys.getrecursionlimit()))
+    print('Saving to pickle:'+ str(filename))
     done = False
     while not done:
         try:
@@ -113,7 +45,7 @@ def doPickle2(blob3dlist, filename, directory=PICKLEDIR):
             pass
 
 # @profile
-def unPickle2(filename, directory=PICKLEDIR):
+def load(filename, directory=PICKLEDIR):
         if directory[-1] not in ['/', '\\']:
             slash = '/'
         else:
@@ -148,118 +80,28 @@ def unPickle2(filename, directory=PICKLEDIR):
         return b3ds
 
 
-def unPickle(filename, directory=PICKLEDIR):
-        if directory[-1] not in ['/', '\\']:
-            slash = '/'
-        else:
-            slash = ''
-        filename = directory + slash + filename
-        print('Loading from pickle:' + str(filename))
-        pickledict = pickle.load(open(filename, "rb"))
-        blob3dlist = pickledict['blob3ds']
-        xdim = pickledict['xdim']
-        ydim = pickledict['ydim']
-        zdim = pickledict['zdim']
-
-        Blob2d.all = pickledict['allb2ds']
-        Blob2d.used_ids = pickledict['usedb2ds']
-        # TODO look for info
-        Pixel.all = pickledict['allpixels']
-        Pixel.total_pixels = len(Pixel.all)
-
-        if 'note' in pickledict and pickledict['note'] != '':
-            print('Included note:' + pickledict['note'])
-        setglobaldims(xdim, ydim, zdim)
-        for blob3d in blob3dlist:
-            for blob2d in blob3d.blob2ds:
-                Blob2d.all[blob2d].validateID(quiet=True) # NOTE by validating the id here, we are adding the blob2d to the master array
-                Blob2d.total_blobs += 1
-        return blob3dlist
-
-
-def bloomInwards(blob2d, depth=0):
-    livepix = set(set(blob2d.pixels) - set(blob2d.edge_pixels))
-    last_edge = set(blob2d.edge_pixels)
-
-    alldict = Pixel.pixelidstodict(livepix)
-    edge_neighbors = set()
-    for pixel in last_edge:
-        edge_neighbors = edge_neighbors | set(Pixel.get(pixel).neighborsfromdict(alldict)) # - set(blob2d.edge_pixels)
-    edge_neighbors = edge_neighbors - last_edge
-    bloomstage = livepix
-    livepix = livepix - edge_neighbors
-
-    b2ds = Blob2d.pixels_to_blob2ds(bloomstage, parentID=blob2d.id, recursive_depth=blob2d.recursive_depth+1, modify=False) # NOTE making new pixels, rather than messing with existing
-
-    # depth_offset = ''
-    # for d in range(depth):
-    #     depth_offset += '-'
-
-    for num,b2d in enumerate(b2ds):
-        b2d = Blob2d.get(b2d)
-        Blob2d.all[blob2d.id].pixels = list(set(Blob2d.all[blob2d.id].pixels) - set(b2d.pixels))
-
-    # print(depth_offset + ' After being bloomed the parent is:' + str(Blob2d.get(blob2d.id)))
-    if (len(blob2d.pixels) < len(Blob2d.get(blob2d.id).pixels)):
-        warn('Gained pixels!!!! (THIS SHOULD NEVER HAPPEN!)')
-
-    if depth < max_depth:
-        if len(livepix) > 1:
-            for b2d in b2ds:
-                bloomInwards(Blob2d.get(b2d), depth=depth+1)
-
-
 # @profile
 def bloom_b3ds(blob3dlist):
 
     allb2ds = [Blob2d.get(b2d) for b3d in blob3dlist for b2d in b3d.blob2ds]
-
     t_start_bloom = time.time()
     num_unbloomed = len(allb2ds)
-    prev_count = len(Blob2d.all)
     for bnum, blob2d in enumerate(allb2ds): # HACK need to put the colon on the right of start_offset
         print('Blooming b2d: ' + str(bnum) + '/' + str(len(allb2ds)) + ' = ' + str(blob2d) )
-        bloomInwards(blob2d) # NOTE will have len 0 if no blooming can be done
-        # rel = blob2d.getrelated(include_self=True)
-        # plotBlob2ds(rel)
+        blob2d.bloomInwards() # NOTE will have len 0 if no blooming can be done
     print('To complete all blooming:')
     printElapsedTime(t_start_bloom, time.time())
-    print('Before blooming there were: ' + str(num_unbloomed) + ' b2ds, there are now ' + str(len(Blob2d.all)))
-    #Note that at this point memory usage is 3.4gb, with 12.2K b2ds
-
-
-
-def explorememoryusage(blob3dlist):
-    # Note: Sys.getsizeof() is in bytes
-    # slide = slides[0]
-
-    dir = 'pickle_sizes/'
-    for b3d_num, b3d in enumerate(blob3dlist):
-
-        print('B3d:' + str(b3d_num) + '/' + str(len(blob3dlist)))
-        b3d_dict = {'b3d' : b3d}
-        pickle.dump(b3d_dict, open(dir + 'b3d/b3d_size' + str(b3d_num) + '.pickle', "wb"))
-        for b2d_num, b2d in enumerate(b3d.blob2ds):
-            b2d = Blob2d.get(b2d)
-            b2d_dict = {'b2d' : b2d}
-            pickle.dump(b2d_dict, open(dir + 'b2d/b2d_size' + str(b3d_num) + '_' + str(b2d_num) + '.pickle', "wb"))
-            for p_num, pixel in enumerate(b2d.pixels):
-                pixel = Pixel.get(pixel)
-                pixel_dict = {'pixel' : pixel}
-                pickle.dump(pixel_dict, open(dir + 'pixel/pixel_size' + str(b3d_num) + '_' + str(b2d_num) + '_' + str(p_num) + '.pickle', "wb"))
-
+    print('Before blooming there were: ' + str(num_unbloomed) + ' b2ds contained within b3ds, there are now ' + str(len(Blob2d.all)))
 
 # @profile
 def main():
 
-    # showColors()
-    print('Current recusion limit:' + str(sys.getrecursionlimit()) + ' updating to:' + str(recursion_limit))
+    print('Current recusion limit: ' + str(sys.getrecursionlimit()) + ' updating to: ' + str(recursion_limit))
     sys.setrecursionlimit(recursion_limit) # HACK
-
     if test_instead_of_data:
-         picklefile = 'All_test_redone_with_maximal_blooming.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
+         picklefile = 'All_test_pre_b3d_tree.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
     else:
-        picklefile = 'All_data_redone_1-5_with_maximal_blooming.pickle'
+        picklefile = 'All_data_pre_b3d_tree.pickle'
     if not dePickle:
         setMasterStartTime()
         if test_instead_of_data:
@@ -269,27 +111,24 @@ def main():
             dir = DATA_DIR
             extension = 'Swell*.tif'
         all_images = glob.glob(dir + extension)
-
         all_slides = []
-
         t_gen_slides_0 = time.time()
         for imagefile in all_images:
             all_slides.append(Slide(imagefile)) # Pixel computations are done here, as the slide is created.
         # Note now that all slides are generated, and blobs are merged, time to start mapping blobs upward, to their possible partners
 
-        print('Total # of non-zero pixels: ' + str(Pixel.total_pixels) + ', total number of pixels kept:' + str(len(Pixel.all)))
+        print('Total # of non-zero pixels: ' + str(Pixel.total_pixels) + ', total number of pixels after filtering: ' + str(len(Pixel.all)))
         print('Total # of blob2ds: ' + str(len(Blob2d.all)))
-        print('To generate all slides:')
+        print('To generate all slides, ', end='')
         printElapsedTime(t_gen_slides_0, time.time())
         print("Pairing all blob2ds with their potential partners in adjacent slides", flush=True)
         Slide.setAllPossiblePartners(all_slides)
-
         print("Setting shape contexts for all blob2ds",flush=True)
         Slide.setAllShapeContexts(all_slides)
         t_start_munkres = time.time()
         stitchlist = Pairing.stitchAllBlobs(all_slides, debug=False) # TODO change this to work with a list of ids or blob2ds
         t_finish_munkres = time.time()
-        print('Done stitching together blobs, total time for all: ', end='')
+        print('Done stitching together blobs, ', end='')
         printElapsedTime(t_start_munkres, t_finish_munkres)
         print('About to combine 2d blobs into 3d', flush=True)
         list3ds = []
@@ -303,29 +142,23 @@ def main():
             blob3dlist.append(Blob3d(blob2dlist))
         print('There are a total of ' + str(len(blob3dlist)) + ' blob3ds')
         Blob3d.tagBlobsSingular(blob3dlist)
-
         print('Pickling the results of stitching:')
-        doPickle2(blob3dlist, picklefile)
-        print('Plotting all b3ds that were generated:')
-        plotBlob3ds(blob3dlist, color='blob')
-        print('Plotting all b2ds that were generated:')
-        plotBlob2ds(Blob2d.all.values(), ids=(len(Blob2d.all) < 500)) # Only show ids if less that 500 blob2ds
-
+        save(blob3dlist, picklefile)
 
     else:
 
 
         if False:
-            blob3dlist = unPickle2(picklefile) # DEBUG DEBUG DEBUG
+            blob3dlist = load(picklefile) # DEBUG DEBUG DEBUG
             bloom_b3ds(blob3dlist)
-            doPickle2(blob3dlist, picklefile + '_BLOOMED')
-
+            save(blob3dlist, picklefile + '_BLOOMED')
+            #Fall through and do computations
         else:
             if False:
-                blob3dlist = unPickle2(picklefile + '_BLOOMED') # DEBUG DEBUG DEBUG
+                blob3dlist = load(picklefile + '_BLOOMED') # DEBUG DEBUG DEBUG
                 # Fall through to do computations below
             else:
-                blob3dlist = unPickle2(picklefile + '_BLOOMED_stitched') # DEBUG DEBUG DEBUG
+                blob3dlist = load(picklefile + '_BLOOMED_stitched') # DEBUG DEBUG DEBUG
                 chosen_depths = [1,2,3,4]
                 chosen_b3ds = [b3d for b3d in blob3dlist if b3d.recursive_depth in chosen_depths]
                 # for b3d in chosen_b3ds:
@@ -338,28 +171,29 @@ def main():
                 #     print(b3d)
 
 
-                print('Plotting entire blob3dslist 1')
+                print('Plotting entire blob3dslist by depth')
                 plotBlob3ds(blob3dlist, color='depth')
-                print('Plotting entire blob3dslist 2')
+                print('Plotting entire blob3dslist blob')
                 plotBlob3ds(blob3dlist, color='blob')
-                print('Plotting chosen b2ds 1')
+                print('Plotting chosen b3ds by blob')
                 plotBlob3ds(chosen_b3ds, color='blob')
+                print('Plotting chosen b3ds by depth')
+
                 plotBlob3ds(chosen_b3ds, color='depth')
                 # print('Plotting chosen b2ds 2')
                 # plotBlob3ds(chosen_b3ds, color='depth')
 
-                plotBlob2ds(Blob2d.all.values())
+                plotBlob2ds(Blob2d.all.values()) # TODO this is much faster, write a wrapper already!
+                print('Listing all b3ds:')
+                for b3d in blob3dlist:
+                    print(b3d)
+
                 exit()
 
     # Time to try to pair together inner b2ds
-
-    # depth_0 = [b2d.id for b2d in Blob2d.all.values() if b2d.recursive_depth == 0]
-    # print(len(depth_0))
-
     if dePickle:
 
         max_avail_depth = max(b2d.recursive_depth for b2d in Blob2d.all.values())
-
         for cur_depth in range(max_avail_depth)[1:]: # Skip those at depth 0
             print('CUR DEPTH = ' + str(cur_depth))
             depth = [b2d.id for b2d in Blob2d.all.values() if b2d.recursive_depth == cur_depth]
@@ -375,11 +209,7 @@ def main():
                 print('  Height:' + str(height_val))
                 for b2d in h:
                     b2d = Blob2d.all[b2d]
-                    # print('   Setting partners for:' + str(b2d))
                     b2d.setPossiblePartners(ids_by_height[height_val + 1])
-                    # print('   Set possible partners = :' + str(b2d.possible_partners))
-                # print('  DB set possible partners for b2ds at height')
-                # plotBlob2ds([Blob2d.get(b2d) for b2d in h])
 
             for h in ids_by_height:
                 for b2d in h:
@@ -446,7 +276,7 @@ def main():
             all_gen_b3ds += depth_offset_b3ds
         print('Plotting all b3ds that were just generated')
         plotBlob3ds(all_gen_b3ds, color='blob')
-        doPickle2(all_gen_b3ds + blob3dlist, picklefile + '_BLOOMED_stitched')
+        save(all_gen_b3ds + blob3dlist, picklefile + '_BLOOMED_stitched')
 
 
 

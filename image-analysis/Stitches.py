@@ -5,7 +5,7 @@ from myconfig import *
 from serodraw import debug, progressBarUpdate
 from Blob2d import Blob2d
 import time
-
+from Slide import printElapsedTime
 from Pixel import Pixel
 class Pairing:
     """
@@ -164,7 +164,9 @@ class Pairing:
         pairlist = []
         if not quiet:
             print('Beginning to stitch together blobs')
+        t_start_stitching = time.time()
         for slide_num, slide in enumerate(slidelist):
+            t_start_stitching_this_slide = time.time()
             print('Stitching slide #' + str(slide_num) + '/' + str(len(slidelist)) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds')
             last_print = 0
             for b_num, blob1 in enumerate(slide.blob2dlist):
@@ -191,7 +193,10 @@ class Pairing:
                     elif debug:
                         print('    -Blobs not connected')
             if quiet:
-                print('.', flush=True)
+                print('. ', flush=True, end='')
+                printElapsedTime(t_start_stitching_this_slide, time.time())
+        print('\nTo stitch all slides:')
+        printElapsedTime(t_start_stitching, time.time())
         return pairlist
 
     @staticmethod

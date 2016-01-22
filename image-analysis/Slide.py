@@ -1,29 +1,12 @@
-from Pixel import *
-import sys
 import collections
-# from serodraw import *
-# from serodraw import setglobaldims
-from myconfig import *
-from Blob2d import *
+from Blob2d import Blob2d
 import numpy as np
-
 from PIL import Image
-# import numpy as np
 import time
 import math
+from Pixel import Pixel
+from myconfig import *
 
-
-
-def setglobaldims(x, y, z):
-    def setserodims(x, y, z):
-        global xdim
-        global ydim
-        global zdim
-        xdim = int(x)
-        ydim = int(y)
-        zdim = int(z)
-    setserodims(x, y, z) # Need both calls, one to set the global vars in each file, otherwise they don't carry
-    setseerodrawdims(x, y, z) # Even when using 'global'; one method needs to be in each file
 
 class Slide:
     ''''
@@ -105,17 +88,13 @@ class Slide:
         for pixel in self.alive_pixels:
             alive_pixel_array[pixel.x][pixel.y] = pixel
 
-
-
-        (derived_ids, derived_count, num_ids_equiv) = self.assignPixelsToIds(self.alive_pixels, not self.isSubslide) # Note only printing when primary slide
+        (derived_ids, derived_count, num_ids_equiv) = self.assignPixelsToIds(self.alive_pixels, False) # Note only printing when primary slide
 
         counter = collections.Counter(derived_ids)
         total_ids = len(counter.items())
         if not quiet:
-            print('There were: ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(total_ids) + ' blobs.')
+            print('There were ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(total_ids) + ' blobs.')
         most_common_ids = counter.most_common()# HACK Grabbing all for now, +1 b/c we start at 0 # NOTE Stored as (id, count)
-
-        print('Getting id lists, remapping is:' + str(remap_ids_by_group_size))
 
         id_lists = getIdLists(self.alive_pixels, remap=remap_ids_by_group_size, id_counts=most_common_ids) # Hack, don't ned to supply id_counts of remap is false; just convenient for now
         self.blob2dlist = [] # Note that blobs in the blob list are ordered by number of pixels, not id, this makes merging faster
@@ -124,6 +103,7 @@ class Slide:
             newb2d = Blob2d(blobslist, self.height)
             self.blob2dlist.append(newb2d.id)
 
+        # TODO can remove this...?
         # Note that we can now sort the Blob2d.equivalency_set b/c all blobs have been sorted
         self.equivalency_set = sorted(self.equivalency_set)
         if not self.isSubslide:
@@ -157,30 +137,18 @@ class Slide:
                 equiv_sets.append(superset)
 
         # Sets to lists for indexing,
-        # Note that in python, sets are always unordered, and so a derivative list must be sorted.
-
-        #db_blob2d_list = [Blob2d.get(b2d) for b2d in self.blob2dlist]
-
-        #print('DB working on slide, w/ blob2list: ' + str(db_blob2d_list))
-
         for (index,stl) in enumerate(equiv_sets): # TODO this can be changed to be faster after b2ds are statically indexed
             equiv_sets[index] = sorted(stl) # See note
         for blob in self.blob2dlist: # NOTE Merging sets
             for equivlist in equiv_sets:
                 if blob != equivlist[0] and blob in equivlist: # Not the base and in the list
-                    # blob.updateid(equivlist[0])
                     Blob2d.updateid(blob , equivlist[0])
 
-
-
-
-        print('Calling mergeblobs on: ' + str(len(self.blob2dlist)) + ' blob2ds')
+        print('Merging ' + str(len(self.blob2dlist)) + ' blob2ds from this slide')
         self.blob2dlist = Blob2d.mergeblobs(self.blob2dlist) # NOTE, by assigning the returned Blob2d list to a new var, the results of merging can be demonstrated
-        self.edge_pixels = []
         edge_lists = []
         for (blobnum, blobslist) in enumerate(self.blob2dlist):
             edge_lists.append(Blob2d.get(self.blob2dlist[blobnum]).edge_pixels)
-            self.edge_pixels.extend(Blob2d.get(self.blob2dlist[blobnum]).edge_pixels) # TODO remove
         if not quiet:
             self.tf = time.time()
             printElapsedTime(self.t0, self.tf)
@@ -198,7 +166,6 @@ class Slide:
                     for above_slide in slides_by_height[height + 1]:
                         Blob2d.get(blob).setPossiblePartners(above_slide.blob2dlist)
 
-
     @staticmethod
     def setAllShapeContexts(slidelist):
         # Note Use the shape contexts approach from here: http://www.cs.berkeley.edu/~malik/papers/mori-belongie-malik-pami05.pdf
@@ -207,9 +174,8 @@ class Slide:
             for blob in slide.blob2dlist:
                 Blob2d.get(blob).setShapeContexts(36)
 
-
     def getNextBlobId(self):
-        # Starts at 0
+        # Starts at 0, of course!!
         self.id_num += 1
         return self.id_num - 1 # this -1 is so that id's start at zero
 
@@ -295,10 +261,7 @@ class Slide:
                 if debug_pixel_ops:
                     print('****Pixel:' + str(pixel) + ' already had an id when the cursor reached it')
             if pixel.blob_id == -1: # Didn't manage to derive an id_num from the neighboring pixels
-                # FIXME
                 pixel.blob_id = len(pixel_id_groups) # This is used to assign the next id to a pixel, using an id that is new
-                # FIXME
-
                 pixel_id_groups.append([pixel])
                 derived_ids.append(pixel.blob_id) # Todo should refactor 'derived_ids' to be more clear
                 equivalent_labels.append(pixel.blob_id) # Map the new pixel to itself until a low equivalent is found
@@ -310,7 +273,6 @@ class Slide:
         id_to_reuse = []
 
         maxid = max(pixel.blob_id for pixel in pixel_list)
-        # for id in range(self.id_num): # NOTE CHANGED 12/9/15 to allow compatibility without needing slide # TODO
 
         for id in range(maxid):
             if id != equivalent_labels[id]:
@@ -331,19 +293,19 @@ class Slide:
                 print('New equiv labels:' + str(equivalent_labels))
 
         for pixel in pixel_list:
-            # print('DB:' + str(pixel.blob_id) + ' len el:' + str(len(equivalent_labels)))
             pixel.blob_id = equivalent_labels[pixel.blob_id]
         for id in range(len(derived_ids)):
             derived_ids[id] = equivalent_labels[derived_ids[id]]
 
         removed_id_count = 0
         for id in range(len(equivalent_labels)):
-            if equivalent_labels[id] != id: # Yields about a 10% speed increase vs in, however yielded less b2ds... # HACK psoe, results in 20 less b2ds in result on all dataset vs using  'if id not in equivalent_labels'
+            # TODO FIXME
+            # if equivalent_labels[id] != id: # Yields about a 10% speed increase vs in, however yielded less b2ds... # HACK psoe, results in 20 less b2ds in result on all dataset vs using  'if id not in equivalent_labels'
+            if id not in equivalent_labels: # Yields about a 10% speed increase vs in, however yielded less b2ds... # HACK psoe, results in 20 less b2ds in result on all dataset vs using  'if id not in equivalent_labels'
+            # TODO FIXME
                 removed_id_count += 1
         if print_info:
             print('There were ' + str(removed_id_count) + ' removed ids')
-
-        # TODO: See if we can reverse the adjusting of the actual pixel ids until after the equivalent labels are cleaned up, to reflect the merged labels
 
         return (derived_ids, derived_count, removed_id_count)
 
@@ -415,15 +377,9 @@ def filterSparsePixelsFromList(listin, local_dim_tuple, quiet=False):
         print('There are ' + str(len(listin) - len(filtered_pixels)) + ' dead pixels & ' + str(len(filtered_pixels)) + ' still alive')
     return filtered_pixels
 
-def setseerodrawdims(x,y,z):
-    global xdim
-    global ydim
-    global zdim
-    xdim = x
-    ydim = y
-    zdim = z
 
-def  printElapsedTime(t0, tf, pad=''): # HACK FIXME REMOVE THIS AND IMPORT CORRECTLY
+
+def printElapsedTime(t0, tf, pad=''):
     temp = tf - t0
     m = math.floor(temp / 60)
     plural_minutes = ''

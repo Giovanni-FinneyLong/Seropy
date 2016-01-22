@@ -4,6 +4,7 @@ import math
 from Pixel import Pixel
 import copy
 
+
 if mayPlot:
     from scipy import misc as scipy_misc
 
@@ -334,7 +335,32 @@ class Blob2d:
 
     __repr__ = __str__
 
+    def bloomInwards(self, depth=0):
+        livepix = set(set(self.pixels) - set(self.edge_pixels))
+        last_edge = set(self.edge_pixels)
 
+        alldict = Pixel.pixelidstodict(livepix)
+        edge_neighbors = set()
+        for pixel in last_edge:
+            edge_neighbors = edge_neighbors | set(Pixel.get(pixel).neighborsfromdict(alldict)) # - set(blob2d.edge_pixels)
+        edge_neighbors = edge_neighbors - last_edge
+        bloomstage = livepix
+        livepix = livepix - edge_neighbors
+
+        b2ds = Blob2d.pixels_to_blob2ds(bloomstage, parentID=self.id, recursive_depth=self.recursive_depth+1, modify=False) # NOTE making new pixels, rather than messing with existing
+
+        for num,b2d in enumerate(b2ds):
+            b2d = Blob2d.get(b2d)
+            Blob2d.all[self.id].pixels = list(set(Blob2d.all[self.id].pixels) - set(b2d.pixels))
+
+        # print(depth_offset + ' After being bloomed the parent is:' + str(Blob2d.get(blob2d.id)))
+        if (len(self.pixels) < len(Blob2d.get(self.id).pixels)):
+            warn('Gained pixels!!!! (THIS SHOULD NEVER HAPPEN!)')
+
+        if depth < max_depth:
+            if len(livepix) > 1:
+                for b2d in b2ds:
+                    Blob2d.get(b2d).bloomInwards(depth=depth+1)
 
     def getconnectedblob2ds(self, debug=False):
         '''

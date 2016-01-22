@@ -8,3 +8,11 @@ Installation instructions:
 	To make sure, you can run 'pip -V', and confirm that the python version is 3.x. Alternatively, you can run 'which pip', and confirm that the result is a subdirectory of anaconda. 
 	Otherwise, use the full path 'C:\<directory sequence>\anaconda3\pip.py install Munkres'
 -Now install the visualization library Vispy, with 'conda install vispy'. You can expect a few other items to be installed as well.
+-Now clone the git repo
+	The recommended command is 'git clone https://gfinneylong@bitbucket.org/gfinneylong/serotonin.git'
+	Note that this will do a HTTPS clone, which means re-entering username & password on each git interaction
+-copy the file 'config.py' into a new file 'myconfig.py'
+	Modify any flags or global variables within this file; it is reloaded each time sero.py is run
+	This includes setting up the involved directories. Currently these will not be created if they don't exist
+-Run with 'python sero.py'
+	

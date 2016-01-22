@@ -3,20 +3,20 @@ __author__ = 'gio'
 # These functions have been separated for convenience; they are higher volume and lower maintenance.
 
 from myconfig import *
+import numpy as np
+import time
+import math
+import pdb
+import os
+from Blob2d import Blob2d
+from Pixel import Pixel
 
 
+current_path = os.getcwd()
 if mayPlot:
-    import matplotlib.colors as colortools
-    from matplotlib import animation
-    import matplotlib.pylab as plt
-    # import vispy.mpl_plot as plt
-    import matplotlib.cm as cm
-    from vispy import plot as vp
     import vispy.io
     import vispy.scene
     from vispy.scene import visuals
-    from vispy import gloo
-    #HACK
     array_list = []
     frame_num = 0
     scatter = visuals.Markers()
@@ -32,26 +32,13 @@ if mayPlot:
     canvas = None
     view = None
 
-import numpy as np
-import time
-import math
-from sklearn.preprocessing import normalize
-import subprocess
-import pdb
-import os
-
-from Blob2d import Blob2d # Interestingly, importing Blob2d directly causes a string list function call error
-from Pixel import Pixel
-
 def vispy_info():
     import vispy
     print(vispy.sys_info)
 
-
 def vispy_tests():
     import vispy
     vispy.test()
-
 
 if mayPlot:
     colors = vispy.color.get_color_names() # ALl possible colors
@@ -149,8 +136,6 @@ if mayPlot:
 
 
 
-# NOTE  Setting up global vars:
-current_path = os.getcwd()
 
 def warn(string):
     print('\n>\n->\n--> WARNING: ' + str(string) + ' <--\n->\n>')
@@ -432,9 +417,12 @@ def contrastSaturatedBlob2ds(blob2ds, minimal_edge_pixels=350):
     :param minimal_edge_pixels:
     :return:
     '''
+    import matplotlib.pylab as plt
+    from sklearn.preprocessing import normalize
+
     for b2d_num, blob2d in enumerate(blob2ds):
         print('Start on blob2d: ' + str(b2d_num) + ' / ' + str(len(blob2ds)) + ' which has ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
-        if len(blob2d.edge_pixels) > minimal_edge_pixels: # HACK FIXME, using edge to emphasize skinny or spotty blob2d's
+        if len(blob2d.edge_pixels) > minimal_edge_pixels: # using edge to emphasize skinny or spotty blob2d's
             before = blob2d.edgeToArray()
             saturated = blob2d.gen_saturated_array()
             normal_before = normalize(before)
@@ -876,6 +864,8 @@ def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=
 
 def showSlide(slide):
     # HACK
+    import matplotlib.pylab as plt
+
     if len(slide.alive_pixels) > 0:
         maxx = max(b2d.maxx for b2d in slide.blob2dlist)
         maxy = max(b2d.maxy for b2d in slide.blob2dlist)
@@ -899,47 +889,6 @@ def showBlob2d(b2d):
         array[pixel.x - b2d.minx][pixel.y - b2d.miny] = pixel.val
     plt.imshow(array, cmap='rainbow', interpolation='none')
     plt.colorbar()
-    plt.show()
-
-def plotSlides(slide_list):
-    colors2 = plt.get_cmap('gist_rainbow')
-    num_slides = len(slide_list)
-    # cNorm = colortools.Normalize(vmin=0, vmax=num_slides-1)
-    # scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
-    fig = plt.figure(figsize=(25,15)) # figsize=(x_inches, y_inches), default 80-dpi
-    plt.clf()
-    ax = fig.add_subplot(111, projection='3d')
-    # ax.set_color_cycle([scalarMap.to_rgba(i) for i in range(num_clusters)])
-
-    ax.set_xlim([0, xdim])
-    ax.set_ylim([ydim, 0])
-    ax.set_zlim([0, num_slides])
-    ax.view_init(elev=10., azim=0) #There is also a dist which can be set
-    ax.dist = 8 # Default is 10, 0 is too low..
-
-    for (slide_num, slide) in enumerate(slide_list):
-        print('Plotting slide:' + str(slide_num) + '/' + str(len(slide_list)) + '  @' + str(time.ctime()))
-        cluster_lists = []
-        num_blobs = len(slide.blob2dlist)
-        cNorm = colortools.Normalize(vmin=0, vmax=num_blobs-1) # NOTE this makes a new color cycle for each slide
-        scalarMap = cm.ScalarMappable(norm=cNorm, cmap=colors2)
-        x = []
-        y = []
-        # print(len(slide.blob2dlist))
-        # print(slide.blob2dlist)
-
-
-        for (blob_num, blob) in enumerate(slide.blob2dlist):
-            print(' Plotting blob: ' + str(blob_num) + '/' + str(len(slide.blob2dlist)))
-            for pixel in blob.edge_pixels: # hack ONLY PLOTTING EDGES
-                x.append(pixel.x)
-                y.append(pixel.y)
-            ax.scatter(x, y, slide_num, c=scalarMap.to_rgba(blob_num))
-    print('Making tight layout @' + str(time.ctime()))
-    fig.tight_layout()
-    # print('Now saving rendering @' + str(time.ctime()))
-    # plt.savefig("3D.png")
-    print('Now displaying rendering @' + str(time.ctime()))
     plt.show()
 
 
