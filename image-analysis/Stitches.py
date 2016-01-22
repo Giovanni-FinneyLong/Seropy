@@ -2,10 +2,11 @@ import math
 import numpy as np
 from munkres import Munkres
 from myconfig import *
-from serodraw import debug, progressBarUpdate
+from serodraw import progressBarUpdate
+from util import debug
 from Blob2d import Blob2d
 import time
-from Slide import printElapsedTime
+from util import printElapsedTime
 from Pixel import Pixel
 class Pairing:
     """
@@ -149,17 +150,6 @@ class Pairing:
 
     @staticmethod
     def stitchAllBlobs(slidelist, quiet=True, debug=False):
-
-        def  printElapsedTime(t0, tf, pad=''): # HACK FIXME REMOVE THIS AND IMPORT CORRECTLY
-            temp = tf - t0
-            m = math.floor(temp / 60)
-            plural_minutes = ''
-            if m > 1:
-                plural_minutes = 's'
-            if m > 0:
-                print(pad + 'Elapsed Time: ' + str(m) + ' minute' + str(plural_minutes) + ' & %.0f seconds' % (temp % 60))
-            else:
-                print(pad + 'Elapsed Time: %.2f seconds' % (temp % 60))
 
         pairlist = []
         if not quiet:

@@ -6,7 +6,7 @@ import time
 import math
 from Pixel import Pixel
 from myconfig import *
-
+from util import printElapsedTime
 
 class Slide:
     ''''
@@ -377,16 +377,4 @@ def filterSparsePixelsFromList(listin, local_dim_tuple, quiet=False):
         print('There are ' + str(len(listin) - len(filtered_pixels)) + ' dead pixels & ' + str(len(filtered_pixels)) + ' still alive')
     return filtered_pixels
 
-
-
-def printElapsedTime(t0, tf, pad=''):
-    temp = tf - t0
-    m = math.floor(temp / 60)
-    plural_minutes = ''
-    if m > 1:
-        plural_minutes = 's'
-    if m > 0:
-        print(pad + 'Elapsed Time: ' + str(m) + ' minute' + str(plural_minutes) + ' & %.0f seconds' % (temp % 60))
-    else:
-        print(pad + 'Elapsed Time: %.2f seconds' % (temp % 60))
 

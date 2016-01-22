@@ -32,13 +32,7 @@ if mayPlot:
     canvas = None
     view = None
 
-def vispy_info():
-    import vispy
-    print(vispy.sys_info)
 
-def vispy_tests():
-    import vispy
-    vispy.test()
 
 if mayPlot:
     colors = vispy.color.get_color_names() # ALl possible colors
@@ -137,8 +131,6 @@ if mayPlot:
 
 
 
-def warn(string):
-    print('\n>\n->\n--> WARNING: ' + str(string) + ' <--\n->\n>')
 
 def showColors(canvas_size=(800,800)):
     global canvas
@@ -238,7 +230,7 @@ def plotPixelLists(pixellists, canvas_size=(800, 800)): # NOTE works well to sho
 
 def isInside(pixel_in, blob2d):
     #NOTE this requires that the blob2d has pixels and edge_pixels fully populated
-    if pixel_in in blob2d.pixels:
+    if pixel_in in blob2d.pixels: # TODO update with a recursive type call
         if pixel_in in blob2d.edge_pixels:
             return False
         else:
@@ -246,11 +238,8 @@ def isInside(pixel_in, blob2d):
     else:
         return False
     # May need to optimize this, not sure how slow the above is
-
     # NOTE will be able to sort this later, to effectively send lines in two directions horizontally
 
-def debug():
-    pdb.set_trace()
 
 def progressBarUpdate(value, max, min=0, last_update=0, steps=10):
     ''' # TODO not functional
@@ -457,9 +446,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
     global view
     global colors
 
-    assert coloring.lower() in ['blob2d', '', 'depth'] + colors
-
-    # print('Plotting the blob2ds: ' + str(blob2ds))
+    assert coloring.lower() in ['blob2d', '', 'depth', 'blob3d']
 
     all_b2ds_are_ids = all(type(b2d) is int for b2d in blob2ds)
     all_b2d_are_blob2ds = all(type(b2d) is Blob2d for b2d in blob2ds)
@@ -527,6 +514,33 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
             buf = visuals.Markers()
             buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
             view.add(buf)
+    elif coloring == 'blob3d':
+        edge_pixel_arrays = [] # One array per 3d blob
+        max_b3d_id = max(b2d.b3did for b2d in blob2ds)
+        b3d_lists = [[] for i in range(max_b3d_id + 1)]
+        for b2d in blob2ds:
+            b3d_lists[b2d.b3did].append(b2d)
+        b3d_lists = [b3d_list for b3d_list in b3d_lists if len(b3d_list)]
+        print('Total number of b3ds from b2ds:' + str(len(b3d_lists)))
+
+        markers_per_color = [0 for i in range(min(len(colors), len(b3d_lists)))]
+        offsets = [0] * min(len(colors), len(b3d_lists))
+        for blobnum, b3d_list in enumerate(b3d_lists):
+            markers_per_color[blobnum % len(markers_per_color)] += sum([len(b2d.edge_pixels) for b2d in b3d_list])
+
+        for num,i in enumerate(markers_per_color):
+            edge_pixel_arrays.append(np.zeros([i, 3]))
+
+        for blobnum, b3d_list in enumerate(b3d_lists):
+            index = blobnum % len(markers_per_color)
+            for p_num, pixel in enumerate(Pixel.get(pixel) for b2d in b3d_list for pixel in b2d.edge_pixels):
+                edge_pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * zdim)]
+            offsets[index] += sum([len(b2d.edge_pixels) for b2d in b3d_list])
+        for color_num, edge_array in enumerate(edge_pixel_arrays):
+            buf = visuals.Markers()
+            buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
+            view.add(buf)
+
     else:
         # DEPTH # TODO TODO TODO FIX THIS, issue when plotting with multiple depths (plotting d0 works)
         max_depth = max(blob2d.recursive_depth for blob2d in blob2ds if hasattr(blob2d, 'recursive_depth'))
@@ -863,15 +877,12 @@ def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=
 
 
 def showSlide(slide):
-    # HACK
     import matplotlib.pylab as plt
-
     if len(slide.alive_pixels) > 0:
         maxx = max(b2d.maxx for b2d in slide.blob2dlist)
         maxy = max(b2d.maxy for b2d in slide.blob2dlist)
         minx = min(b2d.minx for b2d in slide.blob2dlist)
         miny = min(b2d.miny for b2d in slide.blob2dlist)
-
         array = np.zeros([maxx - minx + 1, maxy - miny + 1])
         for pixel in slide.alive_pixels:
             array[pixel.x - minx][pixel.y - miny] = pixel.val
@@ -882,6 +893,7 @@ def showSlide(slide):
         print('Cannot show slide with no pixels:' + str(slide))
 
 def showBlob2d(b2d):
+    import matplotlib.pylab as plt
     width = b2d.maxx - b2d.minx + 1
     height = b2d.maxy - b2d.miny + 1
     array = np.zeros([width, height])

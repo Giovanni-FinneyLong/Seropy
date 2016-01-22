@@ -1,7 +1,9 @@
-from serodraw import plotBlob3d, showSlide, showBlob2d, plotBlob2ds, debug
+from serodraw import plotBlob3d, showSlide, showBlob2d, plotBlob2ds
 from Blob2d import Blob2d
 from Pixel import Pixel
-from serodraw import warn
+from util import warn
+from util import debug
+from myconfig import *
 
 class Blob3d:
     '''
@@ -15,7 +17,9 @@ class Blob3d:
         Blob3d.total_blobs += 1
         self.blob2ds = blob2dlist          # List of the blob 2ds used to create this blob3d
         # Now find my pairings
-        self.isSubblob = subblob # T/F
+        self.isSubblob = (subblob is not False)# T/F
+        if self.isSubblob:
+            self.parentb3d = subblob
         self.pairings = []
         self.lowslideheight = min(Blob2d.get(blob).height for blob in self.blob2ds)
         self.highslideheight = max(Blob2d.get(blob).height for blob in self.blob2ds)
@@ -106,7 +110,8 @@ class Blob3d:
         :param filename: The base filename to save, will have numerical suffix
         :return:
         '''
-        # slice_arrays = [np.zeros((self.maxx - self.minx + 1, self.maxy - self.miny + 1))] * (self.highslideheight - self.lowslideheight + 1) # HACK on +1
+        from scipy import misc as scipy_misc
+        import numpy as np
         slice_arrays = []
         for i in range(self.highslideheight - self.lowslideheight + 1):
             slice_arrays.append(np.zeros((self.maxx - self.minx + 1, self.maxy - self.miny + 1)))
