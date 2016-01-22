@@ -3,10 +3,7 @@ import numpy as np
 import math
 from Pixel import Pixel
 import copy
-
-
-if mayPlot:
-    from scipy import misc as scipy_misc
+from util import warn
 
 
 class Blob2d:
@@ -48,18 +45,6 @@ class Blob2d:
         self.id = -1
         self.validateID() # self is added to Blob2d.all dict here
 
-    def getminx(self):
-        return min(Pixel.get(pix).x for pix in self.edge_pixels)
-    def getmaxx(self):
-        return max(Pixel.get(pix).x for pix in self.edge_pixels)
-    def getminy(self):
-        return min(Pixel.get(pix).y for pix in self.edge_pixels)
-    def getmaxy(self):
-        return max(Pixel.get(pix).y for pix in self.edge_pixels)
-    def getavgx(self):
-        return sum(Pixel.get(pix).x for pix in self.edge_pixels) / len(self.edge_pixels)
-    def getavgy(self):
-        return sum(Pixel.get(pix).y for pix in self.edge_pixels) / len(self.edge_pixels)
 
     @staticmethod
     def get(id):
@@ -513,6 +498,7 @@ class Blob2d:
         return arr
 
     def saveImage(self, filename, **kwargs):
+        from scipy import misc as scipy_misc
         array_rep = self.edgeToArray(buffer=0)
         img = scipy_misc.toimage(array_rep, cmin=0.0, cmax=255.0)
         savename = FIGURES_DIR + filename

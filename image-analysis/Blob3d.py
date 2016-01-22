@@ -1,4 +1,3 @@
-from serodraw import plotBlob3d, showSlide, showBlob2d, plotBlob2ds
 from Blob2d import Blob2d
 from Pixel import Pixel
 from util import warn

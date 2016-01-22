@@ -1,5 +1,4 @@
 __author__ = 'gio'
-
 # RENAME THIS FILE 'myconfig.py'; this file is a template
 '''
   ____               _   _            _
@@ -47,14 +46,14 @@ minimal_nonzero_neighbors = 2 # The minimal amount of non-zero adjacent pixels a
                               # 0 = no filter
                               # Recommended = 2
 
-z_compression = 1
-    # A value in the range of (0, 10), which multiplies the spacing between the slides.
-    # A value of 2, double the separation between slides when plotted, .5 halves it
-    # The upper bound is to prevent unreasonable values
+z_compression = 1 # A value in the range of (0, 10), which multiplies the spacing between the slides.
+                  # A value of 2, double the separation between slides when plotted, .5 halves it
+                  # The upper bound is to prevent unreasonable values
 
 slide_portion = 1 # A value in the range of (0,1]
                   # The proportion of each slide to operate over, used to speed up test processing
                   # A value of .5 would mean scanning 1/2 the slide in the x & y directions, resulting in 1/4 the area
+
 
 '''
   _____                           _                          _          _
@@ -69,7 +68,7 @@ slide_portion = 1 # A value in the range of (0,1]
     \_/  \__,_||_|   |_| \__,_||_.__/ |_| \___||___/
 
 '''
-  # These variables are somewhat new, it is recommended that you do not modify them
+# These variables are somewhat new, it is recommended that you do not modify them
 max_pixels_to_stitch = 50 # The max amount of pixels acceptable in EACH pair of slides to be stitched.
                           # Increasing this can greatly increase the amount of time required to stitch large blobs
                           # This is because the optimized Munkres algorithm is O(n^3)
@@ -86,6 +85,8 @@ max_depth = 5 # Max recursive depth when blooming Note:(allows a total of n+2 de
               # Experimental
 minimal_pixel_overlap_to_be_possible_partners = .10 # The minimal portion of area that one of a pair of blob2ds must overlap with the other to be partners
                                                     # Experimental
+
+
 '''
   _____       _      _
  |  ___|___  | |  __| |  ___  _ __  ___
@@ -93,15 +94,21 @@ minimal_pixel_overlap_to_be_possible_partners = .10 # The minimal portion of are
  |  _|| (_) || || (_| ||  __/| |   \__ \
  |_|   \___/ |_| \__,_| \___||_|   |___/
 '''
-
-  FIGURES_DIR = ''
-  DATA_DIR =  ''
-  TEST_DIR = ''
-  IMAGEMAGICK_CONVERT_EXEC = ''
-  PICKLEDIR = '' # Can be relative
-
+FIGURES_DIR = ''
+DATA_DIR =  ''
+TEST_DIR = ''
+IMAGEMAGICK_CONVERT_EXEC = ''
+PICKLEDIR = '' # Can be relative
 
 
+'''
+  ____           __        _
+ / ___|   __ _  / _|  ___ | |_  _   _
+ \___ \  / _` || |_  / _ \| __|| | | |
+  ___) || (_| ||  _||  __/| |_ | |_| |
+ |____/  \__,_||_|   \___| \__| \__, |
+                                |___/
+'''
 assert 0 < z_compression <= 1
 assert 0 < slide_portion <= 1
 assert 1 <= overscan_coefficient <= 2

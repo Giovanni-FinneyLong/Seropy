@@ -312,9 +312,6 @@ class Slide:
     def __str__(self):
         return str('Slide <Id:' + str(self.id_num) + ' Num of Blob2ds:' + str(len(self.blob2dlist)) + '>')
 
-def timeNoSpaces():
-    return time.ctime().replace(' ', '_').replace(':', '-')
-
 def getIdLists(pixels, **kwargs):
     '''
     Returns a list of lists, each of which corresponds to an id. If remapped, the first list is the largest

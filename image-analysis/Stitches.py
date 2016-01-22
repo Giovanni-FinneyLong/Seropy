@@ -2,7 +2,6 @@ import math
 import numpy as np
 from munkres import Munkres
 from myconfig import *
-from serodraw import progressBarUpdate
 from util import debug
 from Blob2d import Blob2d
 import time
