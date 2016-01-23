@@ -105,6 +105,7 @@ def bloom_b3ds(blob3dlist):
     print('Before blooming there were: ' + str(num_unbloomed) + ' b2ds contained within b3ds, there are now ' + str(len(Blob2d.all)))
 
 
+
 # @profile
 def main():
     print('Current recusion limit: ' + str(sys.getrecursionlimit()) + ' updating to: ' + str(recursion_limit))
@@ -156,15 +157,15 @@ def main():
     else:
 
 
-        if False:
+        if True:
             blob3dlist = load(picklefile) # DEBUG DEBUG DEBUG
-            # plotBlob2ds([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds], coloring='blob3d')
-            # plotBlob2ds([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds], coloring='depth')
+            plotBlob2ds([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds], coloring='blob3d')
+            plotBlob2ds([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds], coloring='depth')
             bloom_b3ds(blob3dlist)
             save(blob3dlist, picklefile + '_BLOOMED')
             #Fall through and do computations
         else:
-            if False:
+            if True:
                 blob3dlist = load(picklefile + '_BLOOMED') # DEBUG DEBUG DEBUG
                 # Fall through to do computations below
             else:

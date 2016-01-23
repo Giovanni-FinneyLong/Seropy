@@ -10,8 +10,30 @@ import vispy.io
 import vispy.scene
 from vispy.scene import visuals
 from util import warn
-
 colors = None
+
+
+# TODO sample animation code here: https://github.com/vispy/vispy/blob/master/examples/basics/scene/save_animation.py
+
+
+
+
+class Canvas(vispy.scene.SceneCanvas):
+    def __init__(self, canvas_size=(800,800), title=''):
+        vispy.scene.SceneCanvas.__init__(self, keys='interactive', show=True, size=canvas_size, title=title)
+        self.view = self.central_widget.add_view()
+        camera = vispy.scene.cameras.TurntableCamera(fov=0, azimuth=80, parent=self.view.scene, distance=1, elevation=-55)
+        self.axis = visuals.XYZAxis(parent=self.view.scene)
+        self.view.camera = camera
+        self.show()
+    def on_mouse_press(self, event):
+        """Pan the view based on the change in mouse position."""
+        if event.button == 1:
+            x0, y0 = event.last_event.pos[0], event.last_event.pos[1]
+            x1, y1 = event.pos[0], event.pos[1]
+            print (x1,y1)
+            # print (self.view.scene.node_transform(self.canvas_cs).simplified())
+            # print (self.view.scene.node_transform(self.canvas_cs).map((x1,y1)))
 
 def filterAvailableColors():
     global colors
@@ -110,26 +132,19 @@ def filterAvailableColors():
         # openglconfig = vispy.gloo.wrappers.get_gl_configuration() # Causes opengl/vispy crash for unknown reasons
 
 def setupCanvas(canvas_size=(800,800), title=''):
-    canvas = vispy.scene.SceneCanvas(keys='interactive', show=True, size=canvas_size, title=title)
-    view = canvas.central_widget.add_view()
-    view.camera = 'turntable'  # or try 'arcball'
-    view.camera.elevation = -55
-    view.camera.azimuth = 1
-    view.camera.distance = .1
-    axis = visuals.XYZAxis(parent=view.scene)
-    return canvas, view, axis
+    return Canvas()
 
 def showColors(canvas_size=(800,800)):
     global colors
-    canvas, view, axis = setupCanvas(canvas_size)
+    canvas = setupCanvas(canvas_size)
     print(colors)
     print('There are a total of ' + str(len(colors)) + ' colors used for plotting')
     for i,color in enumerate(colors):
-        view.add(visuals.Text(color, pos=np.reshape([0, 0, 1-(i / len(colors))], (1,3)), color=color, bold=True))
+        canvas.view.add(visuals.Text(color, pos=np.reshape([0, 0, 1-(i / len(colors))], (1,3)), color=color, bold=True))
     vispy.app.run()
 
 def plotPixels(pixellist, canvas_size=(800, 800)):
-    canvas, view, axis = setupCanvas(canvas_size)
+    canvas = setupCanvas(canvas_size)
     xmin = min(pixel.x for pixel in pixellist)
     ymin = min(pixel.y for pixel in pixellist)
     xmax = max(pixel.x for pixel in pixellist)
@@ -139,11 +154,11 @@ def plotPixels(pixellist, canvas_size=(800, 800)):
         edge_pixel_array[p_num] = [(pixel.x - xmin) / len(pixellist), (pixel.y - ymin) / len(pixellist), pixel.z /  (z_compression * len(pixellist))]
     marker = visuals.Markers()
     marker.set_data(edge_pixel_array, edge_color=None, face_color=colors[0 % len(colors)], size=8)
-    view.add(marker)
+    canvas.view.add(marker)
     vispy.app.run()
 
 def plotPixelLists(pixellists, canvas_size=(800, 800)): # NOTE works well to show bloom results
-    canvas, view, axis = setupCanvas(canvas_size)
+    canvas = setupCanvas(canvas_size)
     xmin = min(pixel.x for pixellist in pixellists for pixel in pixellist)
     ymin = min(pixel.y for pixellist in pixellists for pixel in pixellist)
     xmax = max(pixel.x for pixellist in pixellists for pixel in pixellist)
@@ -177,7 +192,7 @@ def plotPixelLists(pixellists, canvas_size=(800, 800)): # NOTE works well to sho
         markers = visuals.Markers()
         markers.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
         # view.add(visuals.Markers(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 ))
-        view.add(markers)
+        canvas.view.add(markers)
     axis = visuals.XYZAxis(parent=view.scene)
     vispy.app.run()
 
@@ -264,7 +279,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
     if coloring == '':
         coloring = 'blob2d' # For the canvas title
 
-    canvas, view, axis = setupCanvas(canvas_size,
+    canvas = setupCanvas(canvas_size,
                                      title='plotBlob2ds(' + str(len(blob2ds)) + '-Blob2ds, coloring=' + str(coloring) +
                                            ' canvas_size=' + str(canvas_size) + ') ' + titleNote)
 
@@ -296,7 +311,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
         for color_num, edge_array in enumerate(pixel_arrays):
             buf = visuals.Markers()
             buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
-            view.add(buf)
+            canvas.view.add(buf)
     elif coloring == 'blob3d':
         edge_pixel_arrays = [] # One array per 3d blob
         max_b3d_id = max(b2d.b3did for b2d in blob2ds)
@@ -322,7 +337,9 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
         for color_num, edge_array in enumerate(edge_pixel_arrays):
             buf = visuals.Markers()
             buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
-            view.add(buf)
+
+            #view.add(buf)
+            canvas.view.add(buf) # HACK
 
     else:
         # DEPTH
@@ -346,7 +363,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
             else:
                 buf = visuals.Markers()
                 buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
-                view.add(buf)
+                canvas.view.add(buf)
 
     if ids is True:
         midpoints = []
@@ -361,7 +378,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
                     color = coloring
                 else:
                     color = 'yellow'
-            view.add(visuals.Text(textStr, pos=midpoints[-1], color=color, font_size=15, bold=True))
+            canvas.view.add(visuals.Text(textStr, pos=midpoints[-1], color=color, font_size=15, bold=True))
     if stitches:
         lineendpoints = 0
         for blob2d in blob2ds:
@@ -380,7 +397,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
                         line_index += 2
             stitch_lines = visuals.Line(method=linemethod)
             stitch_lines.set_data(pos=line_locations, connect='segments')
-            view.add(stitch_lines)
+            canvas.view.add(stitch_lines)
     if parentlines:
         lineendpoints = 0
         for num,b2d in enumerate(blob2ds):
@@ -396,12 +413,12 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
                     line_index += 2
             parent_lines = visuals.Line(method=linemethod)
             parent_lines.set_data(pos=line_locations, connect='segments', color='y')
-            view.add(parent_lines)
+            canvas.view.add(parent_lines)
     vispy.app.run()
 
 def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=0, maxcolors=-1, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800, 800), b2d_midpoint_values=0, titleNote=''):
     global colors
-    canvas, view, axis = setupCanvas(canvas_size,
+    canvas = setupCanvas(canvas_size,
                                  title='plotBlob3ds(' + str(len(blob3dlist)) + '-Blob3ds, coloring=' + str(color) + ', canvas_size=' + str(canvas_size) + ') ' + titleNote)
     if maxcolors > 0 and maxcolors < len(colors):
         colors = colors[:maxcolors]
@@ -438,7 +455,7 @@ def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=
         for color_num, edge_array in enumerate(edge_pixel_arrays):
             buf = visuals.Markers()
             buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
-            view.add(buf)
+            canvas.view.add(buf)
 
     elif color == 'singular':
         total_singular_points = 0
@@ -465,8 +482,8 @@ def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=
         multi_markers = visuals.Markers()
         singular_markers.set_data(singular_edge_array, edge_color=None, face_color='green', size=8)
         multi_markers.set_data(multi_edge_array, edge_color=None, face_color='red', size=8)
-        view.add(singular_markers)
-        view.add(multi_markers)
+        canvas.view.add(singular_markers)
+        canvas.view.add(multi_markers)
 
     elif color == 'depth': # Coloring based on recursive depth
         max_depth = max(blob.recursive_depth for blob in blob3dlist)
@@ -491,7 +508,7 @@ def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=
                     p_num += 1
             markerlist.append(visuals.Markers())
             markerlist[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[depth % len(colors)], size=8)
-            view.add(markerlist[-1])
+            canvas.view.add(markerlist[-1])
     else: # All colored the same
         total_points = 0
         for blob_num, blob3d in enumerate(blob3dlist):
@@ -507,7 +524,7 @@ def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=
                 lineendpoints += (2 * len(stitch.indeces)) # 2 as each line has 2 endpoints
         markers = visuals.Markers()
         markers.set_data(edge_pixel_array, edge_color=None, face_color=colors[0], size=8) # TODO change color
-        view.add(markers)
+        canvas.view.add(markers)
 
     if costs > 0:
         number_of_costs_to_show = costs # HACK
@@ -517,7 +534,7 @@ def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=
         for index,stitch in enumerate(all_stitches[:number_of_costs_to_show]): #FIXME! For some reason overloads the ram.
             midpoints[index] = [(stitch.lowerpixel.x + stitch.upperpixel.x) / (2 * xdim), (stitch.lowerpixel.y + stitch.upperpixel.y) / (2 * ydim), (stitch.lowerpixel.z + stitch.upperpixel.z) / (2 * zdim)]
             textStr = str(stitch.cost[0])[:2] + '_' +  str(stitch.cost[3])[:3] + '_' +  str(stitch.cost[2])[:2]
-            view.add(visuals.Text(textStr, pos=midpoints[index], color='yellow'))
+            canvas.view.add(visuals.Text(textStr, pos=midpoints[index], color='yellow'))
 
     if stitches:
         if lineColoring == 'blob3d':
@@ -536,7 +553,7 @@ def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=
                         line_index += 2
                 stitch_lines.append(visuals.Line(method=linemethod))
                 stitch_lines[-1].set_data(pos=line_location_lists[-1], connect='segments', color=colors[blob_num % len(colors)])
-                view.add(stitch_lines[-1])
+                canvas.view.add(stitch_lines[-1])
         else:
             line_index = 0
             for blob_num, blob3d in enumerate(blob3dlist):
@@ -553,7 +570,7 @@ def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=
                         line_index += 2
             stitch_lines = visuals.Line(method=linemethod)
             stitch_lines.set_data(pos=line_locations, connect='segments')
-            view.add(stitch_lines)
+            canvas.view.add(stitch_lines)
 
 
     if b3dmidpoints:
@@ -562,7 +579,7 @@ def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=
             b3d_midpoint_markers.append(visuals.Markers())
             b3d_midpoint_markers[-1].set_data(np.array([[blob3d.avgx / xdim, blob3d.avgy / ydim, blob3d.avgz / zdim]]), edge_color='w', face_color=colors[blob_num % len(colors)], size=25)
             b3d_midpoint_markers[-1].symbol = 'star'
-            view.add(b3d_midpoint_markers[-1])
+            canvas.view.add(b3d_midpoint_markers[-1])
     if b2dmidpoints:
         b2d_num = 0
         b2d_count = sum(len(b3d.blob2ds) for b3d in blob3dlist)
@@ -576,7 +593,7 @@ def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=
         b2d_midpoint_markers = visuals.Markers()
         b2d_midpoint_markers.set_data(b2d_midpoint_pos, edge_color='w', face_color='yellow', size=15)
         b2d_midpoint_markers.symbol = 'diamond'
-        view.add(b2d_midpoint_markers)
+        canvas.view.add(b2d_midpoint_markers)
 
     if b2d_midpoint_values > 0:
 
@@ -591,7 +608,7 @@ def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=
         for b2d_num, b2d in enumerate(blob2dlist[0::3][:max_midpoints]): # GETTING EVERY Nth RELEVANT INDEX
             b2d_midpoint_pos[b2d_num] = [b2d.avgx / xdim, b2d.avgy / ydim, b2d.height / zdim]
             b2d_midpoint_textmarkers.append(visuals.Text(str(len(b2d.edge_pixels)), pos=b2d_midpoint_pos[b2d_num], color='yellow'))
-            view.add(b2d_midpoint_textmarkers[-1])
+            canvas.view.add(b2d_midpoint_textmarkers[-1])
     vispy.app.run()
 
 def showSlide(slide):
@@ -620,9 +637,6 @@ def showBlob2d(b2d):
     plt.imshow(array, cmap='rainbow', interpolation='none')
     plt.colorbar()
     plt.show()
-
-
-
 
 
 # NOTE: all marker types:
