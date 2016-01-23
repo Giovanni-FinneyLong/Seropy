@@ -105,7 +105,6 @@ def bloom_b3ds(blob3dlist):
     print('Before blooming there were: ' + str(num_unbloomed) + ' b2ds contained within b3ds, there are now ' + str(len(Blob2d.all)))
 
 
-
 # @profile
 def main():
     print('Current recusion limit: ' + str(sys.getrecursionlimit()) + ' updating to: ' + str(recursion_limit))

@@ -3,7 +3,6 @@ from Blob2d import Blob2d
 import numpy as np
 from PIL import Image
 import time
-import math
 from Pixel import Pixel
 from myconfig import *
 from util import printElapsedTime

@@ -14,26 +14,269 @@ colors = None
 
 
 # TODO sample animation code here: https://github.com/vispy/vispy/blob/master/examples/basics/scene/save_animation.py
-
-
-
+# TODO sample event code: https://github.com/vispy/vispy/blob/master/examples/tutorial/app/app_events.py
 
 class Canvas(vispy.scene.SceneCanvas):
-    def __init__(self, canvas_size=(800,800), title=''):
+    def __init__(self, canvas_size=(800,800), title='', coloring='blob2d', buffering=True): # Note may want to make buffering default to False
         vispy.scene.SceneCanvas.__init__(self, keys='interactive', show=True, size=canvas_size, title=title)
         self.view = self.central_widget.add_view()
         camera = vispy.scene.cameras.TurntableCamera(fov=0, azimuth=80, parent=self.view.scene, distance=1, elevation=-55)
         self.axis = visuals.XYZAxis(parent=self.view.scene)
         self.view.camera = camera
+        self.blob2d_coloring_markers = []
+        self.blob3d_coloring_markers = []
+        self.depth_coloring_markers = []
         self.show()
+        self.coloring = coloring.lower()
+        # self.markers = [self.depth_coloring_markers, self.blob2d_coloring_markers, self.blob3d_coloring_markers]
+        self.markers = []
+        self.available_colorings = ['depth','blob2d', 'blob3d']
+        self.coloring_index = self.available_colorings.index(self.coloring)
+        self.buffering = buffering
+        self.marker_colors = [] # Each entry corresponds to the color of the correspond 'th marker in self.view.scene.children (not all markers!)
+
     def on_mouse_press(self, event):
         """Pan the view based on the change in mouse position."""
         if event.button == 1:
             x0, y0 = event.last_event.pos[0], event.last_event.pos[1]
             x1, y1 = event.pos[0], event.pos[1]
-            print (x1,y1)
+            print(x1,y1)
             # print (self.view.scene.node_transform(self.canvas_cs).simplified())
             # print (self.view.scene.node_transform(self.canvas_cs).map((x1,y1)))
+
+            # for key,val in self.__dict__.items():
+            #     print(str(key) + ' ' + str(val))
+
+            # for key,val in self.view.__dict__.items():
+            #     print(str(key) + ' ' + str(val))
+            # for key,val in self.view.scene.__dict__.items():
+            #     print(str(key) + ' ' + str(val))
+            # print(type(self.view.scene.children))
+            # print(len(self.view.scene.children))
+            # self.view.scene.children = [child for child in self.view.scene.children if type(child) is visuals.Markers]
+            # print(len(self.view.scene.children))
+
+    def on_key_press(self, event):
+        modifiers = [key.name for key in event.modifiers]
+        print('Key pressed - text: %r, key: %s, modifiers: %r' % (
+            event.text, event.key.name, modifiers))
+        if event.key.name == 'Up':
+            self.update_markers(1)
+        elif event.key.name == 'Down':
+            self.update_markers(-1)
+
+    def setup_markers(self):
+        for child, coloring in self.markers:
+            if coloring == self.available_colorings[self.coloring_index]:
+                child.visible = True
+            else:
+                child.visible = False
+        self.update_title()
+
+    def update_markers(self, increment):
+        assert increment in [-1, 1]
+        print('Going from ' + str(self.available_colorings[self.coloring_index]) + ' to ' + str(self.available_colorings[(self.coloring_index + increment) % len(self.available_colorings)]))
+        for child,coloring in self.markers:
+            if coloring == self.available_colorings[self.coloring_index]:
+                child.visible = False
+            if coloring == self.available_colorings[(self.coloring_index + increment) % len(self.available_colorings)]:
+                child.visible = True
+        self.coloring_index = (self.coloring_index + increment) % len(self.available_colorings)
+        self.update_title()
+
+    def update_title(self):
+        self.title = 'Coloring = ' + str(self.available_colorings[self.coloring_index])
+
+    def add_marker(self, marker, coloring):
+        self.markers.append((marker,coloring))
+        self.view.add(self.markers[-1][0]) # add the above marker
+
+
+def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitches=False, titleNote='', edge=True, parentlines=False, explode=False):
+    global colors
+    coloring = coloring.lower()
+    assert coloring in ['blob2d', '', 'depth', 'blob3d']
+
+    # This block allows the passing of ids or blob2ds
+    all_b2ds_are_ids = all(type(b2d) is int for b2d in blob2ds)
+    all_b2d_are_blob2ds = all(type(b2d) is Blob2d for b2d in blob2ds)
+    assert(all_b2d_are_blob2ds or all_b2ds_are_ids)
+    if all_b2ds_are_ids: # May want to change this depending on what it does to memory
+        blob2ds = [Blob2d.get(b2d) for b2d in blob2ds]
+
+    xmin = min(blob2d.minx for blob2d in blob2ds)
+    ymin = min(blob2d.miny for blob2d in blob2ds)
+    xmax = max(blob2d.maxx for blob2d in blob2ds)
+    ymax = max(blob2d.maxy for blob2d in blob2ds)
+    zmin = min(blob2d.height for blob2d in blob2ds)
+    zmax = max(blob2d.height for blob2d in blob2ds)
+
+    xdim = xmax - xmin + 1
+    ydim = ymax - ymin + 1
+    zdim = zmax - zmin + 1
+
+    if explode:
+        if not all(b2d.height == blob2ds[0].height for b2d in blob2ds):
+            warn('Attempting to explode blob2ds that are not all at the same height')
+    if coloring == '':
+        coloring = 'blob2d' # For the canvas title
+
+    canvas = setupCanvas(canvas_size, title='plotBlob2ds(' + str(len(blob2ds)) + '-Blob2ds, coloring=' + str(coloring) +
+                                            ' canvas_size=' + str(canvas_size) + ') ' + titleNote)
+
+
+    if coloring == 'blob2d' or canvas.buffering:
+        pixel_arrays = []
+        markers_per_color = [0 for i in range(min(len(colors), len(blob2ds)))]
+        offsets = [0] * min(len(colors), len(blob2ds))
+        if edge:
+            for blobnum, blob2d in enumerate(blob2ds):
+                markers_per_color[blobnum % len(markers_per_color)] += len(blob2d.edge_pixels)
+        else:
+            for blobnum, blob2d in enumerate(blob2ds):
+                markers_per_color[blobnum % len(markers_per_color)] += len(blob2d.pixels)
+        for num,i in enumerate(markers_per_color):
+            pixel_arrays.append(np.zeros([i, 3]))
+        for blobnum, blob2d in enumerate(blob2ds):
+            index = blobnum % len(markers_per_color)
+            if edge:
+                for p_num, pixel in enumerate(blob2d.edge_pixels):
+                    pixel = Pixel.get(pixel)
+                    pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (getBloomedHeight(blob2d, explode, zdim) - zmin) / ( z_compression * zdim)]
+                offsets[index] += len(blob2d.edge_pixels)
+            else:
+                for p_num, pixel in enumerate(blob2d.pixels):
+                    pixel = Pixel.get(pixel)
+                    pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (getBloomedHeight(blob2d, explode, zdim)  - zmin) / ( z_compression * zdim)]
+                offsets[index] += len(blob2d.pixels)
+
+        for color_num, edge_array in enumerate(pixel_arrays):
+            buf = visuals.Markers()
+            buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
+            if canvas.buffering:
+                # canvas.blob2d_coloring_markers.append(buf)
+                # canvas.marker_colors.append('blob2d')
+                canvas.add_marker(buf, 'blob2d')
+            # if coloring == 'blob2d':
+            #     canvas.view.add(buf)
+
+    if coloring == 'blob3d' or canvas.buffering:
+        edge_pixel_arrays = [] # One array per 3d blob
+        max_b3d_id = max(b2d.b3did for b2d in blob2ds)
+        b3d_lists = [[] for i in range(max_b3d_id + 1)]
+        for b2d in blob2ds:
+            b3d_lists[b2d.b3did].append(b2d)
+        b3d_lists = [b3d_list for b3d_list in b3d_lists if len(b3d_list)]
+        print('Total number of b3ds from b2ds:' + str(len(b3d_lists)))
+
+        markers_per_color = [0 for i in range(min(len(colors), len(b3d_lists)))]
+        offsets = [0] * min(len(colors), len(b3d_lists))
+        for blobnum, b3d_list in enumerate(b3d_lists):
+            markers_per_color[blobnum % len(markers_per_color)] += sum([len(b2d.edge_pixels) for b2d in b3d_list])
+
+        for num,i in enumerate(markers_per_color):
+            edge_pixel_arrays.append(np.zeros([i, 3]))
+
+        for blobnum, b3d_list in enumerate(b3d_lists):
+            index = blobnum % len(markers_per_color)
+            for p_num, pixel in enumerate(Pixel.get(pixel) for b2d in b3d_list for pixel in b2d.edge_pixels):
+                edge_pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * zdim)]
+            offsets[index] += sum([len(b2d.edge_pixels) for b2d in b3d_list])
+        for color_num, edge_array in enumerate(edge_pixel_arrays):
+            buf = visuals.Markers()
+            buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
+
+            if canvas.buffering:
+                # canvas.blob3d_coloring_markers.append(buf)
+                # canvas.marker_colors.append('blob3d')
+                canvas.add_marker(buf, 'blob3d')
+            # if coloring == 'blob3d':
+            #     canvas.view.add(buf) # HACK
+
+    if coloring == 'depth' or canvas.buffering:
+        pixel_arrays = []
+
+        max_depth = max(blob2d.recursive_depth for blob2d in blob2ds if hasattr(blob2d, 'recursive_depth'))
+        print(' max depth:' + str(max_depth))
+        markers_per_color = [0 for i in range(min(len(colors), max_depth + 1))]
+        offsets = [0] * min(len(colors), max_depth + 1)
+        for blobnum, blob2d in enumerate(blob2ds):
+            markers_per_color[blob2d.recursive_depth % len(markers_per_color)] += len(blob2d.edge_pixels)
+        for num,i in enumerate(markers_per_color):
+            pixel_arrays.append(np.zeros([i, 3]))
+        for blobnum, blob2d in enumerate(blob2ds):
+            index = blob2d.recursive_depth % len(markers_per_color)
+            for p_num, pixel in enumerate(blob2d.edge_pixels):
+                pixel = Pixel.get(pixel)
+                pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (getBloomedHeight(blob2d, explode, zdim)  - zmin) / ( z_compression * zdim)]
+            offsets[index] += len(blob2d.edge_pixels)
+
+        for color_num, edge_array in enumerate(pixel_arrays):
+            if len(edge_array) == 0:
+                print('Skipping plotting depth ' + str(color_num) + ' as there are no blob2ds at that depth')
+            else:
+                buf = visuals.Markers()
+                buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
+                if canvas.buffering:
+                    # canvas.marker_colors.append('depth')
+                    # canvas.depth_coloring_markers.append(buf)
+                    canvas.add_marker(buf, 'depth')
+                # if coloring == 'depth':
+                #     canvas.view.add(buf)
+
+    if ids is True:
+        midpoints = []
+        midpoints.append(np.zeros([1,3]))
+        for b2d_num, b2d in enumerate(blob2ds):
+            midpoints[-1] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, ((getBloomedHeight(b2d, explode, zdim)  + .25 - zmin) / (z_compression * zdim))]
+            textStr = str(b2d.id)
+            if coloring == '' or coloring == 'blob2d':
+                color = colors[b2d_num % len(colors)]
+            else:
+                if coloring in colors:
+                    color = coloring
+                else:
+                    color = 'yellow'
+            canvas.view.add(visuals.Text(textStr, pos=midpoints[-1], color=color, font_size=15, bold=True))
+    if stitches:
+        lineendpoints = 0
+        for blob2d in blob2ds:
+            for pairing in blob2d.pairings:
+                lineendpoints += (2 * len(pairing.indeces))
+        if lineendpoints != 0:
+            line_index = 0
+            line_locations = np.zeros([lineendpoints, 3])
+            for blob2d in blob2ds:
+                for pairing in blob2d.pairings:
+                    for lowerpnum, upperpnum in pairing.indeces:
+                        lowerpixel = Pixel.get(pairing.lowerpixels[lowerpnum])
+                        upperpixel = Pixel.get(pairing.upperpixels[upperpnum])
+                        line_locations[line_index] = [(lowerpixel.x - xmin) / xdim, (lowerpixel.y - ymin) / ydim, (pairing.lowerheight) / ( z_compression * zdim)]
+                        line_locations[line_index + 1] = [(upperpixel.x - xmin) / xdim, (upperpixel.y - ymin) / ydim, (pairing.upperheight) / ( z_compression * zdim)]
+                        line_index += 2
+            stitch_lines = visuals.Line(method=linemethod)
+            stitch_lines.set_data(pos=line_locations, connect='segments')
+            canvas.view.add(stitch_lines)
+    if parentlines:
+        lineendpoints = 0
+        for num,b2d in enumerate(blob2ds):
+            lineendpoints += (2 * len(b2d.children))
+        if lineendpoints:
+            line_index = 0
+            line_locations = np.zeros([lineendpoints, 3])
+            for b2d in blob2ds:
+                for child in b2d.children:
+                    child = Blob2d.get(child)
+                    line_locations[line_index] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, (getBloomedHeight(b2d, explode, zdim)  - zmin) / ( z_compression * zdim)]
+                    line_locations[line_index + 1] = [(child.avgx - xmin) / xdim, (child.avgy - ymin) / ydim, (getBloomedHeight(child, explode, zdim) - zmin) / ( z_compression * zdim)]
+                    line_index += 2
+            parent_lines = visuals.Line(method=linemethod)
+            parent_lines.set_data(pos=line_locations, connect='segments', color='y')
+            canvas.view.add(parent_lines)
+    canvas.setup_markers()
+    vispy.app.run()
+
+
 
 def filterAvailableColors():
     global colors
@@ -52,82 +295,18 @@ def filterAvailableColors():
                     break
         colors = list(set(colors) - set(removewords))
         colors = sorted(colors)
-        colors.remove('aliceblue')
-        colors.remove('azure')
-        colors.remove('blanchedalmond')
-        colors.remove('aquamarine')
-        colors.remove('beige')
-        colors.remove('bisque')
-        colors.remove('black')
-        colors.remove('blueviolet')
-        colors.remove('brown')
-        colors.remove('burlywood')
-        colors.remove('cadetblue')
-        colors.remove('chocolate')
-        colors.remove('coral')
-        colors.remove('cornsilk')
-        colors.remove('cornflowerblue')
-        colors.remove('chartreuse')
-        colors.remove('crimson')
-        colors.remove('cyan')
-        colors.remove('deepskyblue')
-        colors.remove('dimgray')
-        colors.remove('dodgerblue')
-        colors.remove('firebrick')
-        colors.remove('forestgreen')
-        colors.remove('fuchsia')
-        colors.remove('gainsboro')
-        colors.remove('gold') # Named golden
-        colors.remove('goldenrod')
-        colors.remove('gray')
-        colors.remove('greenyellow')
-        colors.remove('honeydew')
-        colors.remove('hotpink')
-        colors.remove('indianred')
-        colors.remove('indigo')
-        colors.remove('ivory')
-        colors.remove('khaki')
-        colors.remove('lavender')
-        colors.remove('lavenderblush')
-        colors.remove('lawngreen')
-        colors.remove('lemonchiffon')
-        colors.remove('linen')
-        colors.remove('olive')
-        colors.remove('olivedrab')
-        colors.remove('limegreen')
-        colors.remove('midnightblue')
-        colors.remove('mintcream')
-        colors.remove('mistyrose')
-        colors.remove('moccasin')
-        colors.remove('navy')
-        colors.remove('orangered')
-        colors.remove('orchid')
-        colors.remove('papayawhip')
-        colors.remove('peachpuff')
-        colors.remove('peru')
-        colors.remove('pink')
-        colors.remove('powderblue')
-        colors.remove('plum')
-        colors.remove('rosybrown')
-        colors.remove('saddlebrown')
-        colors.remove('salmon')
-        colors.remove('sandybrown')
-        colors.remove('seagreen')
-        colors.remove('seashell')
-        colors.remove('silver')
-        colors.remove('sienna')
-        colors.remove('skyblue')
-        colors.remove('springgreen')
-        colors.remove('tan')
-        colors.remove('teal')
-        colors.remove('thistle')
-        colors.remove('tomato')
-        colors.remove('turquoise')
-        colors.remove('snow')
-        colors.remove('steelblue')
-        colors.remove('violet')
-        colors.remove('wheat')
-        colors.remove('yellowgreen')
+        removecolors = ['aliceblue', 'azure', 'blanchedalmond', 'aquamarine', 'beige', 'bisque', 'black', 'blueviolet', 
+                        'brown', 'burlywood', 'cadetblue', 'chocolate', 'coral', 'cornsilk', 'cornflowerblue',
+                        'chartreuse', 'crimson', 'cyan', 'deepskyblue', 'dimgray', 'dodgerblue', 'firebrick',
+                        'forestgreen', 'fuchsia', 'gainsboro', 'gold',  'goldenrod', 'gray', 'greenyellow', 'honeydew',
+                        'hotpink', 'indianred', 'indigo', 'ivory', 'khaki', 'lavender', 'lavenderblush',
+                        'lawngreen', 'lemonchiffon', 'linen', 'olive', 'olivedrab', 'limegreen', 'midnightblue',
+                        'mintcream', 'mistyrose', 'moccasin', 'navy', 'orangered', 'orchid', 'papayawhip', 'peachpuff',
+                        'peru', 'pink', 'powderblue', 'plum', 'rosybrown', 'saddlebrown', 'salmon', 'sandybrown',
+                        'seagreen', 'seashell', 'silver', 'sienna', 'skyblue', 'springgreen', 'tan', 'teal', 'thistle',
+                        'tomato', 'turquoise', 'snow', 'steelblue', 'violet', 'wheat', 'yellowgreen']
+        for color in removecolors:
+            colors.remove(color)
         print('There are a total of ' + str(len(colors)) + ' colors available for plotting')
         # openglconfig = vispy.gloo.wrappers.get_gl_configuration() # Causes opengl/vispy crash for unknown reasons
 
@@ -193,7 +372,6 @@ def plotPixelLists(pixellists, canvas_size=(800, 800)): # NOTE works well to sho
         markers.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
         # view.add(visuals.Markers(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 ))
         canvas.view.add(markers)
-    axis = visuals.XYZAxis(parent=view.scene)
     vispy.app.run()
 
 def isInside(pixel_in, blob2d):
@@ -251,170 +429,6 @@ def getBloomedHeight(b2d, explode, zdim):
     else:
         return b2d.height
 
-def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitches=False, titleNote='', edge=True, parentlines=False, explode=False):
-    global colors
-    assert coloring.lower() in ['blob2d', '', 'depth', 'blob3d']
-
-    # This block allows the passing of ids or blob2ds
-    all_b2ds_are_ids = all(type(b2d) is int for b2d in blob2ds)
-    all_b2d_are_blob2ds = all(type(b2d) is Blob2d for b2d in blob2ds)
-    assert(all_b2d_are_blob2ds or all_b2ds_are_ids)
-    if all_b2ds_are_ids: # May want to change this depending on what it does to memory
-        blob2ds = [Blob2d.get(b2d) for b2d in blob2ds]
-
-    xmin = min(blob2d.minx for blob2d in blob2ds)
-    ymin = min(blob2d.miny for blob2d in blob2ds)
-    xmax = max(blob2d.maxx for blob2d in blob2ds)
-    ymax = max(blob2d.maxy for blob2d in blob2ds)
-    zmin = min(blob2d.height for blob2d in blob2ds)
-    zmax = max(blob2d.height for blob2d in blob2ds)
-
-    xdim = xmax - xmin + 1
-    ydim = ymax - ymin + 1
-    zdim = zmax - zmin + 1
-
-    if explode:
-        if not all(b2d.height == blob2ds[0].height for b2d in blob2ds):
-            warn('Attempting to explode blob2ds that are not all at the same height')
-    if coloring == '':
-        coloring = 'blob2d' # For the canvas title
-
-    canvas = setupCanvas(canvas_size,
-                                     title='plotBlob2ds(' + str(len(blob2ds)) + '-Blob2ds, coloring=' + str(coloring) +
-                                           ' canvas_size=' + str(canvas_size) + ') ' + titleNote)
-
-    pixel_arrays = []
-    if coloring == 'blob2d':
-        markers_per_color = [0 for i in range(min(len(colors), len(blob2ds)))]
-        offsets = [0] * min(len(colors), len(blob2ds))
-        if edge:
-            for blobnum, blob2d in enumerate(blob2ds):
-                markers_per_color[blobnum % len(markers_per_color)] += len(blob2d.edge_pixels)
-        else:
-            for blobnum, blob2d in enumerate(blob2ds):
-                markers_per_color[blobnum % len(markers_per_color)] += len(blob2d.pixels)
-        for num,i in enumerate(markers_per_color):
-            pixel_arrays.append(np.zeros([i, 3]))
-        for blobnum, blob2d in enumerate(blob2ds):
-            index = blobnum % len(markers_per_color)
-            if edge:
-                for p_num, pixel in enumerate(blob2d.edge_pixels):
-                    pixel = Pixel.get(pixel)
-                    pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (getBloomedHeight(blob2d, explode, zdim) - zmin) / ( z_compression * zdim)]
-                offsets[index] += len(blob2d.edge_pixels)
-            else:
-                for p_num, pixel in enumerate(blob2d.pixels):
-                    pixel = Pixel.get(pixel)
-                    pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (getBloomedHeight(blob2d, explode, zdim)  - zmin) / ( z_compression * zdim)]
-                offsets[index] += len(blob2d.pixels)
-
-        for color_num, edge_array in enumerate(pixel_arrays):
-            buf = visuals.Markers()
-            buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
-            canvas.view.add(buf)
-    elif coloring == 'blob3d':
-        edge_pixel_arrays = [] # One array per 3d blob
-        max_b3d_id = max(b2d.b3did for b2d in blob2ds)
-        b3d_lists = [[] for i in range(max_b3d_id + 1)]
-        for b2d in blob2ds:
-            b3d_lists[b2d.b3did].append(b2d)
-        b3d_lists = [b3d_list for b3d_list in b3d_lists if len(b3d_list)]
-        print('Total number of b3ds from b2ds:' + str(len(b3d_lists)))
-
-        markers_per_color = [0 for i in range(min(len(colors), len(b3d_lists)))]
-        offsets = [0] * min(len(colors), len(b3d_lists))
-        for blobnum, b3d_list in enumerate(b3d_lists):
-            markers_per_color[blobnum % len(markers_per_color)] += sum([len(b2d.edge_pixels) for b2d in b3d_list])
-
-        for num,i in enumerate(markers_per_color):
-            edge_pixel_arrays.append(np.zeros([i, 3]))
-
-        for blobnum, b3d_list in enumerate(b3d_lists):
-            index = blobnum % len(markers_per_color)
-            for p_num, pixel in enumerate(Pixel.get(pixel) for b2d in b3d_list for pixel in b2d.edge_pixels):
-                edge_pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * zdim)]
-            offsets[index] += sum([len(b2d.edge_pixels) for b2d in b3d_list])
-        for color_num, edge_array in enumerate(edge_pixel_arrays):
-            buf = visuals.Markers()
-            buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
-
-            #view.add(buf)
-            canvas.view.add(buf) # HACK
-
-    else:
-        # DEPTH
-        max_depth = max(blob2d.recursive_depth for blob2d in blob2ds if hasattr(blob2d, 'recursive_depth'))
-        markers_per_color = [0 for i in range(min(len(colors), max_depth + 1))]
-        offsets = [0] * min(len(colors), max_depth + 1)
-        for blobnum, blob2d in enumerate(blob2ds):
-            markers_per_color[blob2d.recursive_depth % len(markers_per_color)] += len(blob2d.edge_pixels)
-        for num,i in enumerate(markers_per_color):
-            pixel_arrays.append(np.zeros([i, 3]))
-        for blobnum, blob2d in enumerate(blob2ds):
-            index = blob2d.recursive_depth % len(markers_per_color)
-            for p_num, pixel in enumerate(blob2d.edge_pixels):
-                pixel = Pixel.get(pixel)
-                pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xmin) / xdim, (pixel.y - ymin) / ydim, (getBloomedHeight(blob2d, explode, zdim)  - zmin) / ( z_compression * zdim)]
-            offsets[index] += len(blob2d.edge_pixels)
-
-        for color_num, edge_array in enumerate(pixel_arrays):
-            if len(edge_array) == 0:
-                print('Skipping plotting depth ' + str(color_num) + ' as there are no blob2ds at that depth')
-            else:
-                buf = visuals.Markers()
-                buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
-                canvas.view.add(buf)
-
-    if ids is True:
-        midpoints = []
-        midpoints.append(np.zeros([1,3]))
-        for b2d_num, b2d in enumerate(blob2ds):
-            midpoints[-1] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, ((getBloomedHeight(b2d, explode, zdim)  + .25 - zmin) / (z_compression * zdim))]
-            textStr = str(b2d.id)
-            if coloring == '' or coloring == 'blob2d':
-                color = colors[b2d_num % len(colors)]
-            else:
-                if coloring in colors:
-                    color = coloring
-                else:
-                    color = 'yellow'
-            canvas.view.add(visuals.Text(textStr, pos=midpoints[-1], color=color, font_size=15, bold=True))
-    if stitches:
-        lineendpoints = 0
-        for blob2d in blob2ds:
-            for pairing in blob2d.pairings:
-                lineendpoints += (2 * len(pairing.indeces))
-        if lineendpoints != 0:
-            line_index = 0
-            line_locations = np.zeros([lineendpoints, 3])
-            for blob2d in blob2ds:
-                for pairing in blob2d.pairings:
-                    for lowerpnum, upperpnum in pairing.indeces:
-                        lowerpixel = Pixel.get(pairing.lowerpixels[lowerpnum])
-                        upperpixel = Pixel.get(pairing.upperpixels[upperpnum])
-                        line_locations[line_index] = [(lowerpixel.x - xmin) / xdim, (lowerpixel.y - ymin) / ydim, (pairing.lowerheight) / ( z_compression * zdim)]
-                        line_locations[line_index + 1] = [(upperpixel.x - xmin) / xdim, (upperpixel.y - ymin) / ydim, (pairing.upperheight) / ( z_compression * zdim)]
-                        line_index += 2
-            stitch_lines = visuals.Line(method=linemethod)
-            stitch_lines.set_data(pos=line_locations, connect='segments')
-            canvas.view.add(stitch_lines)
-    if parentlines:
-        lineendpoints = 0
-        for num,b2d in enumerate(blob2ds):
-            lineendpoints += (2 * len(b2d.children))
-        if lineendpoints:
-            line_index = 0
-            line_locations = np.zeros([lineendpoints, 3])
-            for b2d in blob2ds:
-                for child in b2d.children:
-                    child = Blob2d.get(child)
-                    line_locations[line_index] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, (getBloomedHeight(b2d, explode, zdim)  - zmin) / ( z_compression * zdim)]
-                    line_locations[line_index + 1] = [(child.avgx - xmin) / xdim, (child.avgy - ymin) / ydim, (getBloomedHeight(child, explode, zdim) - zmin) / ( z_compression * zdim)]
-                    line_index += 2
-            parent_lines = visuals.Line(method=linemethod)
-            parent_lines.set_data(pos=line_locations, connect='segments', color='y')
-            canvas.view.add(parent_lines)
-    vispy.app.run()
 
 def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=0, maxcolors=-1, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800, 800), b2d_midpoint_values=0, titleNote=''):
     global colors

@@ -38,7 +38,6 @@ class Blob2d:
         self.children = []
         self.height = height
         self.possible_partners = [] # A list of blobs which MAY be part of the same blob3d as this blob2d , deleted later
-        #self.partner_costs = [] # The minimal cost for the corresponding blob2d in possible_partners
             #Note may want to use this later
         self.pairings = [] # A list of pairings that this blob belongs to
         self.setEdge()
