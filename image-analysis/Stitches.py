@@ -156,11 +156,13 @@ class Pairing:
         t_start_stitching = time.time()
         for slide_num, slide in enumerate(slidelist):
             t_start_stitching_this_slide = time.time()
-            print('Stitching slide #' + str(slide_num) + '/' + str(len(slidelist)) + ', which contains ' + str(len(slide.blob2dlist)) + ' Blob2ds')
+            print('Stitching ' + str(len(slide.blob2dlist)) + ' blob2ds from slide #' + str(slide_num + 1) + '/' + str(len(slidelist)), end=' ') # Note that slide number is offset of non-technical users
             last_print = 0
+
+
             for b_num, blob1 in enumerate(slide.blob2dlist):
                 blob1 = Blob2d.get(blob1)
-                if ((b_num - last_print) / len(slide.blob2dlist)) >= .1 and quiet:
+                if ((b_num - last_print) / len(slide.blob2dlist)) >= .1 and quiet and not debug: # TODO change this to use pixel counts for the proportion
                     print('.', end='', flush=True)
                     last_print = b_num
                 if len(blob1.possible_partners) > 0:
@@ -181,11 +183,10 @@ class Pairing:
                             printElapsedTime(t0, tf, pad='    ')
                     elif debug:
                         print('    -Blobs not connected')
-            if quiet:
+            if quiet and not debug:
                 print('. ', flush=True, end='')
-                printElapsedTime(t_start_stitching_this_slide, time.time())
-        print('\nTo stitch all slides:')
-        printElapsedTime(t_start_stitching, time.time())
+                printElapsedTime(t_start_stitching_this_slide, time.time(), prefix='took')
+        printElapsedTime(t_start_stitching, time.time(), prefix='\nStitching all slides took')
         return pairlist
 
     @staticmethod

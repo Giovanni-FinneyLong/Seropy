@@ -6,8 +6,48 @@ import pdb
 import glob
 import sys
 
+class progressBar:
+    def __init__(self, start_val=0, min_val=0, max_val=100, increments=10, symbol='.'):
+        assert len(symbol) == 1
+        assert start_val <= max_val
+        self.symbol = symbol
+        self.last_output = 0
+        self.max = max_val
+        self.min = min_val
+        self.increments = increments
+        self.cur_val =  0
+        while start_val - self.last_output >= ((self.max - self.min) / self.increments):
+            self.cur_val += ((self.max - self.min) / self.increments)
+            self.tick()
+
+    def update(self, new_val):
+        while new_val - self.last_output >= ((self.max - self.min) / self.increments):
+            self.cur_val += ((self.max - self.min) / self.increments)
+            self.tick()
+        self.cur_val = new_val
+
+    def tick(self):
+        '''
+        Prints one more symbol to indicate passing another interval
+        :return:
+        '''
+        print(self.symbol, end='', flush=True)
+        self.last_output = self.cur_val
+
+    def finish(self):
+        '''
+        All work is done, print any remaining symbols
+        :return:
+        '''
+        while self.max - self.last_output >= ((self.max - self.min) / self.increments):
+            self.cur_val += ((self.max - self.min) / self.increments)
+            self.tick()
+
+
+
 def warn(string):
-    print('\n>\n->\n--> WARNING: ' + str(string) + ' <--\n->\n>')
+    if not disable_warnings:
+        print('\n>\n->\n--> WARNING: ' + str(string) + ' <--\n->\n>')
 
 def debug():
     pdb.set_trace()
@@ -19,7 +59,10 @@ def getImages():
         extension = '*.png'
     else:
         dir = DATA_DIR
-        extension = '*.tif'
+        if swell_instead_of_c57bl6:
+            extension = 'Swell*.tif'
+        else:
+            extension = 'C57BL6*.tif'
     all_images = glob.glob(dir + extension)
     return all_images
 

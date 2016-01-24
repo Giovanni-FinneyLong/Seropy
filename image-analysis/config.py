@@ -7,16 +7,18 @@ __author__ = 'gio'
   ___) |  \ V  V /  | | | |_  | (__  | | | | |  __/ \__ \
  |____/    \_/\_/   |_|  \__|  \___| |_| |_|  \___| |___/
  '''
-debug_blob_ids = False
-debug_pixel_ops = False
-debug_set_merge = False
+
 remap_ids_by_group_size = True
 test_instead_of_data = False
+swell_instead_of_c57bl6 = True # Allows swellshark files to be in the same folder as c57b16
 dePickle = True
 OpenGLLinesInsteadOfAgg = True
 mayPlot = True # Used to control the importing of visualization packages; vispy doesn't run on arm :(
+disable_warnings = True
 
-
+debug_blob_ids = False
+debug_pixel_ops = False
+debug_set_merge = False
 '''
  __     __            _         _      _
  \ \   / /__ _  _ __ (_)  __ _ | |__  | |  ___  ___

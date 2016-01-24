@@ -5,7 +5,9 @@ from PIL import Image
 import time
 from Pixel import Pixel
 from myconfig import *
-from util import printElapsedTime
+from util import printElapsedTime, getImages, warn
+from Stitches import Pairing
+from Blob3d import Blob3d
 
 class Slide:
     ''''
@@ -150,8 +152,50 @@ class Slide:
             edge_lists.append(Blob2d.get(self.blob2dlist[blobnum]).edge_pixels)
         if not quiet:
             self.tf = time.time()
-            printElapsedTime(self.t0, self.tf)
+            print('Creating this slide took', end='')
+            printElapsedTime(self.t0, self.tf, prefix='')
             print('')
+
+    @staticmethod
+    def dataToSlides(stitch=True):
+        t_gen_slides_0 = time.time()
+
+        all_images = getImages()
+        all_slides = []
+        for imagefile in all_images:
+            all_slides.append(Slide(imagefile)) # Pixel computations are done here, as the slide is created.
+        print('Total # of non-zero pixels: ' + str(Pixel.total_pixels) + ', total number of pixels after filtering: ' + str(len(Pixel.all)))
+        print('Total # of blob2ds: ' + str(len(Blob2d.all)))
+        print('Generating ' + str(len(all_slides)) + ' slides took', end='')
+        printElapsedTime(t_gen_slides_0, time.time(), prefix='')
+        print("Pairing all blob2ds with their potential partners in adjacent slides", flush=True)
+        Slide.setAllPossiblePartners(all_slides)
+        if stitch:
+            print("Setting shape contexts for all blob2ds",flush=True)
+            Slide.setAllShapeContexts(all_slides)
+            t_start_munkres = time.time()
+            stitchlist = Pairing.stitchAllBlobs(all_slides, debug=False) # TODO change this to work with a list of ids or blob2ds
+            t_finish_munkres = time.time()
+            print('Done stitching together blobs, ', end='')
+            printElapsedTime(t_start_munkres, t_finish_munkres)
+        else:
+            warn('Skipping stitching the slides')
+        return all_slides
+
+    @staticmethod
+    def extract_blob3ds(all_slides):
+        print('Extracting 3d blobs by combining 2d blobs into 3d', flush=True)
+        list3ds = []
+        for slide_num, slide in enumerate(all_slides):
+            for blob in slide.blob2dlist:
+                buf = Blob2d.get(blob).getconnectedblob2ds()
+                if len(buf) != 0:
+                    list3ds.append([b2d.id for b2d in buf])
+        blob3dlist = []
+        for blob2dlist in list3ds:
+            blob3dlist.append(Blob3d(blob2dlist))
+        return blob3dlist
+
 
     @staticmethod
     def setAllPossiblePartners(slidelist):
