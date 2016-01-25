@@ -8,3 +8,9 @@ Python 3.3 or later required. ImageMagick must be installed to generate gifs.
 
 ### A Top Down View of the c57b16 dataset, colored by 3d blob###
 ![3D-Gif](https://www.dropbox.com/s/z4is7p762le1ia2/c57b16_blob3d.png?dl=1)
+
+### A Top Down View of the swellshark dataset, colored by recursive_depth ###
+![IMAGE](https://www.dropbox.com/s/s5kom6kc162javc/swell_depth_top.png?dl=1)
+
+### A Top Down View of the swellshark dataset, colored by 3d blob###
+![3D-Gif](https://www.dropbox.com/s/odqyi3lgg48noqn/swell_blob3d_top.png?dl=1)
