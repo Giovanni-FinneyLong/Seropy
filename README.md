@@ -1,7 +1,7 @@
 All visuals & data are hosted: [Here](https://www.dropbox.com/sh/s136nj2b780e22d/AACy854x31kk4U11daFO1Z-0a?dl=0)
 
 Python 3.3 or later required. ImageMagick must be installed to generate gifs.
-(Click images to enlarge)
+(Open images in new tab to enlarge)
 
 ### A Top Down View of the c57b16 dataset, colored by recursive_depth ###
 ![IMAGE](https://www.dropbox.com/s/4smgqwqimxn4e0s/c57b16_top_depth.png?dl=1)
