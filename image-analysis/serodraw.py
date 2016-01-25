@@ -35,6 +35,8 @@ class Canvas(vispy.scene.SceneCanvas):
         self.buffering = buffering
         self.marker_colors = [] # Each entry corresponds to the color of the correspond 'th marker in self.view.scene.children (not all markers!)
         self.image_no = 0
+        self.b2d_count = -1
+        self.b3d_count = -1
 
     def on_mouse_press(self, event):
         """Pan the view based on the change in mouse position."""
@@ -100,7 +102,7 @@ class Canvas(vispy.scene.SceneCanvas):
         self.update_title()
 
     def update_title(self):
-        self.title = 'Coloring = ' + str(self.available_colorings[self.coloring_index])
+        self.title =  '# B3ds: ' + str(self.b3d_count) + ', # B2ds: ' + str(self.b2d_count) + ', Coloring = ' + str(self.available_colorings[self.coloring_index])
 
     def add_marker(self, marker, coloring):
         self.markers.append((marker,coloring))
@@ -138,7 +140,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
 
     canvas = setupCanvas(canvas_size, title='plotBlob2ds(' + str(len(blob2ds)) + '-Blob2ds, coloring=' + str(coloring) +
                                             ' canvas_size=' + str(canvas_size) + ') ' + titleNote)
-
+    canvas.b2d_count = len(blob2ds)
     # if showStitchCosts > 0: #TODO
     #     number_of_costs_to_show = showStitchCosts # HACK
     #     all_stitches = list(stitches for blob3d in blob3dlist for pairing in blob3d.pairings for stitches in pairing.stitches)
@@ -227,11 +229,14 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
         edge_pixel_arrays = [] # One array per 3d blob
         max_b3d_id = max(b2d.b3did for b2d in blob2ds)
         b3d_lists = [[] for i in range(max_b3d_id + 1)]
+        print('len of b3d_lists:' + str(len(b3d_lists)))
+
+
         for b2d in blob2ds:
+            # print('B2d = ' + str(b2d))
             b3d_lists[b2d.b3did].append(b2d)
         b3d_lists = [b3d_list for b3d_list in b3d_lists if len(b3d_list)]
-        print('Total number of b3ds from b2ds:' + str(len(b3d_lists)))
-
+        canvas.b3d_count = len(b3d_lists)
         markers_per_color = [0 for i in range(min(len(colors), len(b3d_lists)))]
         offsets = [0] * min(len(colors), len(b3d_lists))
         for blobnum, b3d_list in enumerate(b3d_lists):
@@ -260,7 +265,6 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
         pixel_arrays = []
 
         max_depth = max(blob2d.recursive_depth for blob2d in blob2ds if hasattr(blob2d, 'recursive_depth'))
-        print(' max depth:' + str(max_depth))
         markers_per_color = [0 for i in range(min(len(colors), max_depth + 1))]
         offsets = [0] * min(len(colors), max_depth + 1)
         for blobnum, blob2d in enumerate(blob2ds):

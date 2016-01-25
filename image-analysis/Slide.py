@@ -5,7 +5,7 @@ from PIL import Image
 import time
 from Pixel import Pixel
 from myconfig import *
-from util import printElapsedTime, getImages, warn
+from util import printElapsedTime, getImages, warn, progressBar
 from Stitches import Pairing
 from Blob3d import Blob3d
 
@@ -84,7 +84,9 @@ class Slide:
         # Time to pre-process the maximal pixels; try and create groups/clusters
 
         self.alive_pixels = filterSparsePixelsFromList(pixels[0:endmax], (self.local_xdim, self.local_ydim), quiet=quiet)
+
         self.alive_pixels.sort() # Sorted here so that in y,x order instead of value order
+
         alive_pixel_array = np.zeros([self.local_xdim, self.local_ydim], dtype=object)
         for pixel in self.alive_pixels:
             alive_pixel_array[pixel.x][pixel.y] = pixel
@@ -147,9 +149,6 @@ class Slide:
 
         print('Merging ' + str(len(self.blob2dlist)) + ' blob2ds from this slide')
         self.blob2dlist = Blob2d.mergeblobs(self.blob2dlist) # NOTE, by assigning the returned Blob2d list to a new var, the results of merging can be demonstrated
-        edge_lists = []
-        for (blobnum, blobslist) in enumerate(self.blob2dlist):
-            edge_lists.append(Blob2d.get(self.blob2dlist[blobnum]).edge_pixels)
         if not quiet:
             self.tf = time.time()
             print('Creating this slide took', end='')
@@ -171,7 +170,7 @@ class Slide:
         print("Pairing all blob2ds with their potential partners in adjacent slides", flush=True)
         Slide.setAllPossiblePartners(all_slides)
         if stitch:
-            print("Setting shape contexts for all blob2ds",flush=True)
+            print('Setting shape contexts for all blob2ds ',flush=True, end="")
             Slide.setAllShapeContexts(all_slides)
             t_start_munkres = time.time()
             stitchlist = Pairing.stitchAllBlobs(all_slides, debug=False) # TODO change this to work with a list of ids or blob2ds
@@ -180,7 +179,10 @@ class Slide:
             printElapsedTime(t_start_munkres, t_finish_munkres)
         else:
             warn('Skipping stitching the slides')
-        return all_slides
+        blob3dlist = Slide.extract_blob3ds(all_slides)
+        print('There are a total of ' + str(len(blob3dlist)) + ' blob3ds')
+
+        return all_slides, blob3dlist  # Returns slides and all their blob3ds in a list
 
     @staticmethod
     def extract_blob3ds(all_slides):
@@ -188,7 +190,11 @@ class Slide:
         list3ds = []
         for slide_num, slide in enumerate(all_slides):
             for blob in slide.blob2dlist:
-                buf = Blob2d.get(blob).getconnectedblob2ds()
+                if Blob2d.get(blob).b3did == -1:
+                # buf = Blob2d.get(blob).get_stitched_partners() //old method
+                    buf = [Blob2d.get(b2d) for b2d in Blob2d.get(blob).getpartnerschain()]
+                    # TODO change this so that b3ds can be generated w/o stitching
+
                 if len(buf) != 0:
                     list3ds.append([b2d.id for b2d in buf])
         blob3dlist = []
@@ -213,9 +219,14 @@ class Slide:
     def setAllShapeContexts(slidelist):
         # Note Use the shape contexts approach from here: http://www.cs.berkeley.edu/~malik/papers/mori-belongie-malik-pami05.pdf
         # Note The paper uses 'Representative Shape Contexts' to do inital matching; I will do away with this in favor of checking bounds for possible overlaps
+        t0 = time.time()
+        pb = progressBar(max_val=sum(len(Blob2d.get(b2d).edge_pixels) for slide in slidelist for b2d in slide.blob2dlist))
         for slide in slidelist:
             for blob in slide.blob2dlist:
                 Blob2d.get(blob).setShapeContexts(36)
+                pb.update(len(Blob2d.get(blob).edge_pixels), set=False)
+        pb.finish()
+        printElapsedTime(t0, time.time(), prefix='took')
 
     def getNextBlobId(self):
         # Starts at 0, of course!!

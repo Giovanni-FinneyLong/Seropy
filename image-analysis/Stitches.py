@@ -5,7 +5,7 @@ from myconfig import *
 from util import debug
 from Blob2d import Blob2d
 import time
-from util import printElapsedTime
+from util import printElapsedTime, progressBar
 from Pixel import Pixel
 class Pairing:
     """
@@ -151,20 +151,18 @@ class Pairing:
     def stitchAllBlobs(slidelist, quiet=True, debug=False):
 
         pairlist = []
-        if not quiet:
-            print('Beginning to stitch together blobs')
         t_start_stitching = time.time()
+        print('')
         for slide_num, slide in enumerate(slidelist):
             t_start_stitching_this_slide = time.time()
             print('Stitching ' + str(len(slide.blob2dlist)) + ' blob2ds from slide #' + str(slide_num + 1) + '/' + str(len(slidelist)), end=' ') # Note that slide number is offset of non-technical users
             last_print = 0
 
+            progress = progressBar(max_val=len(slide.blob2dlist), increments=10, symbol='.') # Note actually more responsive to do based on blob than # of pixels, due to using only a subset to stitch
+
 
             for b_num, blob1 in enumerate(slide.blob2dlist):
                 blob1 = Blob2d.get(blob1)
-                if ((b_num - last_print) / len(slide.blob2dlist)) >= .1 and quiet and not debug: # TODO change this to use pixel counts for the proportion
-                    print('.', end='', flush=True)
-                    last_print = b_num
                 if len(blob1.possible_partners) > 0:
                     if debug:
                         print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
@@ -183,10 +181,13 @@ class Pairing:
                             printElapsedTime(t0, tf, pad='    ')
                     elif debug:
                         print('    -Blobs not connected')
+                progress.update(b_num, set=True)
+
             if quiet and not debug:
-                print('. ', flush=True, end='')
+                progress.finish()
                 printElapsedTime(t_start_stitching_this_slide, time.time(), prefix='took')
-        printElapsedTime(t_start_stitching, time.time(), prefix='\nStitching all slides took')
+        printElapsedTime(t_start_stitching, time.time(), prefix='Stitching all slides took', endline=False)
+        print(' total')
         return pairlist
 
     @staticmethod

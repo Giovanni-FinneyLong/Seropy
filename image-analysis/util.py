@@ -16,11 +16,27 @@ class progressBar:
         self.min = min_val
         self.increments = increments
         self.cur_val =  0
-        while start_val - self.last_output >= ((self.max - self.min) / self.increments):
+        self.symbols_printed = 0
+        # print('Db created progress bar, max_val = ' + str(max_val))
+        # print('Start val = ' + str(start_val))
+
+        while start_val - self.last_output and start_val - self.last_output >= ((self.max - self.min) /( 1. /  self.increments)):
+            # print('Top of while, self.cur_val = ' + str(self.cur_val) + ', last output: ' + str(self.last_output))
+            # print('Checked ' + str(start_val - self.last_output) + ' >= ' + str(((self.max - self.min) /( 1. /  self.increments))))
             self.cur_val += ((self.max - self.min) / self.increments)
+            # print('Updated to ' + str(self.cur_val))
             self.tick()
 
-    def update(self, new_val):
+    def update(self, new_val, set=True):
+        '''
+        Updates the internal counter of progressBar
+        :param new_val: The value to update with
+        :param set: If True, set the internal counter to this value
+                    If False, add this value to the internal counter
+        :return:
+        '''
+        if not set: # Then add
+            new_val = new_val + self.cur_val
         while new_val - self.last_output >= ((self.max - self.min) / self.increments):
             self.cur_val += ((self.max - self.min) / self.increments)
             self.tick()
@@ -32,17 +48,21 @@ class progressBar:
         :return:
         '''
         print(self.symbol, end='', flush=True)
+        self.symbols_printed += 1
         self.last_output = self.cur_val
 
-    def finish(self):
+    def finish(self, newline=False):
         '''
         All work is done, print any remaining symbols
         :return:
         '''
-        while self.max - self.last_output >= ((self.max - self.min) / self.increments):
-            self.cur_val += ((self.max - self.min) / self.increments)
+        symbols_before_finished = self.symbols_printed
+        for i in range(self.increments - symbols_before_finished):
             self.tick()
-
+        if newline:
+            print('', flush=True)
+        else:
+            print(' ', end='', flush=True) # Add a space after the ticks
 
 
 def warn(string):
@@ -67,11 +87,11 @@ def getImages():
     return all_images
 
 
-def printElapsedTime(t0, tf, pad='', prefix='Elapsed Time:', endLine=True):
+def printElapsedTime(t0, tf, pad='', prefix='Elapsed Time:', endline=True):
     temp = tf - t0
     m = math.floor(temp / 60)
     plural_minutes = ''
-    if endLine:
+    if endline:
         end='\n'
     else:
         end=''
@@ -85,36 +105,6 @@ def printElapsedTime(t0, tf, pad='', prefix='Elapsed Time:', endLine=True):
 
 def timeNoSpaces():
     return time.ctime().replace(' ', '_').replace(':', '-')
-
-def progressBarUpdate(value, max, min=0, last_update=0, steps=10):
-    ''' # TODO not functional
-    Run like so:
-    updateStatus = 0
-    for num in range(100):
-        updateStatus = progressBarUpdate(num, 100, last_update=updateStatus)
-    :param value:
-    :param max:
-    :param min:
-    :param last_update:
-    :param steps:
-    :return:
-    '''
-    if value == min:
-        print('.', end='')
-    else:
-        # print('DB last_update=' + str(last_update) + ' val=' + str(value))
-        # print(str((value - last_update)) + ' vs ' + str(((max-min) / steps)))
-        if last_update < max:
-            if (value - last_update) >= ((max-min) / steps):
-                last_update = value;
-                print('Diff=' + str((value - last_update)) + ' stepsize:' + str(((max-min) / steps)))
-                print('Val' + str(value))
-                # for i in range( math.ceil((value - last_update) / ((max-min) / steps))):
-                print('.', end='')
-        # if value >= max:
-        #     print('', end='\n')
-    return last_update
-
 
 
 def vispy_info():

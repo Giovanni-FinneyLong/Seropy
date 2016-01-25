@@ -9,7 +9,7 @@ import pickle # Note uses cPickle automatically ONLY IF python 3
 from Stitches import Pairing
 import glob
 import sys
-from util import warn, getImages
+from util import warn, getImages, progressBar
 from myconfig import *
 import time
 
@@ -33,17 +33,17 @@ def save(blob3dlist, filename, directory=PICKLEDIR):
             print('Pickling ' + str(len(blob3dlist)) + ' b3ds ', end='')
             t0 = t = time.time()
             pickle.dump({'b3ds' : blob3dlist}, open(filename + '_b3ds', "wb"), protocol=0)
-            printElapsedTime(t,time.time(), prefix='took')
+            printElapsedTime(t, time.time(), prefix='took')
 
             print('Pickling ' + str(len(Blob2d.all)) + ' b2ds ', end='')
             t = time.time()
             pickle.dump({'b2ds' : Blob2d.all, 'used_ids': Blob2d.used_ids}, open(filename + '_b2ds', "wb"), protocol=0)
-            printElapsedTime(t,time.time(), prefix='took')
+            printElapsedTime(t, time.time(), prefix='took')
 
             print('Pickling ' + str(len(Pixel.all)) + ' pixels ', end='')
             t = time.time()
             pickle.dump({'pixels' : Pixel.all, 'total_pixels' : Pixel.total_pixels}, open(filename + '_pixels', "wb"), protocol=0)
-            printElapsedTime(t,time.time(), prefix='took')
+            printElapsedTime(t, time.time(), prefix='took')
             done = True
 
             print('Saving took:', end='')
@@ -54,7 +54,6 @@ def save(blob3dlist, filename, directory=PICKLEDIR):
             print('Opening up an interactive console, press \'n\' then \'enter\' to load variables before interacting, and enter \'exit\' to resume execution')
             debug()
             pass
-
 
 # @profile
 def load(filename, directory=PICKLEDIR):
@@ -84,23 +83,30 @@ def load(filename, directory=PICKLEDIR):
         Pixel.total_pixels = len(Pixel.all)
         printElapsedTime(t,time.time(), prefix='took')
 
-        print('There are a total of:' + str(len(b3ds)) + ' 3d blobs')
-        print('There are a total of:' + str(len(Blob2d.all)) + ' 2d blobs')
-        print('There are a total of:' + str(len(Pixel.all)) + ' pixels')
+        print('There are a total of: ' + str(len(b3ds)) + ' 3d blobs')
+        print('There are a total of: ' + str(len(Blob2d.all)) + ' 2d blobs')
+        print('There are a total of: ' + str(len(Pixel.all)) + ' pixels')
         print('Total time to load: ', end='')
         printElapsedTime(t_start, time.time(), prefix='')
         return b3ds
 
 
 # @profile
-def bloom_b3ds(blob3dlist, stitch=False):
+def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
+    print('\nProcessing internals of 2d blobs via \'blooming\' ', end='')
     allb2ds = [Blob2d.get(b2d) for b3d in blob3dlist for b2d in b3d.blob2ds]
     t_start_bloom = time.time()
     num_unbloomed = len(allb2ds)
+    pb = progressBar(max_val=sum(len(b2d.edge_pixels) for b2d in allb2ds))
     for bnum, blob2d in enumerate(allb2ds): # HACK need to put the colon on the right of start_offset
-        print(' Blooming b2d: ' + str(bnum) + '/' + str(len(allb2ds)) + ' = ' + str(blob2d) )
+        # print(' Blooming b2d: ' + str(bnum) + '/' + str(len(allb2ds)) + ' = ' + str(blob2d), flush=True)
         blob2d.bloomInwards() # NOTE will have len 0 if no blooming can be done
-    printElapsedTime(t_start_bloom, time.time(), prefix='To complete all blooming took')
+        pb.update(len(blob2d.edge_pixels), set=False) # set is false so that we add to an internal counter
+        # print('DB pb symbols = ' + str(pb.symbols_printed), flush=True)
+
+    pb.finish()
+
+    printElapsedTime(t_start_bloom, time.time(), prefix='took')
     print('Before blooming there were: ' + str(num_unbloomed) + ' b2ds contained within b3ds, there are now ' + str(len(Blob2d.all)))
 
     # Setting possible_partners
@@ -173,14 +179,15 @@ def bloom_b3ds(blob3dlist, stitch=False):
             Pairing.stitchBlob2ds(b3d.blob2ds, debug=False)
     return all_new_b3ds
 
-
 #HACK
 
 process_internals = True # Do blooming, set possible partners for the generated b2ds, then create b3ds from them
+stitch_base_b2ds = False # FIXME why does making this False cause the progressBar to go crazy?
 stitch_bloomed_b2ds = False # Default False
-# HACK Move these to both configs!
 
+# HACK Move these to both configs!
 picklefile =''
+
 
 # @profile
 def main():
@@ -194,47 +201,37 @@ def main():
         else:
             picklefile = 'C57BL6_Adult_CerebralCortex.pickle'
     if not dePickle:
-        all_slides = Slide.dataToSlides(stitch=True) # Reads in images and converts them to slides.
-                                                     # This process involves generating Pixels & Blob2ds
-        blob3dlist = Slide.extract_blob3ds(all_slides) # Note that this can be done without stitching
-        print('There are a total of ' + str(len(blob3dlist)) + ' blob3ds')
+        all_slides, blob3dlist = Slide.dataToSlides(stitch=stitch_base_b2ds) # Reads in images and converts them to slides.
+                                                     # This process involves generating Pixels & Blob2ds, but NOT Blob3ds
         if process_internals:
-            print('Processing internals of 2d blobs via \'blooming\'')
             bloom_b3ds(blob3dlist, stitch=stitch_bloomed_b2ds) # Includes setting partners, and optionally stitching
         Blob3d.tagBlobsSingular(blob3dlist)
-        print('Saving the results (Pixels, 2d blobs, 3d blobs, and stitches):')
         save(blob3dlist, picklefile)
-        #
         print('Plotting all generated blobs:')
         plotBlob2ds(Blob2d.all.values(), stitches=True)
     else:
+        # HACK
+        load_base = True # Note that each toggle dominates those below it due to elif
+        load_bloomed = True
+        dosave = True
+        # HACK
 
-        if True:
-            blob3dlist = load(picklefile) # DEBUG DEBUG DEBUG
-            plotBlob2ds([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds], coloring='blob3d')
+        if load_base:
+            blob3dlist = load(picklefile)
             newb3ds = bloom_b3ds(blob3dlist, stitch=False) # This will set pairings, and stitch if so desired
-            save(blob3dlist + newb3ds, picklefile + '_bloomed')
-            #Fall through and do computations
+            if dosave:
+                save(blob3dlist + newb3ds, picklefile + '_bloomed')
+        elif load_bloomed:
+            blob3dlist = load(picklefile + '_bloomed')
+            newb3ds = bloom_b3ds(blob3dlist, stitch=True) # This will set pairings, and stitch if so desired
+            if dosave:
+                save(blob3dlist + newb3ds, picklefile + '_bloomed_stitched')
         else:
-            if False:
-                blob3dlist = load(picklefile + '_bloomed') # DEBUG DEBUG DEBUG
-                # Fall through to do computations below
-            else:
-                blob3dlist = load(picklefile + '_bloomed_stitched') # DEBUG DEBUG DEBUG
-                chosen_depths = [1,2,3,4]
-                plotBlob2ds(Blob2d.all.values()) # TODO this is much faster, write a wrapper already!
-                print('Listing all b3ds:')
-                for b3d in blob3dlist:
-                    print(b3d)
-                exit()
-
-
-
-
-
-
-
-
+            blob3dlist = load(picklefile + '_bloomed_stitched')
+        plotBlob2ds([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds],ids=False, parentlines=False,explode=True, coloring='blob3d',edge=False)
+        for b3d in blob3dlist:
+            print(b3d)
+        exit()
     # plotBlob2ds(depth, stitches=True, ids=False, parentlines=False,explode=True, edge=False)
 
 

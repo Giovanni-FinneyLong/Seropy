@@ -90,7 +90,6 @@ class Blob2d:
         return partnerset.difference(old_set)
 
 
-
     def getparents(self): # Excludes self
         buf = self.getparentsrecur([])
         return buf
@@ -346,7 +345,7 @@ class Blob2d:
                 for b2d in b2ds:
                     Blob2d.get(b2d).bloomInwards(depth=depth+1)
 
-    def getconnectedblob2ds(self, debug=False):
+    def get_stitched_partners(self, debug=False):
         '''
         Recursively finds all blobs that are directly or indirectly connected to this blob via stitching
         :return: The list of all blobs that are connected to this blob, including the seed blob
@@ -355,7 +354,7 @@ class Blob2d:
         # TODO update this documentation
         def followstitches(cursorblob, blob2dlist):
             '''
-            Recursive support function for getconnectedblob2ds
+            Recursive support function for get_stitched_partners
             :param: cursorblob: The blob whose stitching is examined for connected blob2ds
             :param: blob2dlist: The accumulated list of a blob2ds which are connected directly or indirectly to the inital seed blob
             '''
@@ -380,6 +379,9 @@ class Blob2d:
         followstitches(self, blob2dlist)
         #del self.possible_partners # TODO see if theres a safe way to do this later
         return blob2dlist
+
+
+
 
     @staticmethod
     def mergeblobs(bloblist):
