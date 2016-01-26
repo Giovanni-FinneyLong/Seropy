@@ -147,8 +147,9 @@ class Slide:
                 if blob != equivlist[0] and blob in equivlist: # Not the base and in the list
                     Blob2d.updateid(blob , equivlist[0])
 
-        print('Merging ' + str(len(self.blob2dlist)) + ' blob2ds from this slide')
+        print('Merging ' + str(len(self.blob2dlist)) + ' blob2ds from this slide ', end='')
         self.blob2dlist = Blob2d.mergeblobs(self.blob2dlist) # NOTE, by assigning the returned Blob2d list to a new var, the results of merging can be demonstrated
+        print('into ' + str(len(self.blob2dlist)), flush=True)
         if not quiet:
             self.tf = time.time()
             print('Creating this slide took', end='')
@@ -169,6 +170,7 @@ class Slide:
         printElapsedTime(t_gen_slides_0, time.time(), prefix='')
         print("Pairing all blob2ds with their potential partners in adjacent slides", flush=True)
         Slide.setAllPossiblePartners(all_slides)
+
         if stitch:
             print('Setting shape contexts for all blob2ds ',flush=True, end="")
             Slide.setAllShapeContexts(all_slides)
@@ -178,28 +180,31 @@ class Slide:
             print('Done stitching together blobs, ', end='')
             printElapsedTime(t_start_munkres, t_finish_munkres)
         else:
-            warn('Skipping stitching the slides')
-        blob3dlist = Slide.extract_blob3ds(all_slides)
+            print('\n-> Skipping stitching the slides, this will result in less accurate blob3ds for the time being')
+        blob3dlist = Slide.extract_blob3ds(all_slides, stitched=stitch)
         print('There are a total of ' + str(len(blob3dlist)) + ' blob3ds')
 
         return all_slides, blob3dlist  # Returns slides and all their blob3ds in a list
 
     @staticmethod
-    def extract_blob3ds(all_slides):
+    def extract_blob3ds(all_slides, stitched=True):
         print('Extracting 3d blobs by combining 2d blobs into 3d', flush=True)
-        list3ds = []
+        blob3dlist = []
+        if not stitched:
+            warn('Extracting blob3ds, and have been told that they haven\'t been stitched. This will be inaccurate')
+            print('Extracting blob3ds, and have been told that they haven\'t been stitched. This will be inaccurate') #DEBUG
+
         for slide_num, slide in enumerate(all_slides):
             for blob in slide.blob2dlist:
                 if Blob2d.get(blob).b3did == -1:
-                # buf = Blob2d.get(blob).get_stitched_partners() //old method
-                    buf = [Blob2d.get(b2d) for b2d in Blob2d.get(blob).getpartnerschain()]
-                    # TODO change this so that b3ds can be generated w/o stitching
+
+                    if stitched: # The much better option! ESPECIALLY for recursive_depth = 0
+                        buf = Blob2d.get(blob).get_stitched_partners() #old method
+                    else:
+                        buf = [Blob2d.get(b2d) for b2d in Blob2d.get(blob).getpartnerschain()]
 
                 if len(buf) != 0:
-                    list3ds.append([b2d.id for b2d in buf])
-        blob3dlist = []
-        for blob2dlist in list3ds:
-            blob3dlist.append(Blob3d(blob2dlist))
+                    blob3dlist.append(Blob3d([b2d.id for b2d in buf]))
         return blob3dlist
 
 

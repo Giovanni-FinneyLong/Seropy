@@ -9,11 +9,15 @@ class Blob3d:
     A group of blob2ds that chain together with pairings into a 3d shape
     Setting subblob=True indicates that this is a blob created from a pre-existing blob3d.
     '''
-    total_blobs = 0
+    next_id = 0
+
+    possible_merges = [] # Format: b3did1, b3did2, b2did (the one that links them!
+
 
     def __init__(self, blob2dlist, subblob=False, r_depth=0):
-        self.id = Blob3d.total_blobs
-        Blob3d.total_blobs += 1
+
+        self.id = Blob3d.next_id
+        Blob3d.next_id += 1
         self.blob2ds = blob2dlist          # List of the blob 2ds used to create this blob3d
         # Now find my pairings
         self.isSubblob = (subblob is not False)# T/F
@@ -23,25 +27,22 @@ class Blob3d:
         self.lowslideheight = min(Blob2d.get(blob).height for blob in self.blob2ds)
         self.highslideheight = max(Blob2d.get(blob).height for blob in self.blob2ds)
         self.recursive_depth = r_depth
+
+        ids_that_are_removed_due_to_reusal = set()
         for blobid in self.blob2ds:
 
             blob = Blob2d.get(blobid)
-
-            if Blob2d.all[blob.id].b3did != -1: # DEBUG
-                warn('Assigning a new b3did (' + str(self.id) + ') to blob2d: ' + str(Blob2d.all[blob.id]))
-            Blob2d.all[blob.id].b3did = self.id
-
-            if blob is None:
-                print('WARNING got None when looking for a blob2d with id:' + str(blobid))
-                print('All:' + str(Blob2d.getall()))
-                print('Used ids:' + str(Blob2d.used_ids))
-                print('All raw: ' + str(Blob2d.all))
-                buf = Blob2d.all
-                debug()
-
-            for stitch in blob.pairings:
-                if stitch not in self.pairings: # TODO set will be faster
-                    self.pairings.append(stitch)
+            if Blob2d.all[blob.id].b3did != -1: # DEBUG #FIXME THE ISSUES COME BACK TO THIS, find the source
+                warn('NOT assigning a new b3did (' + str(self.id) + ') to blob2d: ' + str(Blob2d.all[blob.id]))
+                # print('NOT assigning a new b3did (' + str(self.id) + ') to blob2d: ' + str(Blob2d.all[blob.id]))
+                Blob3d.possible_merges.append((Blob2d.all[blob.id].b3did, self.id, blob.id))
+                ids_that_are_removed_due_to_reusal.add(blobid)
+            else: # Note not adding to the new b3d
+                Blob2d.all[blob.id].b3did = self.id
+                for stitch in blob.pairings:
+                    if stitch not in self.pairings: # TODO set will be faster
+                        self.pairings.append(stitch)
+        self.blob2d = list(set(self.blob2ds) - ids_that_are_removed_due_to_reusal)
         self.maxx = max(Blob2d.get(blob).maxx for blob in self.blob2ds)
         self.maxy = max(Blob2d.get(blob).maxy for blob in self.blob2ds)
         self.miny = min(Blob2d.get(blob).miny for blob in self.blob2ds)
@@ -54,11 +55,7 @@ class Blob3d:
         self.note = '' # This is a note that can be manually added for identifying certain characteristics..
 
     def __str__(self):
-        if hasattr(self, 'recursive_depth'):
-            sb = str(self.recursive_depth)
-        else:
-            sb = '0'
-        return str('B3D(' + str(sb) + '): #b2ds:' + str(len(self.blob2ds)) + ', r_depth:' + str(self.recursive_depth) +
+        return str('B3D(' + str(self.id) + '): #b2ds:' + str(len(self.blob2ds)) + ', r_depth:' + str(self.recursive_depth) +
                    ' lowslideheight=' + str(self.lowslideheight) + ' highslideheight=' + str(self.highslideheight) +
                    #' #edgepixels=' + str(len(self.edge_pixels)) + ' #pixels=' + str(len(self.pixels)) +
                    ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) + ')')
