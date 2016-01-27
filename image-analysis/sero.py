@@ -191,7 +191,7 @@ def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
 
 #HACK
 
-process_internals = False # Do blooming, set possible partners for the generated b2ds, then create b3ds from them
+process_internals = True # Do blooming, set possible partners for the generated b2ds, then create b3ds from them
 
 base_b3ds_with_stitching = True
     # NOTE can allow this to control creation of b3ds, or allow a quick create method for b3ds (noting no stitching and much less accuracy)
@@ -258,7 +258,7 @@ def main():
                     save(blob3dlist, picklefile + suffix)
         else:
             blob3dlist = load(picklefile + '_bloomed_stitched')
-        plotBlob2ds([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds],ids=False, parentlines=False,explode=True, coloring='blob3d',edge=False, stitches=True)
+        plotBlob2ds([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=False, stitches=True)
         plotBlob3ds(blob3dlist, color='blob')
         # for b3d in blob3dlist:
         #     print(b3d)

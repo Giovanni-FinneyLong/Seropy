@@ -31,6 +31,7 @@ class Canvas(vispy.scene.SceneCanvas):
         # self.markers = [self.depth_coloring_markers, self.blob2d_coloring_markers, self.blob3d_coloring_markers]
         self.markers = []
         self.available_colorings = ['depth','blob2d', 'blob3d']
+        self.available_stitching = ['neutral', 'parent']
         self.coloring_index = self.available_colorings.index(self.coloring)
         self.buffering = buffering
         self.marker_colors = [] # Each entry corresponds to the color of the correspond 'th marker in self.view.scene.children (not all markers!)
@@ -39,6 +40,7 @@ class Canvas(vispy.scene.SceneCanvas):
         self.b3d_count = -1
         self.stitches = []
         self.current_stitch_color = 'neutral'
+
 
     def on_mouse_press(self, event):
         """Pan the view based on the change in mouse position."""
@@ -82,7 +84,7 @@ class Canvas(vispy.scene.SceneCanvas):
                     debug()
         elif event.key.name == 'Left': # Toggle stitches
             print('len stitches:' + str(len(self.stitches)))
-            stitch_colors = ['neutral', 'blob3d']
+            stitch_colors = ['neutral', 'blob3d','parent']
             print('Old stitch color: ' + str(self.current_stitch_color))
             self.current_stitch_color = stitch_colors[(stitch_colors.index(self.current_stitch_color) + 1) % len(stitch_colors)] #   (self.coloring_index + 1) % len(stitch_colors)
             print('New stitch color: ' + str(self.current_stitch_color))
@@ -380,7 +382,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
                     line_index += 2
             parent_lines = visuals.Line(method=linemethod)
             parent_lines.set_data(pos=line_locations, connect='segments', color='y')
-            canvas.view.add(parent_lines)
+            canvas.stitches.append((parent_lines , 'parent'))
     canvas.setup_markers()
     canvas.setup_stitches()
     vispy.app.run()
