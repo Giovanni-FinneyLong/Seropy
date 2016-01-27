@@ -31,11 +31,8 @@ def save(blob3dlist, filename, directory=PICKLEDIR):
     while not done:
         try:
             print('Pickling ' + str(len(blob3dlist)) + ' b3ds ', end='')
-            # DEBUG
-            idlist = [b3d.id for b3d in blob3dlist]
-
             t0 = t = time.time()
-            pickle.dump({'b3ds' : blob3dlist}, open(filename + '_b3ds', "wb"), protocol=0)
+            pickle.dump({'b3ds' : Blob3d.all, 'possible_merges' : Blob3d.possible_merges}, open(filename + '_b3ds', "wb"), protocol=0)
             printElapsedTime(t, time.time(), prefix='took')
 
             print('Pickling ' + str(len(Blob2d.all)) + ' b2ds ', end='')
@@ -70,9 +67,25 @@ def load(filename, directory=PICKLEDIR):
 
         print('Loading b3ds ', end='',flush=True)
         t = time.time()
-        b3ds = pickle.load(open(filename + '_b3ds', "rb"))['b3ds']
-        Blob3d.next_id = max(b3d.id for b3d in b3ds) + 1
-        printElapsedTime(t,time.time(), prefix='(' + str(len(b3ds)) + ') took')
+
+        buff = pickle.load(open(filename + '_b3ds', "rb"))
+        Blob3d.all = buff['b3ds']
+        if 'possible_merges' in buff:
+            # print('Loading b3d possible merges')
+            Blob3d.possible_merges = buff['possible_merges']
+            print("Loaded possible_merges:" + str(Blob3d.possible_merges))
+        else:
+            print('Blob3d possible merges were not loaded as they were not in the save file')
+        # This is a temp fix to work with old pickle files:
+        if type(Blob3d.all) is list:
+            buf = Blob3d.all
+            Blob3d.all = dict()
+            for b3d in buf:
+                Blob3d.all[b3d.id] = b3d
+
+
+        Blob3d.next_id = max(b3d.id for b3d in Blob3d.all.values()) + 1
+        printElapsedTime(t,time.time(), prefix='(' + str(len(Blob3d.all)) + ') took')
 
         print('Loading b2ds ', end='',flush=True)
         t = time.time()
@@ -91,7 +104,6 @@ def load(filename, directory=PICKLEDIR):
 
         print('Total time to load:', end='')
         printElapsedTime(t_start, time.time(), prefix='')
-        return b3ds
 
 
 # @profile
@@ -219,8 +231,12 @@ def main():
             bloomed_b3ds = bloom_b3ds(blob3dlist, stitch=stitch_bloomed_b2ds) # Includes setting partners, and optionally stitching
             blob3dlist = blob3dlist + bloomed_b3ds
         save(blob3dlist, picklefile)
+        print('Blob3d.possible_merges:')
+        for pm in Blob3d.possible_merges:
+            print(' ' + str(pm))
+
         print('Plotting all generated blobs:')
-        plotBlob2ds(Blob2d.all.values(), stitches=True)
+        plotBlob2ds(list(Blob2d.all.values()), stitches=True, parentlines=process_internals, explode=process_internals)
     else:
         # HACK
         load_base = True # Note that each toggle dominates those below it due to elif
@@ -228,7 +244,19 @@ def main():
         # HACK
 
         if load_base:
-            blob3dlist = load(picklefile)
+            load(picklefile)
+            print('Blob3d.possible_merges:')
+            for pm in Blob3d.possible_merges:
+                print(' ' + str(pm))
+            blob3dlist = list(Blob3d.all.values())
+
+            if hasattr(Blob3d, 'possible_merges'):
+                print('Blob3d does contain possible_merges: ' + str(Blob3d.possible_merges))
+                for tuple in Blob3d.possible_merges:
+                    print(' ' + str(tuple))
+            else:
+                print('Blob3d does not contain possible_merges')
+
             if process_internals:
                 new_b3ds = bloom_b3ds(blob3dlist, stitch=stitch_bloomed_b2ds) # This will set pairings, and stitch if so desired
                 blob3dlist += new_b3ds
@@ -257,7 +285,8 @@ def main():
                         suffix += 'non-stitched'
                     save(blob3dlist, picklefile + suffix)
         else:
-            blob3dlist = load(picklefile + '_bloomed_stitched')
+            load(picklefile + '_bloomed_stitched')
+            blob3dlist = Blob3d.all.values()
         plotBlob2ds([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=False, stitches=True)
         plotBlob3ds(blob3dlist, color='blob')
         # for b3d in blob3dlist:

@@ -12,7 +12,7 @@ class Blob3d:
     next_id = 0
 
     possible_merges = [] # Format: b3did1, b3did2, b2did (the one that links them!
-
+    all = dict()
 
     def __init__(self, blob2dlist, subblob=False, r_depth=0):
 
@@ -33,7 +33,7 @@ class Blob3d:
 
             blob = Blob2d.get(blobid)
             if Blob2d.all[blob.id].b3did != -1: # DEBUG #FIXME THE ISSUES COME BACK TO THIS, find the source
-                warn('NOT assigning a new b3did (' + str(self.id) + ') to blob2d: ' + str(Blob2d.all[blob.id]))
+                # warn('NOT assigning a new b3did (' + str(self.id) + ') to blob2d: ' + str(Blob2d.all[blob.id]))
                 # print('NOT assigning a new b3did (' + str(self.id) + ') to blob2d: ' + str(Blob2d.all[blob.id]))
                 Blob3d.possible_merges.append((Blob2d.all[blob.id].b3did, self.id, blob.id))
                 ids_that_are_removed_due_to_reusal.add(blobid)
@@ -53,6 +53,10 @@ class Blob3d:
         self.isSingular = False
         self.subblobs = []
         self.note = '' # This is a note that can be manually added for identifying certain characteristics..
+        self.validate()
+
+    def validate(self):
+        Blob3d.all[self.id] = self
 
     def __str__(self):
         return str('B3D(' + str(self.id) + '): #b2ds:' + str(len(self.blob2ds)) + ', r_depth:' + str(self.recursive_depth) +

@@ -30,9 +30,9 @@ class Canvas(vispy.scene.SceneCanvas):
         self.coloring = coloring.lower()
         # self.markers = [self.depth_coloring_markers, self.blob2d_coloring_markers, self.blob3d_coloring_markers]
         self.markers = []
-        self.available_colorings = ['depth','blob2d', 'blob3d']
-        self.available_stitching = ['neutral', 'parent']
-        self.coloring_index = self.available_colorings.index(self.coloring)
+        self.available_marker_colors = ['depth', 'blob2d', 'blob3d']
+        self.available_stitch_colors = ['neutral', 'parent', 'none']
+        self.current_blob_color = self.coloring
         self.buffering = buffering
         self.marker_colors = [] # Each entry corresponds to the color of the correspond 'th marker in self.view.scene.children (not all markers!)
         self.image_no = 0
@@ -68,9 +68,9 @@ class Canvas(vispy.scene.SceneCanvas):
         print('Key pressed - text: %r, key: %s, modifiers: %r' % (
             event.text, event.key.name, modifiers))
         if event.key.name == 'Up': # Next color cheme
-            self.update_markers(1)
+            self.update_markers(increment=1)
         elif event.key.name == 'Down': # Previous color scheme
-            self.update_markers(-1)
+            self.update_markers(increment=-1)
         elif event.key.name == 'S': # Save an image
             img = self.render()
             img_name = self.name_image()
@@ -83,18 +83,62 @@ class Canvas(vispy.scene.SceneCanvas):
                     print('   ' +str(name) + ' : ' + str(val))
                     debug()
         elif event.key.name == 'Left': # Toggle stitches
-            print('len stitches:' + str(len(self.stitches)))
-            stitch_colors = ['neutral', 'blob3d','parent']
-            print('Old stitch color: ' + str(self.current_stitch_color))
-            self.current_stitch_color = stitch_colors[(stitch_colors.index(self.current_stitch_color) + 1) % len(stitch_colors)] #   (self.coloring_index + 1) % len(stitch_colors)
-            print('New stitch color: ' + str(self.current_stitch_color))
-            for child, color in self.stitches:
-                print('Color = ' + str( color))
-                if color == self.current_stitch_color:
-                    print('stitch.visible = ' + str(child.visible))
-                    child.visible = True
-                else:
-                    child.visible = False
+            self.update_stitches(increment=1)
+
+    def next_marker_color(self, increment=1):
+        assert(increment in [1,-1])
+        return self.available_marker_colors[(self.available_marker_colors.index(self.current_blob_color) + increment) % len(self.available_marker_colors)]
+
+    def next_stitch_color(self, increment=1):
+        assert(increment in [1,-1])
+        return self.available_stitch_colors[(self.available_stitch_colors.index(self.current_stitch_color) + increment) % len(self.available_stitch_colors)]
+
+    def update_stitches(self, increment=1):
+        print('Old stitch color: ' + str(self.current_stitch_color))
+        self.current_stitch_color = self.next_stitch_color(increment=increment)
+        print('New stitch color: ' + str(self.current_stitch_color))
+        for child, color in self.stitches:
+            print('Color = ' + str( color))
+            if color == self.current_stitch_color:# and \
+                    # not (self.current_stitch_color == 'blob3d' and self.current_blob_color == 'blob3d' and color == 'parent'): #Hides parent lines when plotting blob3d b/c exploding is turned off
+                print('stitch.visible = ' + str(child.visible))
+                child.visible = True
+            else:
+                child.visible = False
+
+    def update_markers(self, increment=1):
+        assert increment in [-1, 1]
+        print('Going from ' + str(self.current_blob_color) + ' to ' + str(self.next_marker_color()))
+
+
+        # if self.next_marker_color(increment=increment) == 'blob3d':
+        #     if self.current_stitch_color == 'parent':
+        #         for child,color in self.stitches:
+        #             if color == 'parent':
+        #                 child.visible = False
+        # if self.current_blob_color == 'blob3d':
+        #     if self.current_stitch_color == 'parent':
+        #         for child,color in self.stitches:
+        #             if color == 'parent':
+        #                 child.visible = True
+
+
+
+        self.current_blob_color = self.next_marker_color(increment=increment)
+        # if self.current_stitch_color == 'parent':
+        #     for child,color in self.stitches:
+        #         if color == 'parent':
+        #             child.visible = self.current_blob_color
+
+        for child,coloring in self.markers:
+            if coloring == self.current_blob_color:
+                child.visible = False
+            if coloring == self.next_marker_color(): #   [(self.current_blob_color + increment) % len(self.available_marker_colors)]:
+                child.visible = True
+
+
+        self.update_title()
+
     def name_image(self):
         prefix = FIGURES_DIR
         if test_instead_of_data:
@@ -106,9 +150,9 @@ class Canvas(vispy.scene.SceneCanvas):
 
     def setup_markers(self):
         for child, coloring in self.markers:
-            if coloring == self.available_colorings[self.coloring_index]:
+            if coloring == self.current_blob_color:
                 child.visible = True
-            elif coloring in self.available_colorings:
+            elif coloring in self.available_marker_colors:
                 child.visible = False
         self.update_title()
 
@@ -117,19 +161,9 @@ class Canvas(vispy.scene.SceneCanvas):
             self.view.add(stitch)
 
 
-    def update_markers(self, increment):
-        assert increment in [-1, 1]
-        print('Going from ' + str(self.available_colorings[self.coloring_index]) + ' to ' + str(self.available_colorings[(self.coloring_index + increment) % len(self.available_colorings)]))
-        for child,coloring in self.markers:
-            if coloring == self.available_colorings[self.coloring_index]:
-                child.visible = False
-            if coloring == self.available_colorings[(self.coloring_index + increment) % len(self.available_colorings)]:
-                child.visible = True
-        self.coloring_index = (self.coloring_index + increment) % len(self.available_colorings)
-        self.update_title()
 
     def update_title(self):
-        self.title =  '# B3ds: ' + str(self.b3d_count) + ', # B2ds: ' + str(self.b2d_count) + ', Coloring = ' + str(self.available_colorings[self.coloring_index])
+        self.title =  '# B3ds: ' + str(self.b3d_count) + ', # B2ds: ' + str(self.b2d_count) + ', Coloring = ' + str(self.current_blob_color)
 
     def add_marker(self, marker, coloring):
         self.markers.append((marker,coloring))
@@ -159,9 +193,6 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
     ydim = ymax - ymin + 1
     zdim = zmax - zmin + 1
 
-    if explode:
-        if not all(b2d.height == blob2ds[0].height for b2d in blob2ds):
-            warn('Attempting to explode blob2ds that are not all at the same height')
     if coloring == '':
         coloring = 'blob2d' # For the canvas title
 
@@ -346,7 +377,6 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
                     color = 'yellow'
             canvas.view.add(visuals.Text(textStr, pos=midpoints[-1], color=color, font_size=15, bold=True))
     if stitches:
-
         #loading neutral stitches (all the same color)
         lineendpoints = 0
         for blob2d in blob2ds:
