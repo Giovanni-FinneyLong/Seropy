@@ -203,9 +203,9 @@ def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
 
 #HACK
 
-process_internals = True # Do blooming, set possible partners for the generated b2ds, then create b3ds from them
+process_internals = False # Do blooming, set possible partners for the generated b2ds, then create b3ds from them
 
-base_b3ds_with_stitching = True
+base_b3ds_with_stitching = False
     # NOTE can allow this to control creation of b3ds, or allow a quick create method for b3ds (noting no stitching and much less accuracy)
 stitch_bloomed_b2ds = False # Default False
 
@@ -232,8 +232,37 @@ def main():
             blob3dlist = blob3dlist + bloomed_b3ds
         save(blob3dlist, picklefile)
         print('Blob3d.possible_merges:')
+
         for pm in Blob3d.possible_merges:
             print(' ' + str(pm))
+            # plotBlob3ds([Blob3d.get(id) for id in [pm[0], pm[1]]], color='blob', stitches=True, lineColoring='blob3d', b2d_midpoint_values=100)
+        merges = dict()
+        for b3d1, b3d2, b2d in Blob3d.possible_merges:
+            if (b3d1, b3d2) in merges: # There are ids
+                merges[(b3d1, b3d2)].append(b2d)
+            else:
+                merges[(b3d1, b3d2)] = [b2d]
+
+        for ((b3d1, b3d2), link_b2ds) in merges.items(): # NOTE this is allowing the visualization of b3ds that have b2ds that have partners in the other b3d
+            # NOTE based on these results, probably want to merge all of these into blob3ds
+
+            # HACK DEBUG changing values here to visualize in plotting
+            b3d1_b2ds = [Blob2d.get(b2d) for b2d in Blob3d.get(b3d1).blob2ds]
+            b3d2_b2ds = [Blob2d.get(b2d) for b2d in Blob3d.get(b3d2).blob2ds]
+            link_b2ds = [Blob2d.get(b2d) for b2d in link_b2ds]
+            print('b3d1_b2ds: ' + str(Blob3d.get(b3d1).blob2ds))
+            print('b3d2_b2ds: ' + str(Blob3d.get(b3d2).blob2ds))
+            print('Link b2ds: ' + str([b2d.id for b2d in link_b2ds]))
+            plotBlob2ds(b3d1_b2ds + b3d2_b2ds + link_b2ds, ids=True, canvas_size=(300,300))
+            print('DB before merge:')
+            print('1a:' + str(Blob3d.get(b3d1)) + ' ' + str(Blob3d.get(b3d1).blob2ds))
+            print('2a:' + str(Blob3d.get(b3d2)) + ' '+  str(Blob3d.get(b3d2).blob2ds))
+            Blob3d.merge(b3d1, b3d2)
+            print('1b:' + str(Blob3d.get(b3d1)) + ' ' + str(Blob3d.get(b3d1).blob2ds))
+
+
+        # print(merges)
+
 
         print('Plotting all generated blobs:')
         plotBlob2ds(list(Blob2d.all.values()), stitches=True, parentlines=process_internals, explode=process_internals)
@@ -260,23 +289,6 @@ def main():
             if process_internals:
                 new_b3ds = bloom_b3ds(blob3dlist, stitch=stitch_bloomed_b2ds) # This will set pairings, and stitch if so desired
                 blob3dlist += new_b3ds
-            # print('Old b3ds: ' + str(len(blob3dlist)) + ' ' + str(len(set(blob3dlist))))
-            # for b3d in blob3dlist:
-            #     print(str(set(Blob2d.get(b2d).b3did for b2d in b3d.blob2ds)) + '  ' + str(b3d))
-            # print('New b3ds: ' + str(len(new_b3ds)) + ' ' + str(len(set(new_b3ds))))
-            # for b3d in new_b3ds:
-            #     id_set = set(Blob2d.get(b2d).b3did for b2d in b3d.blob2ds)
-            #     if len(id_set) > 1:
-            #         print(b3d)
-            #         print(str(id_set) + '  ' + str(b3d))
-            #         for id in id_set:
-            #             print(' id:' + str(id))
-            #             b2ds_with_id = [Blob2d.get(blob) for blob in b3d.blob2ds if Blob2d.get(blob).b3did == id]
-            #             for b2d in b2ds_with_id:
-            #                 print('  ' + str(b2d))
-
-            #     for b2d in b3d.blob2ds:
-            #         print(' ' + str(Blob2d.get(b2d)))
                 if dosave:
                     suffix = '_bloomed_'
                     if stitch_bloomed_b2ds:

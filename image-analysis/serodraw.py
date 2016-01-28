@@ -19,6 +19,7 @@ colors = None
 class Canvas(vispy.scene.SceneCanvas):
     def __init__(self, canvas_size=(800,800), title='', coloring='blob2d', buffering=True): # Note may want to make buffering default to False
         vispy.scene.SceneCanvas.__init__(self, keys='interactive', show=True, size=canvas_size, title=title)
+        self.unfreeze() # Interesting bug fix for an issue that only occurs on Envy
         self.view = self.central_widget.add_view()
         camera = vispy.scene.cameras.TurntableCamera(fov=0, azimuth=80, parent=self.view.scene, distance=1, elevation=-55)
         self.axis = visuals.XYZAxis(parent=self.view.scene)
@@ -196,8 +197,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
     if coloring == '':
         coloring = 'blob2d' # For the canvas title
 
-    canvas = setupCanvas(canvas_size, title='plotBlob2ds(' + str(len(blob2ds)) + '-Blob2ds, coloring=' + str(coloring) +
-                                            ' canvas_size=' + str(canvas_size) + ') ' + titleNote)
+    canvas = setupCanvas(canvas_size, title='plotBlob2ds(' + str(len(blob2ds)) + '-Blob2ds, coloring=' + str(coloring) + ' canvas_size=' + str(canvas_size) + ') ' + titleNote)
     canvas.b2d_count = len(blob2ds)
     # if showStitchCosts > 0: #TODO
     #     number_of_costs_to_show = showStitchCosts # HACK
@@ -443,7 +443,7 @@ def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=
     markerlist = []
     lineendpoints = 0
 
-    if color == 'blob': # Note: This is very graphics intensive.
+    if color == 'blob' or color == 'blob3d': # Note: This is very graphics intensive.
         markers_per_color = [0 for i in range(min(len(colors), len(blob3dlist)))]
         offsets = [0] * min(len(colors), len(blob3dlist))
         for blobnum, blob3d in enumerate(blob3dlist):
@@ -606,11 +606,11 @@ def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=
         b2d_midpoint_textmarkers = []
         b2d_midpoint_pos = np.zeros([b2d_count, 3])
 
-        blob2dlist = list(b2d for b3d in blob3dlist for b2d in b3d.blob2ds)
-        blob2dlist = sorted(blob2dlist, key=lambda blob2d: len(blob2d.edge_pixels), reverse=False)
+        blob2dlist = list(Blob2d.get(b2d) for b3d in blob3dlist for b2d in b3d.blob2ds)
+        blob2dlist = sorted(blob2dlist, key=lambda blob2d: blob2d.id, reverse=False)
         for b2d_num, b2d in enumerate(blob2dlist[0::3][:max_midpoints]): # GETTING EVERY Nth RELEVANT INDEX
             b2d_midpoint_pos[b2d_num] = [b2d.avgx / xdim, b2d.avgy / ydim, b2d.height / zdim]
-            b2d_midpoint_textmarkers.append(visuals.Text(str(len(b2d.edge_pixels)), pos=b2d_midpoint_pos[b2d_num], color='yellow'))
+            b2d_midpoint_textmarkers.append(visuals.Text(str(b2d.id), pos=b2d_midpoint_pos[b2d_num], color='yellow'))
             canvas.view.add(b2d_midpoint_textmarkers[-1])
     vispy.app.run()
 

@@ -55,8 +55,38 @@ class Blob3d:
         self.note = '' # This is a note that can be manually added for identifying certain characteristics..
         self.validate()
 
+    @staticmethod
+    def merge(b1, b2):
+        '''
+        Merges two blob3ds, and updates the entires of all data structures that link to these b3ds
+        The chosen id to merge to is the smaller of the two available
+        Returns the new merged blob3d in addition to updating its entry in Blob3d.all
+        :param b1: The first b3d to merge
+        :param b2: The second b3d to merge
+        :return:
+        '''
+        b1 = Blob3d.get(b1)
+        b2 = Blob3d.get(b2)
+        if b1.id < b2.id:
+            smaller = b1
+            larger = b2
+        else:
+            smaller = b2
+            larger = b1
+        for blob2d in larger.blob2ds:
+            Blob2d.all[blob2d].b3did = smaller
+            smaller.blob2ds.append(blob2d)
+        smaller.blob2ds = list(set(smaller.blob2ds))
+        del Blob3d.all[larger.id]
+        return smaller
+
+
     def validate(self):
         Blob3d.all[self.id] = self
+
+    @staticmethod
+    def get(id):
+        return Blob3d.all[id]
 
     def __str__(self):
         return str('B3D(' + str(self.id) + '): #b2ds:' + str(len(self.blob2ds)) + ', r_depth:' + str(self.recursive_depth) +
@@ -123,6 +153,10 @@ class Blob3d:
             img = scipy_misc.toimage(slice, cmin=0.0, cmax=255.0)
             print('Saving Image of Blob2d as: ' + str(savename) + str(slice_num) + '.png')
             img.save(savename+ str(slice_num) + '.png')
+
+
+
+
 
 class SubBlob3d(Blob3d):
     '''
