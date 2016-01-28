@@ -197,9 +197,9 @@ class Slide:
         for slide_num, slide in enumerate(all_slides):
             for blob in slide.blob2dlist:
                 if Blob2d.get(blob).b3did == -1:
-
                     if stitched: # The much better option! ESPECIALLY for recursive_depth = 0
-                        buf = Blob2d.get(blob).get_stitched_partners() #old method
+                        # buf = Blob2d.get(blob).get_stitched_partners() #old method
+                        buf = [Blob2d.get(b2d) for b2d in Blob2d.get(blob).getpartnerschain()] # HACK
                     else:
                         buf = [Blob2d.get(b2d) for b2d in Blob2d.get(blob).getpartnerschain()]
 

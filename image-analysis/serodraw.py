@@ -19,7 +19,8 @@ colors = None
 class Canvas(vispy.scene.SceneCanvas):
     def __init__(self, canvas_size=(800,800), title='', coloring='blob2d', buffering=True): # Note may want to make buffering default to False
         vispy.scene.SceneCanvas.__init__(self, keys='interactive', show=True, size=canvas_size, title=title)
-        self.unfreeze() # Interesting bug fix for an issue that only occurs on Envy
+        if hasattr(self,'unfreeze') and callable(getattr(self,'unfreeze')):         #HACK # Interesting bug fix for an issue that only occurs on Envy
+            self.unfreeze()
         self.view = self.central_widget.add_view()
         camera = vispy.scene.cameras.TurntableCamera(fov=0, azimuth=80, parent=self.view.scene, distance=1, elevation=-55)
         self.axis = visuals.XYZAxis(parent=self.view.scene)

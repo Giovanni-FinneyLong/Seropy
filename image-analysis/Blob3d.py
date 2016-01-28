@@ -74,7 +74,7 @@ class Blob3d:
             smaller = b2
             larger = b1
         for blob2d in larger.blob2ds:
-            Blob2d.all[blob2d].b3did = smaller
+            Blob2d.all[blob2d].b3did = smaller.id
             smaller.blob2ds.append(blob2d)
         smaller.blob2ds = list(set(smaller.blob2ds))
         del Blob3d.all[larger.id]
