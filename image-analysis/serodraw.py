@@ -30,7 +30,6 @@ class Canvas(vispy.scene.SceneCanvas):
         self.depth_coloring_markers = []
         self.show()
         self.coloring = coloring.lower()
-        # self.markers = [self.depth_coloring_markers, self.blob2d_coloring_markers, self.blob3d_coloring_markers]
         self.markers = []
         self.available_marker_colors = ['depth', 'blob2d', 'blob3d']
         self.available_stitch_colors = ['neutral', 'parent', 'none']
@@ -93,51 +92,42 @@ class Canvas(vispy.scene.SceneCanvas):
 
     def next_stitch_color(self, increment=1):
         assert(increment in [1,-1])
-        return self.available_stitch_colors[(self.available_stitch_colors.index(self.current_stitch_color) + increment) % len(self.available_stitch_colors)]
+        if self.current_stitch_color in self.available_stitch_colors:
+            return self.available_stitch_colors[(self.available_stitch_colors.index(self.current_stitch_color) + increment) % len(self.available_stitch_colors)]
+        else:
+            return self.available_stitch_colors[0]
+    def set_stitch_color(self, newColor):
+        self.current_stitch_color = newColor
+        self.update_stitches(increment=0)
 
     def update_stitches(self, increment=1):
-        print('Old stitch color: ' + str(self.current_stitch_color))
-        self.current_stitch_color = self.next_stitch_color(increment=increment)
-        print('New stitch color: ' + str(self.current_stitch_color))
-        for child, color in self.stitches:
-            print('Color = ' + str( color))
-            if color == self.current_stitch_color:# and \
-                    # not (self.current_stitch_color == 'blob3d' and self.current_blob_color == 'blob3d' and color == 'parent'): #Hides parent lines when plotting blob3d b/c exploding is turned off
-                print('stitch.visible = ' + str(child.visible))
-                child.visible = True
-            else:
-                child.visible = False
+        assert increment in [-1,0,1] # 0 is a refresh
+        if len(self.available_stitch_colors):
+            if increment != 0:
+                self.current_stitch_color = self.next_stitch_color(increment=increment)
+            for stitch, color in self.stitches:
+                if color == self.current_stitch_color:# and \
+                        # not (self.current_stitch_color == 'blob3d' and self.current_blob_color == 'blob3d' and color == 'parent'): #Hides parent lines when plotting blob3d b/c exploding is turned off
+                    print('stitch.visible = ' + str(stitch.visible))
+                    stitch.visible = True
+                else:
+                    stitch.visible = False
 
     def update_markers(self, increment=1):
-        assert increment in [-1, 1]
-        print('Going from ' + str(self.current_blob_color) + ' to ' + str(self.next_marker_color()))
-
-
-        # if self.next_marker_color(increment=increment) == 'blob3d':
-        #     if self.current_stitch_color == 'parent':
-        #         for child,color in self.stitches:
-        #             if color == 'parent':
-        #                 child.visible = False
-        # if self.current_blob_color == 'blob3d':
-        #     if self.current_stitch_color == 'parent':
-        #         for child,color in self.stitches:
-        #             if color == 'parent':
-        #                 child.visible = True
-
-
-
-        self.current_blob_color = self.next_marker_color(increment=increment)
-        # if self.current_stitch_color == 'parent':
-        #     for child,color in self.stitches:
-        #         if color == 'parent':
-        #             child.visible = self.current_blob_color
-
-        for child,coloring in self.markers:
-            if coloring == self.current_blob_color:
-                child.visible = False
-            if coloring == self.next_marker_color(): #   [(self.current_blob_color + increment) % len(self.available_marker_colors)]:
-                child.visible = True
-
+        assert increment in [-1, 0, 1] # 0 is a refresh
+        if len(self.available_marker_colors):
+            print('Going from ' + str(self.current_blob_color) + ' to ' + str(self.next_marker_color(increment=increment)))
+            if increment != 0:
+                self.current_blob_color = self.next_marker_color(increment=increment)
+            for child,coloring in self.markers:
+                if coloring == self.current_blob_color:
+                    child.visible = True
+                else:
+                    child.visible = False
+            if self.current_blob_color == 'blob3d': #for now, these are viewed flat, and so parentlines should be turned off
+                for stitch, color in self.stitches:
+                    if color == 'parent':
+                        stitch.visible = False
 
         self.update_title()
 
@@ -151,18 +141,30 @@ class Canvas(vispy.scene.SceneCanvas):
         return prefix + str(self.image_no - 1) + '.png'
 
     def setup_markers(self):
-        for child, coloring in self.markers:
+        for marker, coloring in self.markers:
             if coloring == self.current_blob_color:
-                child.visible = True
-            elif coloring in self.available_marker_colors:
-                child.visible = False
+                marker.visible = True
+            else:
+                marker.visible = False
         self.update_title()
 
     def setup_stitches(self):
-        for stitch, color in self.stitches:
-            self.view.add(stitch)
+        # Going to count whether there are any stitches of each type,
+        # therefore if there aren't that type can be skipped
+        counts = [0] * len(self.available_stitch_colors)
+        for stitch, coloring in self.stitches:
+            counts[self.available_stitch_colors.index(coloring)] += 1
+        self.available_stitch_colors = [color for (index, color) in enumerate(self.available_stitch_colors) if counts[index] > 0]
+        for stitch, coloring in self.stitches:
+            if coloring == self.current_stitch_color:
+                stitch.visible = True
+            else:
+                stitch.visible = False
+        self.update_title()
 
-
+    def add_stitch(self, stitch, coloring):
+        self.stitches.append((stitch, coloring))
+        self.view.add(self.stitches[-1][0])
 
     def update_title(self):
         self.title =  '# B3ds: ' + str(self.b3d_count) + ', # B2ds: ' + str(self.b2d_count) + ', Coloring = ' + str(self.current_blob_color)
@@ -200,23 +202,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
 
     canvas = setupCanvas(canvas_size, title='plotBlob2ds(' + str(len(blob2ds)) + '-Blob2ds, coloring=' + str(coloring) + ' canvas_size=' + str(canvas_size) + ') ' + titleNote)
     canvas.b2d_count = len(blob2ds)
-    # if showStitchCosts > 0: #TODO
-    #     number_of_costs_to_show = showStitchCosts # HACK
-    #     all_stitches = list(stitches for blob3d in blob3dlist for pairing in blob3d.pairings for stitches in pairing.stitches)
-    #     all_stitches = sorted(all_stitches, key=lambda stitch: stitch.cost[2], reverse=True) # costs are (contour_cost, distance(as cost), total, distance(not as cost))
-    #     midpoints = np.zeros([number_of_costs_to_show,3])
-    #     for index,stitch in enumerate(all_stitches[:number_of_costs_to_show]): #FIXME! For some reason overloads the ram.
-    #         midpoints[index] = [(stitch.lowerpixel.x + stitch.upperpixel.x) / (2 * xdim), (stitch.lowerpixel.y + stitch.upperpixel.y) / (2 * ydim), (stitch.lowerpixel.z + stitch.upperpixel.z) / (2 * zdim)]
-    #         textStr = str(stitch.cost[0])[:2] + '_' +  str(stitch.cost[3])[:3] + '_' +  str(stitch.cost[2])[:2]
-    #         canvas.view.add(visuals.Text(textStr, pos=midpoints[index], color='yellow'))
 
-    # if b3dmidpoints:
-    #     b3d_midpoint_markers = []
-    #     for blob_num, blob3d in enumerate(blob3dlist):
-    #         b3d_midpoint_markers.append(visuals.Markers())
-    #         b3d_midpoint_markers[-1].set_data(np.array([[blob3d.avgx / xdim, blob3d.avgy / ydim, blob3d.avgz / zdim]]), edge_color='w', face_color=colors[blob_num % len(colors)], size=25)
-    #         b3d_midpoint_markers[-1].symbol = 'star'
-    #         canvas.view.add(b3d_midpoint_markers[-1])
     if b2dmidpoints:
         b2d_num = 0
         b2d_midpoint_pos = np.zeros([len(blob2ds), 3])
@@ -225,30 +211,10 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
             b2d_midpoint_pos[b2d_num] = [blob2d.avgx / xdim, blob2d.avgy / ydim, blob2d.height / zdim]
             b2d_num += 1
         b2d_midpoint_markers = visuals.Markers()
-
-
-
         b2d_midpoint_markers.set_data(b2d_midpoint_pos, edge_color='w', face_color='yellow', size=15)
         b2d_midpoint_markers.symbol = 'diamond'
         # canvas.view.add(b2d_midpoint_markers)
         canvas.add_marker(b2d_midpoint_markers, 'blob2d_mid')
-    #
-    # if b2d_midpoint_values > 0:
-    #
-    #     max_midpoints = b2d_midpoint_values
-    #     print('The midpoints texts are the number of edge_pixels in the Blob2d, showing a total of ' + str(max_midpoints))
-    #     b2d_count = sum(len(b3d.blob2ds) for b3d in blob3dlist)
-    #     b2d_midpoint_textmarkers = []
-    #     b2d_midpoint_pos = np.zeros([b2d_count, 3])
-    #
-    #     blob2dlist = list(b2d for b3d in blob3dlist for b2d in b3d.blob2ds)
-    #     blob2dlist = sorted(blob2dlist, key=lambda blob2d: len(blob2d.edge_pixels), reverse=False)
-    #     for b2d_num, b2d in enumerate(blob2dlist[0::3][:max_midpoints]): # GETTING EVERY Nth RELEVANT INDEX
-    #         b2d_midpoint_pos[b2d_num] = [b2d.avgx / xdim, b2d.avgy / ydim, b2d.height / zdim]
-    #         b2d_midpoint_textmarkers.append(visuals.Text(str(len(b2d.edge_pixels)), pos=b2d_midpoint_pos[b2d_num], color='yellow'))
-    #         canvas.view.add(b2d_midpoint_textmarkers[-1])
-
-
 
     if coloring == 'blob2d' or canvas.buffering:
         pixel_arrays = []
@@ -294,20 +260,11 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
         b3d_lists = [[] for i in range(max_b3d_id + 2)] # +2 to allow for blobs which are unassigned
                                                         # NOTE this may cause seemingly strange results later if b3did unset!!!
                                                         # TODO find a more elegant way to display these.. maybe an edge color?
-        # DEBUG
-        # print('Processing ' + str(len(blob2ds)))
-
         for b2d in blob2ds:
             b3d_lists[b2d.b3did].append(b2d)
         if len(b3d_lists[-1]):
             warn('Plotting b2ds that weren\'t assigned ids (below)')
-            # for b2d in b3d_lists[-1]:
-            #     print('  ' + str(b2d))
         b3d_lists = [b3d_list for b3d_list in b3d_lists if len(b3d_list)]
-        print('--- DB num b3ds: ' + str(len(b3d_lists)) + ' unique b3dids in b2ds: ' + str(b2d_id_size))
-
-
-
         canvas.b3d_count = len(b3d_lists)
         markers_per_color = [0 for i in range(min(len(colors), len(b3d_lists)))]
         offsets = [0] * min(len(colors), len(b3d_lists))
@@ -325,13 +282,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
         for color_num, edge_array in enumerate(edge_pixel_arrays):
             buf = visuals.Markers()
             buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
-
-            if canvas.buffering:
-                # canvas.blob3d_coloring_markers.append(buf)
-                # canvas.marker_colors.append('blob3d')
-                canvas.add_marker(buf, 'blob3d')
-            # if coloring == 'blob3d':
-            #     canvas.view.add(buf) # HACK
+            canvas.add_marker(buf, 'blob3d')
 
     if coloring == 'b2d_depth' or canvas.buffering:
         pixel_arrays = []
@@ -356,12 +307,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
             else:
                 buf = visuals.Markers()
                 buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
-                if canvas.buffering:
-                    # canvas.marker_colors.append('depth')
-                    # canvas.depth_coloring_markers.append(buf)
-                    canvas.add_marker(buf, 'depth')
-                # if coloring == 'depth':
-                #     canvas.view.add(buf)
+                canvas.add_marker(buf, 'depth')
 
     if ids is True:
         midpoints = []
@@ -396,8 +342,10 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
                         line_index += 2
             stitch_lines = visuals.Line(method=linemethod)
             stitch_lines.set_data(pos=line_locations, connect='segments')
-            canvas.stitches.append((stitch_lines, 'neutral'))
-            # canvas.view.add(stitch_lines)
+
+            # canvas.stitches.append((stitch_lines, 'neutral'))
+            canvas.add_stitch(stitch_lines, 'neutral')
+
     if parentlines:
         lineendpoints = 0
         for num,b2d in enumerate(blob2ds):
@@ -413,7 +361,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
                     line_index += 2
             parent_lines = visuals.Line(method=linemethod)
             parent_lines.set_data(pos=line_locations, connect='segments', color='y')
-            canvas.stitches.append((parent_lines , 'parent'))
+            canvas.add_stitch(parent_lines, 'parent')
     canvas.setup_markers()
     canvas.setup_stitches()
     vispy.app.run()

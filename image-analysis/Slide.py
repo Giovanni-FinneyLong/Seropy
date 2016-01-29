@@ -198,11 +198,13 @@ class Slide:
             for blob in slide.blob2dlist:
                 if Blob2d.get(blob).b3did == -1:
                     if stitched: # The much better option! ESPECIALLY for recursive_depth = 0
-                        # buf = Blob2d.get(blob).get_stitched_partners() #old method
-                        buf = [Blob2d.get(b2d) for b2d in Blob2d.get(blob).getpartnerschain()] # HACK
+                        buf = [b2d for b2d in Blob2d.get(blob).get_stitched_partners()] #old method
+                        # buf = [Blob2d.get(b2d) for b2d in Blob2d.get(blob).getpartnerschain()] # IDEALLY could use this for both... for now, it doesnt work well
                     else:
-                        buf = [Blob2d.get(b2d) for b2d in Blob2d.get(blob).getpartnerschain()]
-
+                        buf = [Blob2d.get(b2d) for b2d in Blob2d.get(blob).getpartnerschain()] # TODO setting partners needs filtering like stitching
+                # HACK refresh buf
+                buf = [Blob2d.get(b2d.id) for b2d in buf]
+                buf = [b2d for b2d in buf if b2d.b3did == -1]
                 if len(buf) != 0:
                     blob3dlist.append(Blob3d([b2d.id for b2d in buf]))
         return blob3dlist

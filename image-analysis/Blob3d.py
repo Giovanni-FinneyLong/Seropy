@@ -34,7 +34,7 @@ class Blob3d:
             blob = Blob2d.get(blobid)
             if Blob2d.all[blob.id].b3did != -1: # DEBUG #FIXME THE ISSUES COME BACK TO THIS, find the source
                 # warn('NOT assigning a new b3did (' + str(self.id) + ') to blob2d: ' + str(Blob2d.all[blob.id]))
-                # print('NOT assigning a new b3did (' + str(self.id) + ') to blob2d: ' + str(Blob2d.all[blob.id]))
+                print('---NOT assigning a new b3did (' + str(self.id) + ') to blob2d: ' + str(Blob2d.all[blob.id]))
                 Blob3d.possible_merges.append((Blob2d.all[blob.id].b3did, self.id, blob.id))
                 ids_that_are_removed_due_to_reusal.add(blobid)
             else: # Note not adding to the new b3d
@@ -79,6 +79,86 @@ class Blob3d:
         smaller.blob2ds = list(set(smaller.blob2ds))
         del Blob3d.all[larger.id]
         return smaller
+
+
+
+    @staticmethod
+    def mergeall():
+        # Experimenting with merging blob3ds.
+        all_ids_to_merge = set(id for triple in Blob3d.possible_merges for id in [triple[0], triple[1]])
+        if len(all_ids_to_merge):
+            merged_set_no = [-1] * (max(all_ids_to_merge) + 1)
+            merges = []
+            for b3d1, b3d2, b2d in Blob3d.possible_merges:
+                if merged_set_no[b3d1] == -1: # not yet in a set
+                    if merged_set_no[b3d2] == -1:
+                        merges.append(set([b3d1, b3d2]))
+                        merged_set_no[b3d1] = len(merges) - 1
+                        merged_set_no[b3d2] = len(merges) - 1
+                    else:
+                        # b3d1 not yet in a set, b3d2 is
+                        merges[merged_set_no[b3d2]].add(b3d1)
+                        merged_set_no[b3d1] = merged_set_no[b3d2]
+                else:
+                    # b3d1 is in a set
+                    if merged_set_no[b3d2] == -1:
+                        # b3d2 not yet in a set, b3d1 is
+                        merges[merged_set_no[b3d1]].add(b3d2)
+                        merged_set_no[b3d2] = merged_set_no[b3d1]
+                    else:
+                        # Both are already in sets, THEY BETTER BE THE SAME!!!!
+                        if merged_set_no[b3d1] != merged_set_no[b3d2]:
+                            warn('FOUND TWO THAT SHOULD HAVE BEEN MATCHED IN DIFFERENT SETS!!!!!')
+            for merge_set in merges:
+                Blob3d.merge(list(merge_set))
+        else:
+            print('Didnt find any blob3ds to merge')
+
+    @staticmethod
+    def merge(b3dlist):
+        print('Called merge on b3dlist: ' + str(b3dlist))
+        b3d = b3dlist.pop()
+        while len(b3dlist):
+            next = b3dlist.pop()
+            Blob3d.merge2(b3d, next)
+        return b3d
+
+
+    @staticmethod
+    def merge2(b1, b2):
+        '''
+        Merges two blob3ds, and updates the entires of all data structures that link to these b3ds
+        The chosen id to merge2 to is the smaller of the two available
+        Returns the new merged blob3d in addition to updating its entry in Blob3d.all
+        :param b1: The first b3d to merge2
+        :param b2: The second b3d to merge2
+        :return:
+        '''
+        b1 = Blob3d.get(b1)
+        b2 = Blob3d.get(b2)
+        # if b1.id < b2.id: #HACK
+        smaller = b1
+        larger = b2
+        # else:
+        #     smaller = b2
+        #     larger = b1
+        for blob2d in larger.blob2ds:
+            Blob2d.all[blob2d].b3did = smaller.id
+            smaller.blob2ds.append(blob2d)
+        smaller.blob2ds = list(set(smaller.blob2ds))
+        del Blob3d.all[larger.id]
+        return smaller
+
+
+
+
+
+
+
+
+
+
+
 
 
     def validate(self):
