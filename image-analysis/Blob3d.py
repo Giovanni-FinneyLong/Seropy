@@ -4,6 +4,12 @@ from util import warn
 from util import debug
 from myconfig import *
 
+def printGeneralInfo(prefix='', indent=0, suffix=''):
+    prefix = (' ' * indent) + prefix
+    print(prefix + '<Blob3d>: Count:' + str(len(Blob3d.all)) + suffix)
+    print(prefix + '<Blob2d>: Count:' + str(len(Blob2d.all)) + suffix)
+
+
 class Blob3d:
     '''
     A group of blob2ds that chain together with pairings into a 3d shape
@@ -14,20 +20,29 @@ class Blob3d:
     possible_merges = [] # Format: b3did1, b3did2, b2did (the one that links them!
     all = dict()
 
-    def __init__(self, blob2dlist, subblob=False, r_depth=0):
+    def __init__(self, blob2dlist, parent=None, r_depth=0):
 
         self.id = Blob3d.next_id
         Blob3d.next_id += 1
         self.blob2ds = blob2dlist          # List of the blob 2ds used to create this blob3d
         # Now find my pairings
-        self.isSubblob = (subblob is not False)# T/F
-        if self.isSubblob:
-            self.parentb3d = subblob
+        self.parent = parent
         self.pairings = []
         self.lowslideheight = min(Blob2d.get(blob).height for blob in self.blob2ds)
         self.highslideheight = max(Blob2d.get(blob).height for blob in self.blob2ds)
         self.recursive_depth = r_depth
+        self.children = []
 
+
+        if self.parent is not None:
+            Blob3d.get(self.parent).children.append(self.id)
+            # print('Creating subblob, parent: ' + str(Blob3d.get(self.parent)))
+            # print('self rd: ' + str(self.recursive_depth))
+            if not (Blob3d.get(self.parent).recursive_depth == self.recursive_depth - 1):
+                warn('RD mismatch when creating b3ds, self.rd:' + str(self.recursive_depth) + ' parent.rd: ' + str(Blob3d.get(self.parent).recursive_depth))
+        else:
+            if not self.recursive_depth == 0:
+                warn('Creating a b3d not a r_depth 0, without a parent')
         ids_that_are_removed_due_to_reusal = set()
         for blobid in self.blob2ds:
 
@@ -55,6 +70,7 @@ class Blob3d:
         self.note = '' # This is a note that can be manually added for identifying certain characteristics..
         self.validate()
 
+
     @staticmethod
     def merge(b1, b2):
         '''
@@ -81,12 +97,19 @@ class Blob3d:
         return smaller
 
 
-
     @staticmethod
     def mergeall():
+        '''
+        This cleans up any blob3ds that attempted to obtain a blob2d that was already part of another blob3d
+        Blob3d.possible_merges is generated as Blob3ds are
+        Ideally this wouldn't be necessary but code happens
+        :return:
+        '''
         # Experimenting with merging blob3ds.
-        all_ids_to_merge = set(id for triple in Blob3d.possible_merges for id in [triple[0], triple[1]])
-        if len(all_ids_to_merge):
+        if len(Blob3d.possible_merges):
+            print('Before merging:--------------')
+            printGeneralInfo()
+            all_ids_to_merge = set(id for triple in Blob3d.possible_merges for id in [triple[0], triple[1]])
             merged_set_no = [-1] * (max(all_ids_to_merge) + 1)
             merges = []
             for b3d1, b3d2, b2d in Blob3d.possible_merges:
@@ -109,10 +132,13 @@ class Blob3d:
                         # Both are already in sets, THEY BETTER BE THE SAME!!!!
                         if merged_set_no[b3d1] != merged_set_no[b3d2]:
                             warn('FOUND TWO THAT SHOULD HAVE BEEN MATCHED IN DIFFERENT SETS!!!!!')
+            print('After merge:----------------')
+            printGeneralInfo()
             for merge_set in merges:
                 Blob3d.merge(list(merge_set))
         else:
             print('Didnt find any blob3ds to merge')
+
 
     @staticmethod
     def merge(b3dlist):
@@ -150,29 +176,26 @@ class Blob3d:
         return smaller
 
 
-
-
-
-
-
-
-
-
-
-
-
     def validate(self):
         Blob3d.all[self.id] = self
+
 
     @staticmethod
     def get(id):
         return Blob3d.all[id]
 
     def __str__(self):
+        parent_str = ''
+        child_str = ''
+        if self.parent is not None:
+            parent_str = ' , Parent B3d: ' + str(self.parent)
+        if len(self.children):
+            child_str = ' , Children: ' + str(self.children)
         return str('B3D(' + str(self.id) + '): #b2ds:' + str(len(self.blob2ds)) + ', r_depth:' + str(self.recursive_depth) +
                    ' lowslideheight=' + str(self.lowslideheight) + ' highslideheight=' + str(self.highslideheight) +
                    #' #edgepixels=' + str(len(self.edge_pixels)) + ' #pixels=' + str(len(self.pixels)) +
-                   ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) + ')')
+                   ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) + parent_str + child_str + ')')
+
     __repr__ = __str__
 
     def get_edge_pixel_count(self):
@@ -233,25 +256,3 @@ class Blob3d:
             img = scipy_misc.toimage(slice, cmin=0.0, cmax=255.0)
             print('Saving Image of Blob2d as: ' + str(savename) + str(slice_num) + '.png')
             img.save(savename+ str(slice_num) + '.png')
-
-
-
-
-
-class SubBlob3d(Blob3d):
-    '''
-
-    '''
-    def __init__(self, blob2dlist, parentB3d):
-        super().__init__(blob2dlist, True)
-        if type(parentB3d) is Blob3d: # Not subblob3d
-            self.recursive_depth = 1
-        else:
-            self.recursive_depth = parentB3d.recursive_depth + 1
-        self.parent = parentB3d
-        # These subblobs need to have offsets, so that they can be correctly placed within their corresponding b3ds when plotting
-        # NOTE minx,miny,maxx,maxy are all set in Blob3d.__init__
-        self.offsetx = self.minx
-        self.offsety = self.miny
-        self.width = self.maxx - self.minx
-        self.height = self.maxy - self.miny

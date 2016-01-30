@@ -2,7 +2,7 @@ __author__ = 'gio'
 
 from util import printElapsedTime
 from Slide import Slide
-from Blob3d import Blob3d
+from Blob3d import Blob3d, printGeneralInfo
 from Blob2d import Blob2d
 from Pixel import Pixel
 import pickle # Note uses cPickle automatically ONLY IF python 3
@@ -14,10 +14,7 @@ from myconfig import *
 import time
 
 
-def printGeneralInfo(prefix='', indent=0, suffix=''):
-    prefix = (' ' * indent) + prefix
-    print(prefix + '<Blob3d>: Count:' + str(len(Blob3d.all)) + suffix)
-    print(prefix + '<Blob2d>: Count:' + str(len(Blob2d.all)) + suffix)
+
 
 
 def save(blob3dlist, filename, directory=PICKLEDIR):
@@ -182,7 +179,7 @@ def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
                         #         print('Derived from b2d: ' + str(b2d))
                         new_b3d_list = [blob.id for blob in set(cur_matches) if blob.recursive_depth == b2d.recursive_depth and blob.b3did == -1]
                         if len(new_b3d_list):
-                            new_b3ds.append(Blob3d(new_b3d_list, subblob=b3d.id, r_depth = b2d.recursive_depth))
+                            new_b3ds.append(Blob3d(new_b3d_list, parent=b3d.id, r_depth=b2d.recursive_depth))
                         # else:
                         #     print(' ! Skipping an opportunity to make a b3d because all potential b2ds have already been assigned to a b3d') # TODO
         all_new_b3ds += new_b3ds
@@ -230,23 +227,15 @@ def main():
         if process_internals:
             bloomed_b3ds = bloom_b3ds(blob3dlist, stitch=stitch_bloomed_b2ds) # Includes setting partners, and optionally stitching
             blob3dlist = blob3dlist + bloomed_b3ds
-        save(blob3dlist, picklefile)
-
-##########################################
-        # Experimenting with merging blob3ds.
-        print('Before merging:--------------')
-        printGeneralInfo()
-        # print('Blob3d.possible_merges:')
-        # for pm in Blob3d.possible_merges:
-        #     print(' ' + str(pm))
         Blob3d.mergeall()
-        print('After merge:----------------')
-        printGeneralInfo()
-
-        # print(merges)
+        save(blob3dlist, picklefile)
 
 
         print('Plotting all generated blobs:')
+        for b3d in blob3dlist:
+            print(b3d)
+            for child in b3d.children:
+                print(' ' + str(Blob3d.get(child)))
         plotBlob2ds(list(Blob2d.all.values()), stitches=True, parentlines=process_internals, explode=process_internals)
         plotBlob3ds(list(Blob3d.all.values()))
     else:
@@ -282,8 +271,19 @@ def main():
         else:
             load(picklefile + '_bloomed_stitched')
             blob3dlist = Blob3d.all.values()
+        for b3d in blob3dlist:
+            print(b3d)
+            for child in b3d.children:
+                print('  ' + str(Blob3d.get(child)))
+
+            for b2d in b3d.blob2ds:
+                print('    ' + str(Blob2d.get(b2d)))
+            plotBlob3ds([b3d] + [Blob3d.get(blob) for blob in (b3d.children)])
         plotBlob2ds([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=False, stitches=True)
         plotBlob3ds(blob3dlist, color='blob')
+
+
+
         exit()
     # plotBlob2ds(depth, stitches=True, ids=False, parentlines=False,explode=True, edge=False)
 

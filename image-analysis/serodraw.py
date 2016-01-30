@@ -367,7 +367,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
     vispy.app.run()
 
 
-def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=0, maxcolors=-1, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800, 800), b2d_midpoint_values=0, titleNote=''):
+def plotBlob3ds(blob3dlist, stitches=True, color='blob3d', lineColoring=None, costs=0, maxcolors=-1, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800, 800), b2d_midpoint_values=0, titleNote=''):
     global colors
     canvas = setupCanvas(canvas_size,
                                  title='plotBlob3ds(' + str(len(blob3dlist)) + '-Blob3ds, coloring=' + str(color) + ', canvas_size=' + str(canvas_size) + ') ' + titleNote)
@@ -405,9 +405,10 @@ def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=
                 edge_pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * zdim)]
             offsets[index] += blob3d.get_edge_pixel_count()
         for color_num, edge_array in enumerate(edge_pixel_arrays):
-            buf = visuals.Markers()
-            buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
-            canvas.view.add(buf)
+            marker = visuals.Markers()
+            marker.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
+            # canvas.view.add(buf)
+            canvas.add_marker(marker, 'blob3d')
 
     elif color == 'singular':
         total_singular_points = 0
@@ -434,8 +435,10 @@ def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=
         multi_markers = visuals.Markers()
         singular_markers.set_data(singular_edge_array, edge_color=None, face_color='green', size=8)
         multi_markers.set_data(multi_edge_array, edge_color=None, face_color='red', size=8)
+
         canvas.view.add(singular_markers)
         canvas.view.add(multi_markers)
+
 
     elif color == 'depth': # Coloring based on recursive depth
         max_depth = max(blob.recursive_depth for blob in blob3dlist)
@@ -458,9 +461,11 @@ def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=
                 for pixel in ep_buf:
                     edge_pixel_arrays[-1][p_num] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( z_compression * zdim)]
                     p_num += 1
-            markerlist.append(visuals.Markers())
-            markerlist[-1].set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[depth % len(colors)], size=8)
-            canvas.view.add(markerlist[-1])
+            markers = visuals.Markers()
+            markers.set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[depth % len(colors)], size=8)
+            canvas.add_marker(markers, 'depth')
+
+
     else: # All colored the same
         total_points = 0
         for blob_num, blob3d in enumerate(blob3dlist):
@@ -476,7 +481,8 @@ def plotBlob3ds(blob3dlist, stitches=True, color=None, lineColoring=None, costs=
                 lineendpoints += (2 * len(stitch.indeces)) # 2 as each line has 2 endpoints
         markers = visuals.Markers()
         markers.set_data(edge_pixel_array, edge_color=None, face_color=colors[0], size=8) # TODO change color
-        canvas.view.add(markers)
+        # canvas.view.add(markers)
+        canvas.add_marker(markers, 'neutral')
 
     if costs > 0:
         number_of_costs_to_show = costs # HACK
