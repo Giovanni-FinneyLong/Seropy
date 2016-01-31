@@ -32,7 +32,7 @@ class Canvas(vispy.scene.SceneCanvas):
         self.coloring = coloring.lower()
         self.markers = []
         self.available_marker_colors = ['depth', 'blob2d', 'blob3d']
-        self.available_stitch_colors = ['neutral', 'parent', 'none']
+        self.available_stitch_colors = ['neutral', 'parentID', 'none']
         self.current_blob_color = self.coloring
         self.buffering = buffering
         self.marker_colors = [] # Each entry corresponds to the color of the correspond 'th marker in self.view.scene.children (not all markers!)
@@ -107,7 +107,7 @@ class Canvas(vispy.scene.SceneCanvas):
                 self.current_stitch_color = self.next_stitch_color(increment=increment)
             for stitch, color in self.stitches:
                 if color == self.current_stitch_color:# and \
-                        # not (self.current_stitch_color == 'blob3d' and self.current_blob_color == 'blob3d' and color == 'parent'): #Hides parent lines when plotting blob3d b/c exploding is turned off
+                        # not (self.current_stitch_color == 'blob3d' and self.current_blob_color == 'blob3d' and color == 'parentID'): #Hides parentID lines when plotting blob3d b/c exploding is turned off
                     print('stitch.visible = ' + str(stitch.visible))
                     stitch.visible = True
                 else:
@@ -126,7 +126,7 @@ class Canvas(vispy.scene.SceneCanvas):
                     child.visible = False
             if self.current_blob_color == 'blob3d': #for now, these are viewed flat, and so parentlines should be turned off
                 for stitch, color in self.stitches:
-                    if color == 'parent':
+                    if color == 'parentID':
                         stitch.visible = False
 
         self.update_title()
@@ -361,7 +361,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
                     line_index += 2
             parent_lines = visuals.Line(method=linemethod)
             parent_lines.set_data(pos=line_locations, connect='segments', color='y')
-            canvas.add_stitch(parent_lines, 'parent')
+            canvas.add_stitch(parent_lines, 'parentID')
     canvas.setup_markers()
     canvas.setup_stitches()
     vispy.app.run()

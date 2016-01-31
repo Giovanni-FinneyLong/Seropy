@@ -142,8 +142,9 @@ def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
     print('Creating 3d blobs from the generated 2d blobs')
     all_new_b3ds = []
     for depth_offset in range(max_avail_depth+1)[1:]: # Skip offset of zero, which refers to the b3ds which have already been stitched
-        # print('Depth_offset: ' + str(depth_offset))
+        print('Depth_offset: ' + str(depth_offset))
         new_b3ds = []
+
         for b3d in blob3dlist:
             all_d1_with_pp_in_this_b3d = []
             for b2d in b3d.blob2ds:
@@ -179,7 +180,7 @@ def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
                         #         print('Derived from b2d: ' + str(b2d))
                         new_b3d_list = [blob.id for blob in set(cur_matches) if blob.recursive_depth == b2d.recursive_depth and blob.b3did == -1]
                         if len(new_b3d_list):
-                            new_b3ds.append(Blob3d(new_b3d_list, parent=b3d.id, r_depth=b2d.recursive_depth))
+                            new_b3ds.append(Blob3d(new_b3d_list, r_depth=b2d.recursive_depth))
                         # else:
                         #     print(' ! Skipping an opportunity to make a b3d because all potential b2ds have already been assigned to a b3d') # TODO
         all_new_b3ds += new_b3ds
@@ -202,7 +203,7 @@ def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
 
 process_internals = True # Do blooming, set possible partners for the generated b2ds, then create b3ds from them
 
-base_b3ds_with_stitching = True # TODO TODO TODO this still needs to be true to get good results, abstractify for filtering b2ds in both cases
+base_b3ds_with_stitching = False # TODO TODO TODO this still needs to be true to get good results, abstractify for filtering b2ds in both cases
     # NOTE can allow this to control creation of b3ds, or allow a quick create method for b3ds (noting no stitching and much less accuracy)
 stitch_bloomed_b2ds = False # Default False
 
@@ -231,11 +232,16 @@ def main():
         save(blob3dlist, picklefile)
 
 
-        print('Plotting all generated blobs:')
-        for b3d in blob3dlist:
+        for b3d in Blob3d.all.values():
             print(b3d)
             for child in b3d.children:
-                print(' ' + str(Blob3d.get(child)))
+                print('  cld:' + str(Blob3d.get(child)))
+
+            for b2d in b3d.blob2ds:
+                print('    b2d:' + str(Blob2d.get(b2d)))
+            if len(b3d.children) > 0:
+                print('------------')
+                plotBlob3ds([b3d] + [Blob3d.get(blob) for blob in (b3d.children)])
         plotBlob2ds(list(Blob2d.all.values()), stitches=True, parentlines=process_internals, explode=process_internals)
         plotBlob3ds(list(Blob3d.all.values()))
     else:
@@ -271,6 +277,8 @@ def main():
         else:
             load(picklefile + '_bloomed_stitched')
             blob3dlist = Blob3d.all.values()
+        plotBlob2ds([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=False, stitches=True)
+
         for b3d in blob3dlist:
             print(b3d)
             for child in b3d.children:
@@ -278,8 +286,8 @@ def main():
 
             for b2d in b3d.blob2ds:
                 print('    ' + str(Blob2d.get(b2d)))
-            plotBlob3ds([b3d] + [Blob3d.get(blob) for blob in (b3d.children)])
-        plotBlob2ds([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=False, stitches=True)
+                if len(b3d.children):
+                    plotBlob3ds([b3d] + [Blob3d.get(blob) for blob in (b3d.children)])
         plotBlob3ds(blob3dlist, color='blob')
 
 

@@ -336,7 +336,7 @@ class Blob2d:
             b2d = Blob2d.get(b2d)
             Blob2d.all[self.id].pixels = list(set(Blob2d.all[self.id].pixels) - set(b2d.pixels))
 
-        # print(depth_offset + ' After being bloomed the parent is:' + str(Blob2d.get(blob2d.id)))
+        # print(depth_offset + ' After being bloomed the parentID is:' + str(Blob2d.get(blob2d.id)))
         if (len(self.pixels) < len(Blob2d.get(self.id).pixels)):
             warn('Gained pixels!!!! (THIS SHOULD NEVER HAPPEN!)')
 

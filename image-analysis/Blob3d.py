@@ -20,29 +20,20 @@ class Blob3d:
     possible_merges = [] # Format: b3did1, b3did2, b2did (the one that links them!
     all = dict()
 
-    def __init__(self, blob2dlist, parent=None, r_depth=0):
+    def __init__(self, blob2dlist, r_depth=0):
 
         self.id = Blob3d.next_id
         Blob3d.next_id += 1
         self.blob2ds = blob2dlist          # List of the blob 2ds used to create this blob3d
         # Now find my pairings
-        self.parent = parent
         self.pairings = []
         self.lowslideheight = min(Blob2d.get(blob).height for blob in self.blob2ds)
         self.highslideheight = max(Blob2d.get(blob).height for blob in self.blob2ds)
         self.recursive_depth = r_depth
         self.children = []
+        self.parentID = None
 
 
-        if self.parent is not None:
-            Blob3d.get(self.parent).children.append(self.id)
-            # print('Creating subblob, parent: ' + str(Blob3d.get(self.parent)))
-            # print('self rd: ' + str(self.recursive_depth))
-            if not (Blob3d.get(self.parent).recursive_depth == self.recursive_depth - 1):
-                warn('RD mismatch when creating b3ds, self.rd:' + str(self.recursive_depth) + ' parent.rd: ' + str(Blob3d.get(self.parent).recursive_depth))
-        else:
-            if not self.recursive_depth == 0:
-                warn('Creating a b3d not a r_depth 0, without a parent')
         ids_that_are_removed_due_to_reusal = set()
         for blobid in self.blob2ds:
 
@@ -68,6 +59,21 @@ class Blob3d:
         self.isSingular = False
         self.subblobs = []
         self.note = '' # This is a note that can be manually added for identifying certain characteristics..
+        if r_depth != 0:
+            all_b2d_parents = [Blob2d.get(Blob2d.get(b2d).parentID) for b2d in blob2dlist]
+            print('All b2d_parents of our b23s: ' + str(all_b2d_parents))
+            parent_b3dids = set([b2d.b3did for b2d in all_b2d_parents])
+            print('Their b3dids: ' + str(parent_b3dids))
+            if len(parent_b3dids) > 1:
+                Blob3d.merge(list(parent_b3dids))
+                new_parent_b3dids = list(set([b2d.b3did for b2d in all_b2d_parents])) # TODO can remove this, just for safety for now
+                print('Post merging, updated parent b3dids: ' + str(new_parent_b3dids))
+                self.parentID = new_parent_b3dids[0] # HACK HACK HACK
+                Blob3d.all[new_parent_b3dids[0]].children.append(self.id)
+                print('--> set parentID to: ' + str(self.parentID))
+                print('Which has been updated to: ' + str(Blob3d.get(self.parentID)))
+                if len(new_parent_b3dids) != 1:
+                    warn('New b3d (' + str(self.id) + ') ended up with more than one parent!')
         self.validate()
 
 
@@ -160,8 +166,12 @@ class Blob3d:
         :param b2: The second b3d to merge2
         :return:
         '''
+
+        print('-MERGING two b3ds: ' + str(b1) + '   ' + str(b2))
         b1 = Blob3d.get(b1)
         b2 = Blob3d.get(b2)
+        print('-MERGING two b3ds: ' + str(b1) + '   ' + str(b2))
+
         # if b1.id < b2.id: #HACK
         smaller = b1
         larger = b2
@@ -171,6 +181,17 @@ class Blob3d:
         for blob2d in larger.blob2ds:
             Blob2d.all[blob2d].b3did = smaller.id
             smaller.blob2ds.append(blob2d)
+
+        smaller.children += larger.children
+
+        if larger.parentID is not None:
+            Blob3d.get(larger.parentID).children.remove(larger.id)
+            Blob3d.get(larger.parentID).children.append(smaller.id)
+
+
+        for child in larger.children:
+            Blob3d.all[child].parentID = smaller.id
+
         smaller.blob2ds = list(set(smaller.blob2ds))
         del Blob3d.all[larger.id]
         return smaller
@@ -185,12 +206,8 @@ class Blob3d:
         return Blob3d.all[id]
 
     def __str__(self):
-        parent_str = ''
-        child_str = ''
-        if self.parent is not None:
-            parent_str = ' , Parent B3d: ' + str(self.parent)
-        if len(self.children):
-            child_str = ' , Children: ' + str(self.children)
+        parent_str = ' , Parent B3d: ' + str(self.parentID)
+        child_str = ' , Children: ' + str(self.children)
         return str('B3D(' + str(self.id) + '): #b2ds:' + str(len(self.blob2ds)) + ', r_depth:' + str(self.recursive_depth) +
                    ' lowslideheight=' + str(self.lowslideheight) + ' highslideheight=' + str(self.highslideheight) +
                    #' #edgepixels=' + str(len(self.edge_pixels)) + ' #pixels=' + str(len(self.pixels)) +
