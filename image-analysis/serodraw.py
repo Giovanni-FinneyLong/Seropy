@@ -11,6 +11,7 @@ import vispy.scene
 from vispy.scene import visuals
 from util import warn, debug
 colors = None
+from Blob3d import getBlob2dOwners
 
 
 # TODO sample animation code here: https://github.com/vispy/vispy/blob/master/examples/basics/scene/save_animation.py
@@ -31,7 +32,7 @@ class Canvas(vispy.scene.SceneCanvas):
         self.show()
         self.coloring = coloring.lower()
         self.markers = []
-        self.available_marker_colors = ['depth', 'blob2d', 'blob3d']
+        self.available_marker_colors = ['depth', 'blob2d', 'blob3d', 'bead']
         self.available_stitch_colors = ['neutral', 'parentID', 'none']
         self.current_blob_color = self.coloring
         self.buffering = buffering
@@ -66,7 +67,8 @@ class Canvas(vispy.scene.SceneCanvas):
 
     def on_key_press(self, event):
         modifiers = [key.name for key in event.modifiers]
-        print('Key pressed - text: %r, key: %s, modifiers: %r' % (
+        if event.key != 'Escape':
+            print('Key pressed - text: %r, key: %s, modifiers: %r' % (
             event.text, event.key.name, modifiers))
         if event.key.name == 'Up': # Next color cheme
             self.update_markers(increment=1)
@@ -200,7 +202,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
     if coloring == '':
         coloring = 'blob2d' # For the canvas title
 
-    canvas = setupCanvas(canvas_size, title='plotBlob2ds(' + str(len(blob2ds)) + '-Blob2ds, coloring=' + str(coloring) + ' canvas_size=' + str(canvas_size) + ') ' + titleNote)
+    canvas = setupCanvas(canvas_size, coloring='blob2d', title='plotBlob2ds(' + str(len(blob2ds)) + '-Blob2ds, coloring=' + str(coloring) + ' canvas_size=' + str(canvas_size) + ') ' + titleNote)
     canvas.b2d_count = len(blob2ds)
 
     if b2dmidpoints:
@@ -251,6 +253,9 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
             # if coloring == 'blob2d':
             #     canvas.view.add(buf)
 
+
+
+
     if coloring == 'blob3d' or canvas.buffering:
         edge_pixel_arrays = [] # One array per 3d blob
         max_b3d_id = max(b2d.b3did for b2d in blob2ds)
@@ -283,6 +288,38 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
             buf = visuals.Markers()
             buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
             canvas.add_marker(buf, 'blob3d')
+
+    # if coloring == 'bead' or canvas.buffering:
+    #     total_bead_points = 0
+    #     total_nonbead_points = 0 # Points from blob3ds that may be part of strands
+    #     for blob3d in blob3dlist:
+    #         if blob3d.isBead:
+    #             total_bead_points += len(blob3d.edge_pixels)
+    #         else:
+    #             total_nonbead_points += len(blob3d.edge_pixels)
+    #
+    #     print('Total bead points: ' + str(total_bead_points))
+    #     print('Total nonbead points: ' + str(total_nonbead_points))
+    #     bead_edge_array = np.zeros([total_bead_points, 3])
+    #     nonbead_edge_array = np.zeros([total_nonbead_points, 3])
+    #     bead_index = 0
+    #     nonbead_index = 0
+    #     for blob_num, blob3d in enumerate(blob3dlist):
+    #         if blob3d.isBead:
+    #             for pixel in blob3d.edge_pixels:
+    #                 bead_edge_array[bead_index] = [pixel.x / xdim, pixel.y / ydim, pixel.z / (z_compression * zdim)]
+    #                 bead_index += 1
+    #         else:
+    #             for pixel in blob3d.edge_pixels:
+    #                 nonbead_edge_array[nonbead_index] = [pixel.x / xdim, pixel.y / ydim, pixel.z / (z_compression * zdim)]
+    #                 nonbead_index += 1
+    #     bead_markers = visuals.Markers()
+    #     nonbead_markers = visuals.Markers()
+    #     bead_markers.set_data(bead_edge_array, edge_color=None, face_color='green', size=8)
+    #     nonbead_markers.set_data(nonbead_edge_array, edge_color=None, face_color='red', size=8)
+    #     canvas.add_marker(bead_markers, 'bead')
+    #     canvas.add_marker(nonbead_markers, 'bead')
+
 
     if coloring == 'b2d_depth' or canvas.buffering:
         pixel_arrays = []
@@ -369,7 +406,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
 
 def plotBlob3ds(blob3dlist, stitches=True, color='blob3d', lineColoring=None, costs=0, maxcolors=-1, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800, 800), b2d_midpoint_values=0, titleNote=''):
     global colors
-    canvas = setupCanvas(canvas_size,
+    canvas = setupCanvas(canvas_size, coloring='blob3d',
                                  title='plotBlob3ds(' + str(len(blob3dlist)) + '-Blob3ds, coloring=' + str(color) + ', canvas_size=' + str(canvas_size) + ') ' + titleNote)
     if maxcolors > 0 and maxcolors < len(colors):
         colors = colors[:maxcolors]
@@ -378,6 +415,7 @@ def plotBlob3ds(blob3dlist, stitches=True, color='blob3d', lineColoring=None, co
     zdim = 0
     xdim = 0
     ydim = 0
+    canvas.available_marker_colors = ['blob3d', 'bead']
 
     for blob3d in blob3dlist: # TODO make gen functions
         if blob3d.highslideheight > zdim:
@@ -392,7 +430,7 @@ def plotBlob3ds(blob3dlist, stitches=True, color='blob3d', lineColoring=None, co
     markerlist = []
     lineendpoints = 0
 
-    if color == 'blob' or color == 'blob3d': # Note: This is very graphics intensive.
+    if color == 'blob' or color == 'blob3d' or canvas.buffering: # Note: This is very graphics intensive.
         markers_per_color = [0 for i in range(min(len(colors), len(blob3dlist)))]
         offsets = [0] * min(len(colors), len(blob3dlist))
         for blobnum, blob3d in enumerate(blob3dlist):
@@ -410,37 +448,38 @@ def plotBlob3ds(blob3dlist, stitches=True, color='blob3d', lineColoring=None, co
             # canvas.view.add(buf)
             canvas.add_marker(marker, 'blob3d')
 
-    elif color == 'singular':
-        total_singular_points = 0
-        total_multi_points = 0 # Points from blob3ds that may be part of strands
+    if color == 'bead' or canvas.buffering:
+        total_bead_points = 0
+        total_nonbead_points = 0 # Points from blob3ds that may be part of strands
         for blob3d in blob3dlist:
-            if blob3d.isSingular:
-                total_singular_points += len(blob3d.edge_pixels)
+            if blob3d.isBead:
+                total_bead_points += blob3d.get_edge_pixel_count()
             else:
-                total_multi_points += len(blob3d.edge_pixels)
-        singular_edge_array = np.zeros([total_singular_points, 3])
-        multi_edge_array = np.zeros([total_multi_points, 3])
-        singular_index = 0
-        multi_index = 0
+                total_nonbead_points += blob3d.get_edge_pixel_count()
+
+        print('Total bead points: ' + str(total_bead_points))
+        print('Total nonbead points: ' + str(total_nonbead_points))
+        bead_edge_array = np.zeros([total_bead_points, 3])
+        nonbead_edge_array = np.zeros([total_nonbead_points, 3])
+        bead_index = 0
+        nonbead_index = 0
         for blob_num, blob3d in enumerate(blob3dlist):
-            if blob3d.isSingular:
-                for pixel in blob3d.edge_pixels:
-                    singular_edge_array[singular_index] = [pixel.x / xdim, pixel.y / ydim, pixel.z / (z_compression * zdim)]
-                    singular_index += 1
+            if blob3d.isBead:
+                for pixel in blob3d.get_edge_pixels():
+                    bead_edge_array[bead_index] = [pixel.x / xdim, pixel.y / ydim, pixel.z / (z_compression * zdim)]
+                    bead_index += 1
             else:
-                for pixel in blob3d.edge_pixels:
-                    multi_edge_array[multi_index] = [pixel.x / xdim, pixel.y / ydim, pixel.z / (z_compression * zdim)]
-                    multi_index += 1
-        singular_markers = visuals.Markers()
-        multi_markers = visuals.Markers()
-        singular_markers.set_data(singular_edge_array, edge_color=None, face_color='green', size=8)
-        multi_markers.set_data(multi_edge_array, edge_color=None, face_color='red', size=8)
+                for pixel in blob3d.get_edge_pixels():
+                    nonbead_edge_array[nonbead_index] = [pixel.x / xdim, pixel.y / ydim, pixel.z / (z_compression * zdim)]
+                    nonbead_index += 1
+        bead_markers = visuals.Markers()
+        nonbead_markers = visuals.Markers()
+        bead_markers.set_data(bead_edge_array, edge_color=None, face_color='red', size=9)
+        nonbead_markers.set_data(nonbead_edge_array, edge_color=None, face_color='white', size=6)
+        canvas.add_marker(bead_markers, 'bead')
+        canvas.add_marker(nonbead_markers, 'bead')
 
-        canvas.view.add(singular_markers)
-        canvas.view.add(multi_markers)
-
-
-    elif color == 'depth': # Coloring based on recursive depth
+    elif color == 'depth' or canvas.buffering: # Coloring based on recursive depth
         max_depth = max(blob.recursive_depth for blob in blob3dlist)
         # NOTE because of sorting, this needs to be done before any info (like midpoints) is extracted from blob3dslist
         blob3dlist = sorted(blob3dlist, key=lambda blob: blob.recursive_depth, reverse=False) # Now sorted by depth, lowest first (primary)
@@ -602,8 +641,8 @@ def filterAvailableColors():
         print('There are a total of ' + str(len(colors)) + ' colors available for plotting')
         # openglconfig = vispy.gloo.wrappers.get_gl_configuration() # Causes opengl/vispy crash for unknown reasons
 
-def setupCanvas(canvas_size=(800,800), title=''):
-    return Canvas(canvas_size, title=title) # Todo this is getting overwritten, but might be nice to have a fallback set?
+def setupCanvas(canvas_size=(800,800), title='', coloring='blob2d'):
+    return Canvas(canvas_size, title=title, coloring=coloring) # Todo this is getting overwritten, but might be nice to have a fallback set?
 
 def showColors(canvas_size=(800,800)):
     global colors

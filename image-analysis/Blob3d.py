@@ -9,6 +9,13 @@ def printGeneralInfo(prefix='', indent=0, suffix=''):
     print(prefix + '<Blob3d>: Count:' + str(len(Blob3d.all)) + suffix)
     print(prefix + '<Blob2d>: Count:' + str(len(Blob2d.all)) + suffix)
 
+def getBlob2dOwners(blob2dlist, ids=False):
+    if ids:
+        return list(set(b2d.b3did for b2d in blob2dlist))
+    else:
+       return list(set(Blob3d.get(b2d.b3did) for b2d in blob2dlist))
+
+
 
 class Blob3d:
     '''
@@ -166,35 +173,36 @@ class Blob3d:
         :param b2: The second b3d to merge2
         :return:
         '''
+        if b1 == -1 or b2 == -1:
+            print('Skipping merging b3ds' + str(b1) + ' and ' + str(b2) + ' because at least one of them is -1, this should be fixed soon..') # TODO
+        else:
+            print('-MERGING two b3ds: ' + str(b1) + '   ' + str(b2))
+            b1 = Blob3d.get(b1)
+            b2 = Blob3d.get(b2)
+            print('-MERGING two b3ds: ' + str(b1) + '   ' + str(b2))
 
-        print('-MERGING two b3ds: ' + str(b1) + '   ' + str(b2))
-        b1 = Blob3d.get(b1)
-        b2 = Blob3d.get(b2)
-        print('-MERGING two b3ds: ' + str(b1) + '   ' + str(b2))
+            # if b1.id < b2.id: #HACK
+            smaller = b1
+            larger = b2
+            # else:
+            #     smaller = b2
+            #     larger = b1
+            for blob2d in larger.blob2ds:
+                Blob2d.all[blob2d].b3did = smaller.id
+                smaller.blob2ds.append(blob2d)
 
-        # if b1.id < b2.id: #HACK
-        smaller = b1
-        larger = b2
-        # else:
-        #     smaller = b2
-        #     larger = b1
-        for blob2d in larger.blob2ds:
-            Blob2d.all[blob2d].b3did = smaller.id
-            smaller.blob2ds.append(blob2d)
+            smaller.children += larger.children
 
-        smaller.children += larger.children
-
-        if larger.parentID is not None:
-            Blob3d.get(larger.parentID).children.remove(larger.id)
-            Blob3d.get(larger.parentID).children.append(smaller.id)
+            if larger.parentID is not None:
+                Blob3d.get(larger.parentID).children.remove(larger.id)
+                Blob3d.get(larger.parentID).children.append(smaller.id)
 
 
-        for child in larger.children:
-            Blob3d.all[child].parentID = smaller.id
+            for child in larger.children:
+                Blob3d.all[child].parentID = smaller.id
 
-        smaller.blob2ds = list(set(smaller.blob2ds))
-        del Blob3d.all[larger.id]
-        return smaller
+            smaller.blob2ds = list(set(smaller.blob2ds))
+            del Blob3d.all[larger.id]
 
 
     def validate(self):
@@ -204,6 +212,13 @@ class Blob3d:
     @staticmethod
     def get(id):
         return Blob3d.all[id]
+
+    @staticmethod
+    def getDepth(depth, ids=True):
+        if ids:
+            return list(b3d.id for b3d in Blob3d.all.values() if b3d.recursive_depth == depth)
+        else:
+            return list(b3d for b3d in Blob3d.all.values() if b3d.recursive_depth == depth)
 
     def __str__(self):
         parent_str = ' , Parent B3d: ' + str(self.parentID)
@@ -253,6 +268,48 @@ class Blob3d:
                 non_singular_count += 1
         if not quiet:
             print('There are ' + str(singular_count) + ' singular 3d-blobs and ' + str(non_singular_count) + ' non-singular 3d-blobs')
+
+    @staticmethod
+    def tag_all_beads():
+        base_b3ds = Blob3d.getDepth(0, ids=False)
+        for b3d in base_b3ds:
+            b3d.check_bead()
+        # clean up
+        unset = sorted( list(b3d for b3d in Blob3d.all.values() if not hasattr(b3d, 'isBead')),
+                        key=lambda b3d: b3d.recursive_depth) # Do by recursive depth
+        for b3d in unset:
+            b3d.check_bead()
+
+
+    def check_bead(self):
+        child_bead_count = 0
+        for child in self.children:
+            if Blob3d.get(child).check_bead():
+                child_bead_count += 1
+        # TODO this is a very simple check
+        if len(self.children) and self.recursive_depth > 0:
+            print('When checking b2d: ' + str(self) + ' found ' + str(child_bead_count) + ' direct child beads from ' + str(len(self.children)))
+            print(' has an edge_pixel count of ' + str(self.get_edge_pixel_count()))
+        self.isBead = (child_bead_count < 4) and (self.get_edge_pixel_count() <= max_pixels_to_be_a_bead) and (self.recursive_depth > 0)
+        return self.isBead
+
+    @staticmethod
+    def cleanB3ds():
+        '''
+        This is a dev method, used to clean up errors in b3ds. Use sparingly!
+        :return:
+        '''
+        print('<< CLEANING B3DS >>')
+        for b3d in Blob3d.all.values():
+            remove_children = []
+            for child in b3d.children:
+                if child not in Blob3d.all:
+                    remove_children.append(child)
+            if len(remove_children):
+                for child in remove_children:
+                    b3d.children.remove(child)
+                print('While cleaning b3d:' + str(b3d) + ' had to remove children that no longer existed ' + str(remove_children))
+
 
     def save2d(self, filename):
         '''

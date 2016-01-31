@@ -69,9 +69,8 @@ def load(filename, directory=PICKLEDIR):
         buff = pickle.load(open(filename + '_b3ds', "rb"))
         Blob3d.all = buff['b3ds']
         if 'possible_merges' in buff:
-            # print('Loading b3d possible merges')
+            print('Loading b3d possible merges')
             Blob3d.possible_merges = buff['possible_merges']
-            print("Loaded possible_merges:" + str(Blob3d.possible_merges))
         else:
             print('Blob3d possible merges were not loaded as they were not in the save file')
         # This is a temp fix to work with old pickle files:
@@ -128,8 +127,6 @@ def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
         depth = [b2d.id for b2d in Blob2d.all.values() if b2d.recursive_depth == cur_depth]
         max_h_d = max(Blob2d.all[b2d].height for b2d in depth)
         min_h_d = min(Blob2d.all[b2d].height for b2d in depth)
-        # print(' Number at depth ' + str(cur_depth) + ' : ' + str(len(depth)))
-        # print(' Min max heights at depth ' + str(cur_depth) + ' : (' + str(min_h_d) + ', ' + str(max_h_d) + ')')
         ids_by_height = [[] for i in range(max_h_d - min_h_d + 1)]
         for b2d in depth:
             ids_by_height[Blob2d.get(b2d).height - min_h_d].append(b2d)
@@ -163,26 +160,12 @@ def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
                     cur_matches = [b2d] # NOTE THIS WAS CHANGED BY REMOVED .getdescendants() #HACK
                     for pp in b2d.possible_partners:
                         if pp in all_d1_with_pp_in_this_b3d:
-                            # print('--> Found a partner to b2d: ' + str(b2d) + ' which is: ' + str(Blob2d.get(pp)))
-                            # print('     Adding related:' + str(Blob2d.get(pp).getpartnerschain()))
-                            # print('     -DB FROM related, the different recursive depths are:' + str(set([Blob2d.get(blob2d).recursive_depth for blob2d in Blob2d.get(pp).getpartnerschain()])))
-                            # print('     len of cur_matches before: ' + str(len(cur_matches)))
                             cur_matches += [Blob2d.get(b) for b in Blob2d.get(pp).getpartnerschain()]
-                            # print('     len of cur_matches after: ' + str(len(cur_matches)))
 
                     if len(cur_matches) > 1:
-                        # print('  All cur_matches: (' + str(len(cur_matches)) + ') ' + str(cur_matches) + '    from b2d: ' + str(b2d))
-                        # if len(cur_matches) != len(set(cur_matches)): # FIXME
-                        #     warn(' There are duplicates in cur_matches!')
-                        #     if not disable_warnings:
-                        #         print('CUR_MATCHES=' + str(cur_matches))
-                        #         print('CUR_MATCHES (b2d, b3did)=' + str([(b2d.id, b2d.b3did) for b2d in cur_matches]))
-                        #         print('Derived from b2d: ' + str(b2d))
                         new_b3d_list = [blob.id for blob in set(cur_matches) if blob.recursive_depth == b2d.recursive_depth and blob.b3did == -1]
                         if len(new_b3d_list):
                             new_b3ds.append(Blob3d(new_b3d_list, r_depth=b2d.recursive_depth))
-                        # else:
-                        #     print(' ! Skipping an opportunity to make a b3d because all potential b2ds have already been assigned to a b3d') # TODO
         all_new_b3ds += new_b3ds
     print(' Made a total of ' + str(len(all_new_b3ds)) + ' new b3ds')
 
@@ -236,9 +219,8 @@ def main():
             print(b3d)
             for child in b3d.children:
                 print('  cld:' + str(Blob3d.get(child)))
-
-            for b2d in b3d.blob2ds:
-                print('    b2d:' + str(Blob2d.get(b2d)))
+            # for b2d in b3d.blob2ds:
+            #     print('    b2d:' + str(Blob2d.get(b2d)))
             if len(b3d.children) > 0:
                 print('------------')
                 plotBlob3ds([b3d] + [Blob3d.get(blob) for blob in (b3d.children)])
@@ -252,43 +234,55 @@ def main():
 
         if load_base:
             load(picklefile)
-            print('Blob3d.possible_merges:')
-            for pm in Blob3d.possible_merges:
-                print(' ' + str(pm))
+            # print('Blob3d.possible_merges:')
+            # for pm in Blob3d.possible_merges:
+            #     print(' ' + str(pm))
             blob3dlist = list(Blob3d.all.values())
+            #
+            # if hasattr(Blob3d, 'possible_merges'):
+            #     print('Blob3d does contain possible_merges: ' + str(Blob3d.possible_merges))
+            #     for tuple in Blob3d.possible_merges:
+            #         print(' ' + str(tuple))
+            # else:
+            #     print('Blob3d does not contain possible_merges')
 
-            if hasattr(Blob3d, 'possible_merges'):
-                print('Blob3d does contain possible_merges: ' + str(Blob3d.possible_merges))
-                for tuple in Blob3d.possible_merges:
-                    print(' ' + str(tuple))
-            else:
-                print('Blob3d does not contain possible_merges')
-
-            if process_internals:
-                new_b3ds = bloom_b3ds(blob3dlist, stitch=stitch_bloomed_b2ds) # This will set pairings, and stitch if so desired
-                blob3dlist += new_b3ds
-                if dosave:
-                    suffix = '_bloomed_'
-                    if stitch_bloomed_b2ds:
-                        suffix += 'stitched'
-                    else:
-                        suffix += 'non-stitched'
-                    save(blob3dlist, picklefile + suffix)
+            # if process_internals:
+            #     new_b3ds = bloom_b3ds(blob3dlist, stitch=stitch_bloomed_b2ds) # This will set pairings, and stitch if so desired
+            #     blob3dlist += new_b3ds
+            #     if dosave:
+            #         suffix = '_bloomed_'
+            #         if stitch_bloomed_b2ds:
+            #             suffix += 'stitched'
+            #         else:
+            #             suffix += 'non-stitched'
+            #         save(blob3dlist, picklefile + suffix)
         else:
             load(picklefile + '_bloomed_stitched')
             blob3dlist = Blob3d.all.values()
-        plotBlob2ds([blob2d for blob3d in blob3dlist for blob2d in blob3d.blob2ds],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=False, stitches=True)
 
-        for b3d in blob3dlist:
+        Blob3d.cleanB3ds()
+        print('Setting beads!')
+        Blob3d.tag_all_beads()
+        beads = list(b3d for b3d in Blob3d.all.values() if b3d.isBead)
+        print('Total number of beads: ' + str(len(beads)) + ' out of ' + str(len(Blob3d.all)) + ' total b3ds')
+        # print('Plotting beads only')
+        # plotBlob3ds(beads)
+        # plotBlob2ds([blob2d for blob3d in beads for blob2d in blob3d.blob2ds],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=False, stitches=True)
+        print('Now plotting all b3ds')
+        plotBlob3ds(list(Blob3d.all.values()))
+        plotBlob2ds([blob2d for blob3d in Blob3d.all.values() for blob2d in blob3d.blob2ds],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=False, stitches=True)
+
+
+
+        for b3d in Blob3d.all.values():
             print(b3d)
             for child in b3d.children:
-                print('  ' + str(Blob3d.get(child)))
-
-            for b2d in b3d.blob2ds:
-                print('    ' + str(Blob2d.get(b2d)))
-                if len(b3d.children):
-                    plotBlob3ds([b3d] + [Blob3d.get(blob) for blob in (b3d.children)])
-        plotBlob3ds(blob3dlist, color='blob')
+                print('  cld:' + str(Blob3d.get(child)))
+            # for b2d in b3d.blob2ds:
+            #     print('    b2d:' + str(Blob2d.get(b2d)))
+            if len(b3d.children) > 0:
+                print('------------')
+                plotBlob3ds([b3d] + [Blob3d.get(blob) for blob in (b3d.children)])
 
 
 
