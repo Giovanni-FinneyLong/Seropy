@@ -2,7 +2,7 @@ from Blob2d import Blob2d
 from Pixel import Pixel
 from util import warn
 from util import debug
-from myconfig import *
+from myconfig import config
 
 def printGeneralInfo(prefix='', indent=0, suffix=''):
     prefix = (' ' * indent) + prefix
@@ -10,10 +10,16 @@ def printGeneralInfo(prefix='', indent=0, suffix=''):
     print(prefix + '<Blob2d>: Count:' + str(len(Blob2d.all)) + suffix)
 
 def getBlob2dOwners(blob2dlist, ids=False):
+    '''
+    Gives the list of b3ds that together contain all b2ds in the supplied list
+    :param blob2dlist: A list of blob2ds (not blob2d ids)
+    :param ids: If true, returns B3d ids, else returns B3ds
+    :return: A list of B3d-ids or B3ds
+    '''
     if ids:
-        return list(set(b2d.b3did for b2d in blob2dlist))
+        return list(set(b2d.b3did for b2d in blob2dlist if b2d.b3did != -1))
     else:
-       return list(set(Blob3d.get(b2d.b3did) for b2d in blob2dlist))
+       return list(set(Blob3d.get(b2d.b3did) for b2d in blob2dlist if b2d.b3did != -1)) # Excluding b2ds that dont belong to a b3d
 
 
 
@@ -39,6 +45,7 @@ class Blob3d:
         self.recursive_depth = r_depth
         self.children = []
         self.parentID = None
+        self.isBead = None
 
 
         ids_that_are_removed_due_to_reusal = set()
@@ -224,6 +231,7 @@ class Blob3d:
         parent_str = ' , Parent B3d: ' + str(self.parentID)
         child_str = ' , Children: ' + str(self.children)
         return str('B3D(' + str(self.id) + '): #b2ds:' + str(len(self.blob2ds)) + ', r_depth:' + str(self.recursive_depth) +
+                   ', bead=' + str(self.isBead) +
                    ' lowslideheight=' + str(self.lowslideheight) + ' highslideheight=' + str(self.highslideheight) +
                    #' #edgepixels=' + str(len(self.edge_pixels)) + ' #pixels=' + str(len(self.pixels)) +
                    ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) + parent_str + child_str + ')')
@@ -275,22 +283,31 @@ class Blob3d:
         for b3d in base_b3ds:
             b3d.check_bead()
         # clean up
-        unset = sorted( list(b3d for b3d in Blob3d.all.values() if not hasattr(b3d, 'isBead')),
+        unset = sorted( list(b3d for b3d in Blob3d.all.values() if b3d.isBead is None),
                         key=lambda b3d: b3d.recursive_depth) # Do by recursive depth
+        print('When tagging all beads, there were ' + str(len(unset)) + ' b3ds which could not be reached from base b3ds')
+        print(' They are: ' + str(unset)) # Want this to always be zero, otherwise theres a tree problem
         for b3d in unset:
             b3d.check_bead()
+        print("Total number of beads = " + str(sum(b3d.isBead for b3d in Blob3d.all.values())) + ' / ' + str(len(Blob3d.all)))
+        print('DB printing all b3ds:')
+        for b3d in Blob3d.all.values():
+            print('  ' + str(b3d))
 
 
     def check_bead(self):
         child_bead_count = 0
         for child in self.children:
-            if Blob3d.get(child).check_bead():
+            child_is_bead = Blob3d.get(child).check_bead()
+            if child_is_bead:
                 child_bead_count += 1
-        # TODO this is a very simple check
-        if len(self.children) and self.recursive_depth > 0:
-            print('When checking b2d: ' + str(self) + ' found ' + str(child_bead_count) + ' direct child beads from ' + str(len(self.children)))
-            print(' has an edge_pixel count of ' + str(self.get_edge_pixel_count()))
-        self.isBead = (child_bead_count < 4) and (self.get_edge_pixel_count() <= max_pixels_to_be_a_bead) and (self.recursive_depth > 0)
+        # print('Calling check_bead, max_subbeads_to_be_a_bead = ' + str(max_subbeads_to_be_a_bead), end='')
+        # print(', max_pixels_to_be_a_bead = ' + str(max_pixels_to_be_a_bead) + ', child_bead_difference = ' + str(child_bead_difference))
+        # if self.recursive_depth > 0:
+            # DEBUG
+        print('Checking if b3d: ' + str(self) + ' is a bead, child_bead_count=' + str(child_bead_count) )
+
+        self.isBead = (child_bead_count < config.max_subbeads_to_be_a_bead) and (self.get_edge_pixel_count() <= config.max_pixels_to_be_a_bead) and (self.recursive_depth > 0)# and  (child_bead_count > (len(self.children) - config.child_bead_difference))
         return self.isBead
 
     @staticmethod
@@ -322,7 +339,7 @@ class Blob3d:
         slice_arrays = []
         for i in range(self.highslideheight - self.lowslideheight + 1):
             slice_arrays.append(np.zeros((self.maxx - self.minx + 1, self.maxy - self.miny + 1)))
-        savename = FIGURES_DIR + filename
+        savename = config.FIGURES_DIR + filename
         for b2d in self.blob2ds:
             for pixel in b2d.pixels:
                 slice_arrays[pixel.z - self.lowslideheight][pixel.x - self.minx][pixel.y - self.miny] = pixel.val

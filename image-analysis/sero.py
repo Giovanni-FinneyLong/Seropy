@@ -10,14 +10,14 @@ from Stitches import Pairing
 import glob
 import sys
 from util import warn, getImages, progressBar
-from myconfig import *
+from myconfig import config
 import time
 
 
 
 
 
-def save(blob3dlist, filename, directory=PICKLEDIR):
+def save(blob3dlist, filename, directory=config.PICKLEDIR):
     if directory != '':
         if directory[-1] not in ['/', '\\']:
             slash = '/'
@@ -54,7 +54,7 @@ def save(blob3dlist, filename, directory=PICKLEDIR):
             pass
 
 
-def load(filename, directory=PICKLEDIR):
+def load(filename, directory=config.PICKLEDIR):
         if directory[-1] not in ['/', '\\']:
             slash = '/'
         else:
@@ -68,11 +68,11 @@ def load(filename, directory=PICKLEDIR):
 
         buff = pickle.load(open(filename + '_b3ds', "rb"))
         Blob3d.all = buff['b3ds']
-        if 'possible_merges' in buff:
-            print('Loading b3d possible merges')
-            Blob3d.possible_merges = buff['possible_merges']
-        else:
-            print('Blob3d possible merges were not loaded as they were not in the save file')
+        # if 'possible_merges' in buff:
+        #     print('Loading b3d possible merges')
+        #     Blob3d.possible_merges = buff['possible_merges']
+        # else:
+        #     print('Blob3d possible merges were not loaded as they were not in the save file')
         # This is a temp fix to work with old pickle files:
         if type(Blob3d.all) is list:
             buf = Blob3d.all
@@ -186,7 +186,7 @@ def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
 
 process_internals = True # Do blooming, set possible partners for the generated b2ds, then create b3ds from them
 
-base_b3ds_with_stitching = False # TODO TODO TODO this still needs to be true to get good results, abstractify for filtering b2ds in both cases
+base_b3ds_with_stitching = True # TODO TODO TODO this still needs to be true to get good results, abstractify for filtering b2ds in both cases
     # NOTE can allow this to control creation of b3ds, or allow a quick create method for b3ds (noting no stitching and much less accuracy)
 stitch_bloomed_b2ds = False # Default False
 
@@ -196,16 +196,16 @@ picklefile =''
 
 # @profile
 def main():
-    print('Current recusion limit: ' + str(sys.getrecursionlimit()) + ' updating to: ' + str(recursion_limit))
-    sys.setrecursionlimit(recursion_limit) # HACK
-    if test_instead_of_data:
+    print('Current recusion limit: ' + str(sys.getrecursionlimit()) + ' updating to: ' + str(config.recursion_limit))
+    sys.setrecursionlimit(config.recursion_limit) # HACK
+    if config.test_instead_of_data:
          picklefile = 'All_test_pre_b3d_tree.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
     else:
-        if swell_instead_of_c57bl6:
+        if config.swell_instead_of_c57bl6:
             picklefile = 'Swellshark_Adult_012615.pickle'
         else:
             picklefile = 'C57BL6_Adult_CerebralCortex.pickle'
-    if not dePickle:
+    if not config.dePickle:
         all_slides, blob3dlist = Slide.dataToSlides(stitch=base_b3ds_with_stitching) # Reads in images and converts them to slides.
                                                      # This process involves generating Pixels & Blob2ds, but NOT Blob3ds
         if process_internals:
@@ -219,13 +219,13 @@ def main():
             print(b3d)
             for child in b3d.children:
                 print('  cld:' + str(Blob3d.get(child)))
-            # for b2d in b3d.blob2ds:
-            #     print('    b2d:' + str(Blob2d.get(b2d)))
             if len(b3d.children) > 0:
                 print('------------')
                 plotBlob3ds([b3d] + [Blob3d.get(blob) for blob in (b3d.children)])
+
         plotBlob2ds(list(Blob2d.all.values()), stitches=True, parentlines=process_internals, explode=process_internals)
         plotBlob3ds(list(Blob3d.all.values()))
+
     else:
         # HACK
         load_base = True # Note that each toggle dominates those below it due to elif
@@ -260,6 +260,16 @@ def main():
             load(picklefile + '_bloomed_stitched')
             blob3dlist = Blob3d.all.values()
 
+        for b3d in Blob3d.all.values():
+            print(b3d)
+            for child in b3d.children:
+                print('  cld:' + str(Blob3d.get(child)))
+            if len(b3d.children) > 0:
+                print('------------')
+                plotBlob3ds([b3d] + [Blob3d.get(blob) for blob in (b3d.children)])
+
+
+
         Blob3d.cleanB3ds()
         print('Setting beads!')
         Blob3d.tag_all_beads()
@@ -270,6 +280,8 @@ def main():
         # plotBlob2ds([blob2d for blob3d in beads for blob2d in blob3d.blob2ds],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=False, stitches=True)
         print('Now plotting all b3ds')
         plotBlob3ds(list(Blob3d.all.values()))
+        print('Plotting all but base b3ds, which assists with viewing')
+        plotBlob3ds(list(b3d for b3d in Blob3d.all.values() if b3d.recursive_depth > 0))
         plotBlob2ds([blob2d for blob3d in Blob3d.all.values() for blob2d in blob3d.blob2ds],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=False, stitches=True)
 
 
@@ -289,10 +301,13 @@ def main():
         exit()
     # plotBlob2ds(depth, stitches=True, ids=False, parentlines=False,explode=True, edge=False)
 
+# TODO TODO
+# Children of base b3ds not getting set correctly..., nor are the children's parents...
+
 
 
 if __name__ == '__main__':
-    if mayPlot:
+    if config.mayPlot:
         from serodraw import *
         filterAvailableColors()
     main()  # Run the main function

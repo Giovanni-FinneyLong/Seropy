@@ -14,7 +14,7 @@ install = [
 setup(
     name='Serotonin',
     version='.1',
-    install_requires=install,
+    install_requires=['numpy', 'vispy', ,
     packages=[''],
     package_dir={'': 'image-analysis'},
     url='https://bitbucket.org/gfinneylong/serotonin',

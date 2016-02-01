@@ -1,7 +1,7 @@
 import math
 import numpy as np
 from munkres import Munkres
-from myconfig import *
+from myconfig import config
 from util import debug
 from Blob2d import Blob2d
 import time
@@ -143,7 +143,7 @@ class Pairing:
         self.cost = 0
         for row, col in self.indeces:
             # NOTE Sorting indeces = [contour_cost, dist_cost, total_cost, distance]
-            if self.cost_array[row][col][3] < max_distance and self.cost_array[row][col][2] < max_stitch_cost :# HACK, may want to do this later, so that stitches can be manually removed via interactive interface (slide bar for max_value)
+            if self.cost_array[row][col][3] < config.max_distance and self.cost_array[row][col][2] < config.max_stitch_cost :# HACK, may want to do this later, so that stitches can be manually removed via interactive interface (slide bar for max_value)
                 self.stitches.append(Stitch(self.lowerpixels[row], self.upperpixels[col], self.lowerblob, self.upperblob, self.cost_array[row][col]))
                 self.cost += self.cost_array[row][col][2] # 2 for total_cost
 
@@ -263,12 +263,12 @@ class Pairing:
             # NOTE 1:28 for (203,301) pre-opt, :37 for (174, 178), 66mins for (640, 616) -> 4 mins after optimization (picking half of each) -> 59 seconds with selective[::3]
             # NOTE After ::2 opt, total time for [:3] data slides = 10 mins 19 seconds, instead of ~ 2 hours, after selective[::3], total time = 6mins 49 seconds
             # selective [::3] with 5 slides = 36 mins
-            if len(self.upperpixels) > max_pixels_to_stitch or len(self.lowerpixels) > max_pixels_to_stitch:
+            if len(self.upperpixels) > config.max_pixels_to_stitch or len(self.lowerpixels) > config.max_pixels_to_stitch:
                 if not quiet:
                     print('-->Too many pixels in the below stitch, reducing to a subset, originally was: ' + str(len(self.lowerpixels)) +
                         '/' + str(len(self.lowerblob.edge_pixels)) + ' lower blob pixels and ' + str(len(self.upperpixels)) +
                         '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels.')
-                pickoneovers = max(1, math.ceil(len(self.upperpixels) / max_pixels_to_stitch)), max(1, math.ceil(len(self.lowerpixels) / max_pixels_to_stitch)) # HACK TODO Modify these values to be more suitable dependent on computation time
+                pickoneovers = max(1, math.ceil(len(self.upperpixels) / config.max_pixels_to_stitch)), max(1, math.ceil(len(self.lowerpixels) / config.max_pixels_to_stitch)) # HACK TODO Modify these values to be more suitable dependent on computation time
                 self.isReduced = True
                 self.upperpixels = self.upperpixels[::pickoneovers[0]] # Every pickoneover'th element
                 self.lowerpixels = self.lowerpixels[::pickoneovers[1]] # HACK this is a crude way of reducing the number of pixels
