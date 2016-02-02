@@ -132,10 +132,13 @@ class Canvas(vispy.scene.SceneCanvas):
             config.child_bead_difference -= 1
             print(' to ' + str(config.child_bead_difference))
             self.refresh_bead_markers()
+
         elif event.key.name == 'P':
             print('Printing all b3ds on canvas:')
             for b3d in self.b3ds:
                 print(b3d)
+                for b2d in b3d.blob2ds:
+                    print('  ' + str(Blob2d.get(b2d)))
 
     def refresh_bead_markers(self):
         # from myconfig import config.max_subbeads_to_be_a_bead
@@ -242,7 +245,6 @@ class Canvas(vispy.scene.SceneCanvas):
         self.markers.append((marker,coloring))
         self.view.add(self.markers[-1][0]) # add the above marker
 
-
     def add_bead_markers(self, blob3dlist):
         total_bead_points = 0
         total_nonbead_points = 0 # Points from blob3ds that may be part of strands
@@ -301,7 +303,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
     if coloring == '':
         coloring = 'blob2d' # For the canvas title
 
-    canvas = setupCanvas(canvas_size, coloring='blob2d', title='plotBlob2ds(' + str(len(blob2ds)) + '-Blob2ds, coloring=' + str(coloring) + ' canvas_size=' + str(canvas_size) + ') ' + titleNote)
+    canvas = Canvas(canvas_size, coloring='blob2d', title='plotBlob2ds(' + str(len(blob2ds)) + '-Blob2ds, coloring=' + str(coloring) + ' canvas_size=' + str(canvas_size) + ') ' + titleNote)
     canvas.b2d_count = len(blob2ds)
     canvas.xdim = xdim
     canvas.ydim = ydim
@@ -512,8 +514,8 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
 
 def plotBlob3ds(blob3dlist, stitches=True, color='blob3d', lineColoring=None, costs=0, maxcolors=-1, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800, 800), b2d_midpoint_values=0, titleNote=''):
     global colors
-    canvas = setupCanvas(canvas_size, coloring='blob3d',
-                                 title='plotBlob3ds(' + str(len(blob3dlist)) + '-Blob3ds, coloring=' + str(color) + ', canvas_size=' + str(canvas_size) + ') ' + titleNote)
+    canvas = Canvas(canvas_size, coloring='blob3d',
+                       title='plotBlob3ds(' + str(len(blob3dlist)) + '-Blob3ds, coloring=' + str(color) + ', canvas_size=' + str(canvas_size) + ') ' + titleNote)
     if maxcolors > 0 and maxcolors < len(colors):
         colors = colors[:maxcolors]
 
@@ -697,7 +699,7 @@ def plotBlob3ds(blob3dlist, stitches=True, color='blob3d', lineColoring=None, co
     vispy.app.run()
 
 
-def filterAvailableColors():
+def filter_available_colors():
     global colors
     if config.mayPlot:
         colors = vispy.color.get_color_names() # ALl possible colors
@@ -729,12 +731,9 @@ def filterAvailableColors():
         print('There are a total of ' + str(len(colors)) + ' colors available for plotting')
         # openglconfig = vispy.gloo.wrappers.get_gl_configuration() # Causes opengl/vispy crash for unknown reasons
 
-def setupCanvas(canvas_size=(800,800), title='', coloring='blob2d'):
-    return Canvas(canvas_size, title=title, coloring=coloring) # Todo this is getting overwritten, but might be nice to have a fallback set?
-
 def showColors(canvas_size=(800,800)):
     global colors
-    canvas = setupCanvas(canvas_size)
+    canvas = Canvas(canvas_size)
     print(colors)
     print('There are a total of ' + str(len(colors)) + ' colors used for plotting')
     for i,color in enumerate(colors):
@@ -742,7 +741,7 @@ def showColors(canvas_size=(800,800)):
     vispy.app.run()
 
 def plotPixels(pixellist, canvas_size=(800, 800)):
-    canvas = setupCanvas(canvas_size)
+    canvas = Canvas(canvas_size)
     xmin = min(pixel.x for pixel in pixellist)
     ymin = min(pixel.y for pixel in pixellist)
     xmax = max(pixel.x for pixel in pixellist)
@@ -756,7 +755,7 @@ def plotPixels(pixellist, canvas_size=(800, 800)):
     vispy.app.run()
 
 def plotPixelLists(pixellists, canvas_size=(800, 800)): # NOTE works well to show bloom results
-    canvas = setupCanvas(canvas_size)
+    canvas = Canvas(canvas_size)
     xmin = min(pixel.x for pixellist in pixellists for pixel in pixellist)
     ymin = min(pixel.y for pixellist in pixellists for pixel in pixellist)
     xmax = max(pixel.x for pixellist in pixellists for pixel in pixellist)
@@ -792,18 +791,6 @@ def plotPixelLists(pixellists, canvas_size=(800, 800)): # NOTE works well to sho
         # view.add(visuals.Markers(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 ))
         canvas.view.add(markers)
     vispy.app.run()
-
-def isInside(pixel_in, blob2d):
-    #NOTE this requires that the blob2d has pixels and edge_pixels fully populated
-    if pixel_in in blob2d.pixels: # TODO update with a recursive type call
-        if pixel_in in blob2d.edge_pixels:
-            return False
-        else:
-            return True
-    else:
-        return False
-    # May need to optimize this, not sure how slow the above is
-    # NOTE will be able to sort this later, to effectively send lines in two directions horizontally
 
 def contrastSaturatedBlob2ds(blob2ds, minimal_edge_pixels=350):
     '''
@@ -847,8 +834,6 @@ def getBloomedHeight(b2d, explode, zdim):
         return b2d.height + b2d.recursive_depth / (zdim * max([len(b2d.getrelated()), 1]))
     else:
         return b2d.height
-
-
 
 def showSlide(slide):
     import matplotlib.pylab as plt

@@ -50,7 +50,6 @@ class Blob3d:
 
         ids_that_are_removed_due_to_reusal = set()
         for blobid in self.blob2ds:
-
             blob = Blob2d.get(blobid)
             if Blob2d.all[blob.id].b3did != -1: # DEBUG #FIXME THE ISSUES COME BACK TO THIS, find the source
                 # warn('NOT assigning a new b3did (' + str(self.id) + ') to blob2d: ' + str(Blob2d.all[blob.id]))
@@ -75,19 +74,25 @@ class Blob3d:
         self.note = '' # This is a note that can be manually added for identifying certain characteristics..
         if r_depth != 0:
             all_b2d_parents = [Blob2d.get(Blob2d.get(b2d).parentID) for b2d in blob2dlist]
-            print('All b2d_parents of our b23s: ' + str(all_b2d_parents))
+            # print('All b2d_parents of our b2ds that are going into a new b3d: ' + str(all_b2d_parents))
             parent_b3dids = set([b2d.b3did for b2d in all_b2d_parents])
-            print('Their b3dids: ' + str(parent_b3dids))
-            if len(parent_b3dids) > 1:
-                Blob3d.merge(list(parent_b3dids))
-                new_parent_b3dids = list(set([b2d.b3did for b2d in all_b2d_parents])) # TODO can remove this, just for safety for now
-                print('Post merging, updated parent b3dids: ' + str(new_parent_b3dids))
+            # print('Their b3dids: ' + str(parent_b3dids))
+            if len(parent_b3dids) > 0:
+                if len(parent_b3dids) > 1:
+                    print(' Found more than one b3d parent for b3d: ' + str(self.id) + ' attempting to merge parents')
+                    Blob3d.merge(list(parent_b3dids))
+                    new_parent_b3dids = list(set([b2d.b3did for b2d in all_b2d_parents])) # TODO can remove this, just for safety for now
+                    print('  Post merging b3d parents, updated parent b3dids: ' + str(new_parent_b3dids))
+                else:
+                    new_parent_b3dids = list(parent_b3dids)
                 self.parentID = new_parent_b3dids[0] # HACK HACK HACK
                 Blob3d.all[new_parent_b3dids[0]].children.append(self.id)
-                print('--> set parentID to: ' + str(self.parentID))
-                print('Which has been updated to: ' + str(Blob3d.get(self.parentID)))
+                # print('--> set parentID to: ' + str(self.parentID) + ' from the available parent_b3dids (after merging): ' + str(new_parent_b3dids))
+                # print('Which has been updated to: ' + str(Blob3d.get(self.parentID)))
                 if len(new_parent_b3dids) != 1:
                     warn('New b3d (' + str(self.id) + ') ended up with more than one parent!')
+            else:
+                warn('Creating a b3d at depth ' + str(r_depth) + ' with id ' + str(self.id) + ' which could not find a b3d parent')
         self.validate()
 
 
@@ -183,7 +188,6 @@ class Blob3d:
         if b1 == -1 or b2 == -1:
             print('Skipping merging b3ds' + str(b1) + ' and ' + str(b2) + ' because at least one of them is -1, this should be fixed soon..') # TODO
         else:
-            print('-MERGING two b3ds: ' + str(b1) + '   ' + str(b2))
             b1 = Blob3d.get(b1)
             b2 = Blob3d.get(b2)
             print('-MERGING two b3ds: ' + str(b1) + '   ' + str(b2))

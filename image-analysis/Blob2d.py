@@ -380,9 +380,6 @@ class Blob2d:
         #del self.possible_partners # TODO see if theres a safe way to do this later
         return blob2dlist
 
-
-
-
     @staticmethod
     def mergeblobs(bloblist):
         '''

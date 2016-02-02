@@ -1,19 +1,17 @@
 __author__ = 'gio'
 
+import pickle # Note uses cPickle automatically ONLY IF python 3
 from util import printElapsedTime
 from Slide import Slide
 from Blob3d import Blob3d, printGeneralInfo
 from Blob2d import Blob2d
 from Pixel import Pixel
-import pickle # Note uses cPickle automatically ONLY IF python 3
 from Stitches import Pairing
 import glob
 import sys
 from util import warn, getImages, progressBar
 from myconfig import config
 import time
-
-
 
 
 
@@ -184,11 +182,7 @@ def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
 
 #HACK
 
-process_internals = True # Do blooming, set possible partners for the generated b2ds, then create b3ds from them
 
-base_b3ds_with_stitching = True # TODO TODO TODO this still needs to be true to get good results, abstractify for filtering b2ds in both cases
-    # NOTE can allow this to control creation of b3ds, or allow a quick create method for b3ds (noting no stitching and much less accuracy)
-stitch_bloomed_b2ds = False # Default False
 
 # HACK Move these to both configs!
 picklefile =''
@@ -206,10 +200,10 @@ def main():
         else:
             picklefile = 'C57BL6_Adult_CerebralCortex.pickle'
     if not config.dePickle:
-        all_slides, blob3dlist = Slide.dataToSlides(stitch=base_b3ds_with_stitching) # Reads in images and converts them to slides.
+        all_slides, blob3dlist = Slide.dataToSlides(stitch=config.base_b3ds_with_stitching) # Reads in images and converts them to slides.
                                                      # This process involves generating Pixels & Blob2ds, but NOT Blob3ds
-        if process_internals:
-            bloomed_b3ds = bloom_b3ds(blob3dlist, stitch=stitch_bloomed_b2ds) # Includes setting partners, and optionally stitching
+        if config.process_internals:
+            bloomed_b3ds = bloom_b3ds(blob3dlist, stitch=config.stitch_bloomed_b2ds) # Includes setting partners, and optionally stitching
             blob3dlist = blob3dlist + bloomed_b3ds
         Blob3d.mergeall()
         save(blob3dlist, picklefile)
@@ -223,7 +217,7 @@ def main():
                 print('------------')
                 plotBlob3ds([b3d] + [Blob3d.get(blob) for blob in (b3d.children)])
 
-        plotBlob2ds(list(Blob2d.all.values()), stitches=True, parentlines=process_internals, explode=process_internals)
+        plotBlob2ds(list(Blob2d.all.values()), stitches=True, parentlines=config.process_internals, explode=config.process_internals)
         plotBlob3ds(list(Blob3d.all.values()))
 
     else:
@@ -260,23 +254,23 @@ def main():
             load(picklefile + '_bloomed_stitched')
             blob3dlist = Blob3d.all.values()
 
-        for b3d in Blob3d.all.values():
-            print(b3d)
-            for child in b3d.children:
-                print('  cld:' + str(Blob3d.get(child)))
-            if len(b3d.children) > 0:
-                print('------------')
-                plotBlob3ds([b3d] + [Blob3d.get(blob) for blob in (b3d.children)])
+        # for b3d in Blob3d.all.values():
+        #     print(b3d)
+        #     for child in b3d.children:
+        #         print('  cld:' + str(Blob3d.get(child)))
+        #     if len(b3d.children) > 0:
+        #         print('------------')
+        #         plotBlob3ds([b3d] + [Blob3d.get(blob) for blob in (b3d.children)])
 
 
 
-        Blob3d.cleanB3ds()
-        print('Setting beads!')
+        # Blob3d.cleanB3ds()
+        # print('Setting beads!')
         Blob3d.tag_all_beads()
         beads = list(b3d for b3d in Blob3d.all.values() if b3d.isBead)
         print('Total number of beads: ' + str(len(beads)) + ' out of ' + str(len(Blob3d.all)) + ' total b3ds')
         # print('Plotting beads only')
-        # plotBlob3ds(beads)
+        # plotBlob3ds(beads)p
         # plotBlob2ds([blob2d for blob3d in beads for blob2d in blob3d.blob2ds],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=False, stitches=True)
         print('Now plotting all b3ds')
         plotBlob3ds(list(Blob3d.all.values()))
@@ -309,7 +303,7 @@ def main():
 if __name__ == '__main__':
     if config.mayPlot:
         from serodraw import *
-        filterAvailableColors()
+        filter_available_colors()
     main()  # Run the main function
 
 # NOTE: Swell, stitched base, non-stitched blooming: 1/25
