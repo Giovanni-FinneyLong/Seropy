@@ -219,12 +219,6 @@ class Pairing:
                 elif debug:
                     print('    -Blobs not connected')
             # print('.', flush=True)
-
-
-
-
-
-
         return pairlist
 
 

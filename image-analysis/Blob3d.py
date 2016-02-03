@@ -75,11 +75,11 @@ class Blob3d:
         if r_depth != 0:
             all_b2d_parents = [Blob2d.get(Blob2d.get(b2d).parentID) for b2d in blob2dlist]
             # print('All b2d_parents of our b2ds that are going into a new b3d: ' + str(all_b2d_parents))
-            parent_b3dids = set([b2d.b3did for b2d in all_b2d_parents])
+            parent_b3dids = set([b2d.b3did for b2d in all_b2d_parents if b2d.b3did != -1])
             # print('Their b3dids: ' + str(parent_b3dids))
             if len(parent_b3dids) > 0:
                 if len(parent_b3dids) > 1:
-                    print(' Found more than one b3d parent for b3d: ' + str(self.id) + ' attempting to merge parents')
+                    print(' Found more than one b3d parent for b3d: ' + str(self.id) + ' attempting to merge parents: ' + str(parent_b3dids))
                     Blob3d.merge(list(parent_b3dids))
                     new_parent_b3dids = list(set([b2d.b3did for b2d in all_b2d_parents])) # TODO can remove this, just for safety for now
                     print('  Post merging b3d parents, updated parent b3dids: ' + str(new_parent_b3dids))
