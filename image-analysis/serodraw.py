@@ -70,7 +70,7 @@ class Canvas(vispy.scene.SceneCanvas):
         self.coloring = coloring.lower()
         self.markers = []
         self.available_marker_colors = ['depth', 'blob2d', 'blob3d', 'bead']
-        self.available_stitch_colors = ['neutral', 'parentID', 'none', 'blob3d']
+        self.available_stitch_colors = ['neutral', 'parentID', 'blob3d']
         self.current_blob_color = self.coloring
         self.buffering = buffering
         self.marker_colors = [] # Each entry corresponds to the color of the correspond 'th marker in self.view.scene.children (not all markers!)
@@ -257,7 +257,6 @@ class Canvas(vispy.scene.SceneCanvas):
         for marker, coloring in self.markers:
             counts[self.available_marker_colors.index(coloring)] += 1
         self.available_marker_colors = [color for (index, color) in enumerate(self.available_marker_colors) if counts[index] > 0]
-        self.available_marker_colors.append(None)
         for marker, coloring in self.markers:
             if coloring == self.current_blob_color:
                 marker.visible = True

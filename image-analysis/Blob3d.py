@@ -290,7 +290,8 @@ class Blob3d:
         unset = sorted( list(b3d for b3d in Blob3d.all.values() if b3d.isBead is None),
                         key=lambda b3d: b3d.recursive_depth) # Do by recursive depth
         print('When tagging all beads, there were ' + str(len(unset)) + ' b3ds which could not be reached from base b3ds')
-        print(' They are: ' + str(unset)) # Want this to always be zero, otherwise theres a tree problem
+        if len(unset):
+            print(' They are: ' + str(unset)) # Want this to always be zero, otherwise theres a tree problem
         for b3d in unset:
             b3d.check_bead()
         print("Total number of beads = " + str(sum(b3d.isBead for b3d in Blob3d.all.values())) + ' / ' + str(len(Blob3d.all)))
