@@ -294,9 +294,6 @@ class Blob3d:
         for b3d in unset:
             b3d.check_bead()
         print("Total number of beads = " + str(sum(b3d.isBead for b3d in Blob3d.all.values())) + ' / ' + str(len(Blob3d.all)))
-        print('DB printing all b3ds:')
-        for b3d in Blob3d.all.values():
-            print('  ' + str(b3d))
 
 
     def check_bead(self):
@@ -309,8 +306,6 @@ class Blob3d:
         # print(', max_pixels_to_be_a_bead = ' + str(max_pixels_to_be_a_bead) + ', child_bead_difference = ' + str(child_bead_difference))
         # if self.recursive_depth > 0:
             # DEBUG
-        print('Checking if b3d: ' + str(self) + ' is a bead, child_bead_count=' + str(child_bead_count) )
-
         self.isBead = (child_bead_count < config.max_subbeads_to_be_a_bead) and (self.get_edge_pixel_count() <= config.max_pixels_to_be_a_bead) and (self.recursive_depth > 0)# and  (child_bead_count > (len(self.children) - config.child_bead_difference))
         return self.isBead
 
@@ -321,7 +316,11 @@ class Blob3d:
         :return:
         '''
         print('<< CLEANING B3DS >>')
+        set_isBead_after = False
         for b3d in Blob3d.all.values():
+            if not hasattr(b3d, 'isBead'):
+                b3d.isBead = None
+                set_isBead_after = True
             remove_children = []
             for child in b3d.children:
                 if child not in Blob3d.all:
@@ -330,6 +329,9 @@ class Blob3d:
                 for child in remove_children:
                     b3d.children.remove(child)
                 print('While cleaning b3d:' + str(b3d) + ' had to remove children that no longer existed ' + str(remove_children))
+        if set_isBead_after:
+            print(' While cleaning, found b3ds without isBead attr, so setting isBead for all b3ds')
+            Blob3d.tag_all_beads()
 
 
     def save2d(self, filename):

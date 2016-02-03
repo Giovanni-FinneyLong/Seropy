@@ -180,15 +180,7 @@ def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
             Pairing.stitchBlob2ds(b3d.blob2ds, debug=False)
     return all_new_b3ds
 
-#HACK
 
-
-
-# HACK Move these to both configs!
-picklefile =''
-
-
-# @profile
 def main():
     print('Current recusion limit: ' + str(sys.getrecursionlimit()) + ' updating to: ' + str(config.recursion_limit))
     sys.setrecursionlimit(config.recursion_limit) # HACK
@@ -264,8 +256,8 @@ def main():
 
 
 
-        # Blob3d.cleanB3ds()
-        # print('Setting beads!')
+        Blob3d.cleanB3ds()
+        print('Setting beads!')
         Blob3d.tag_all_beads()
         beads = list(b3d for b3d in Blob3d.all.values() if b3d.isBead)
         print('Total number of beads: ' + str(len(beads)) + ' out of ' + str(len(Blob3d.all)) + ' total b3ds')

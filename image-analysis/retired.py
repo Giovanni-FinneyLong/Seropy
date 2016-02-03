@@ -7,6 +7,8 @@ import serodraw
 import sero
 import numpy as np
 import matplotlib.pyplot as plt
+import vispy.visuals
+
 
 
 # SERO Functions:
@@ -426,7 +428,127 @@ def KMeansClusterIntoLists(listin, num_clusters):
     return doClustering(tuple_array, num_clusters)
 
 
+
+
+
+
+
 # SERODRAW Functions:
+
+def plotPixels(pixellist, canvas_size=(800, 800)):
+    canvas = Canvas(canvas_size)
+    xmin = min(pixel.x for pixel in pixellist)
+    ymin = min(pixel.y for pixel in pixellist)
+    edge_pixel_array = np.zeros([len(pixellist), 3])
+    for (p_num, pixel) in enumerate(pixellist):
+        edge_pixel_array[p_num] = [(pixel.x - xmin) / len(pixellist), (pixel.y - ymin) / len(pixellist), pixel.z /  (config.z_compression * len(pixellist))]
+    marker = visuals.Markers()
+    marker.set_data(edge_pixel_array, edge_color=None, face_color=colors[0 % len(colors)], size=8)
+    canvas.view.add(marker)
+    vispy.app.run()
+
+def plotPixelLists(pixellists, canvas_size=(800, 800)): # NOTE works well to show bloom results
+    canvas = Canvas(canvas_size)
+    xmin = min(pixel.x for pixellist in pixellists for pixel in pixellist)
+    ymin = min(pixel.y for pixellist in pixellists for pixel in pixellist)
+    xmax = max(pixel.x for pixellist in pixellists for pixel in pixellist)
+    ymax = max(pixel.y for pixellist in pixellists for pixel in pixellist)
+    zmin = min(pixel.z for pixellist in pixellists for pixel in pixellist)
+    zmax = max(pixel.z for pixellist in pixellists for pixel in pixellist)
+    xdim = xmax - xmin + 1
+    ydim = ymax - ymin + 1
+    zdim = zmax - zmin + 1
+
+    edge_pixel_arrays = []
+    # TODO plot all of a color at once
+
+
+    markers_per_color = [0 for i in range(min(len(colors), len(pixellists)))]
+    offsets = [0] * min(len(colors), len(pixellists))
+    for blobnum, pixellist in enumerate(pixellists):
+        markers_per_color[blobnum % len(markers_per_color)] += len(pixellist)
+    for num,i in enumerate(markers_per_color):
+        edge_pixel_arrays.append(np.zeros([i, 3]))
+    for blobnum, pixellist in enumerate(pixellists):
+        index = blobnum % len(markers_per_color)
+        for p_num, pixel in enumerate(pixellist):
+            edge_pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( config.z_compression * zdim)]
+        offsets[index] += len(pixellist)
+
+    print('NUM ARRAYS=' + str(len(edge_pixel_arrays)))
+    for color_num, edge_array in enumerate(edge_pixel_arrays):
+        markers = visuals.Markers()
+        markers.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
+        # view.add(visuals.Markers(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 ))
+        canvas.view.add(markers)
+    vispy.app.run()
+
+def contrastSaturatedBlob2ds(blob2ds, minimal_edge_pixels=350):
+    '''
+    Used to view each blob2d with a threshold number of edge_pixels of a blob3d,
+    before and after saturating the outside, with and without normalization.
+    :param blob2ds: A list of blob2ds, normally from a single blob3d, which will be experimentally saturated and normalized.
+    :param minimal_edge_pixels:
+    :return:
+    '''
+    import matplotlib.pylab as plt
+    from sklearn.preprocessing import normalize
+
+    for b2d_num, blob2d in enumerate(blob2ds):
+        print('Start on blob2d: ' + str(b2d_num) + ' / ' + str(len(blob2ds)) + ' which has ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
+        if len(blob2d.edge_pixels) > minimal_edge_pixels: # using edge to emphasize skinny or spotty blob2d's
+            before = blob2d.edgeToArray()
+            saturated = blob2d.gen_saturated_array()
+            normal_before = normalize(before)
+            normal_saturated = normalize(saturated)
+            xx, yy = saturated.shape
+            print(' array dim xx,yy: ' + str(xx) + ',' + str(yy))
+            fig, axes = plt.subplots(2,2, figsize=(12,12))
+            for img_num, ax in enumerate(axes.flat):
+                print('>>DB img_num:' + str(img_num))
+                ax.set_xticks([])
+                ax.set_yticks([])
+                if img_num == 0:
+                    ax.imshow(before, interpolation='nearest', cmap=plt.cm.jet)
+                elif img_num == 1:
+                    ax.imshow(saturated, interpolation='nearest', cmap=plt.cm.jet)
+                elif img_num == 2:
+                    ax.imshow(normal_before, interpolation='nearest', cmap=plt.cm.jet)
+                elif img_num == 3:
+                    ax.imshow(normal_saturated, interpolation='nearest', cmap=plt.cm.jet)
+            plt.show()
+        else:
+            print('Skipping, as blob2d had only: ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
+
+def showSlide(slide):
+    import matplotlib.pylab as plt
+    if len(slide.alive_pixels) > 0:
+        maxx = max(b2d.maxx for b2d in slide.blob2dlist)
+        maxy = max(b2d.maxy for b2d in slide.blob2dlist)
+        minx = min(b2d.minx for b2d in slide.blob2dlist)
+        miny = min(b2d.miny for b2d in slide.blob2dlist)
+        array = np.zeros([maxx - minx + 1, maxy - miny + 1])
+        for pixel in slide.alive_pixels:
+            array[pixel.x - minx][pixel.y - miny] = pixel.val
+        plt.imshow(array, cmap='rainbow', interpolation='none')
+        # plt.matshow(array)
+        plt.show()
+    else:
+        print('Cannot show slide with no pixels:' + str(slide))
+
+def showBlob2d(b2d):
+    import matplotlib.pylab as plt
+    width = b2d.maxx - b2d.minx + 1
+    height = b2d.maxy - b2d.miny + 1
+    array = np.zeros([width, height])
+    for pixel in b2d.pixels:
+        array[pixel.x - b2d.minx][pixel.y - b2d.miny] = pixel.val
+    plt.imshow(array, cmap='rainbow', interpolation='none')
+    plt.colorbar()
+    plt.show()
+
+
+
 
 def PlotHist(listin, numBins):
     'Take a 1dimensional matrix or a list'

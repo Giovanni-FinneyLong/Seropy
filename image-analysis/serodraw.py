@@ -23,9 +23,15 @@ class Canvas(vispy.scene.SceneCanvas):
         if hasattr(self,'unfreeze') and callable(getattr(self,'unfreeze')):         #HACK # Interesting bug fix for an issue that only occurs on Envy
             self.unfreeze()
         self.view = self.central_widget.add_view()
-        camera = vispy.scene.cameras.TurntableCamera(fov=0, azimuth=80, parent=self.view.scene, distance=1, elevation=-55)
+        turn_camera = vispy.scene.cameras.TurntableCamera(fov=0, azimuth=80, parent=self.view.scene, distance=1, elevation=-55, name='Turn')
+        fly_camera = vispy.scene.cameras.FlyCamera(parent=self.view.scene, fov=10, name='Fly')
+        # TODO adjust _keymap of FlyCamera to tune turning to be less extreme
+
+        self.cameras = [fly_camera, turn_camera]
+        self.current_camera_index = 0
         self.axis = visuals.XYZAxis(parent=self.view.scene)
-        self.view.camera = camera
+
+        self.view.camera = self.cameras[self.current_camera_index]
         self.blob2d_coloring_markers = []
         self.blob3d_coloring_markers = []
         self.depth_coloring_markers = []
@@ -68,19 +74,23 @@ class Canvas(vispy.scene.SceneCanvas):
 
     def on_key_press(self, event):
 
-        modifiers = [key.name for key in event.modifiers]
-        if event.key != 'Escape':
-            print('Key pressed - text: %r, key: %s, modifiers: %r' % (
-            event.text, event.key.name, modifiers))
+        # modifiers = [key.name for key in event.modifiers]
+        # if event.key != 'Escape':
+        #     print('Key pressed - text: %r, key: %s, modifiers: %r' % (
+        #     event.text, event.key.name, modifiers))
+
         if event.key.name == 'Up': # Next color cheme
             self.update_markers(increment=1)
+
         elif event.key.name == 'Down': # Previous color scheme
             self.update_markers(increment=-1)
-        elif event.key.name == 'S': # Save an image
+
+        elif event.key.name == 'Insert': # Save an image
             img = self.render()
             img_name = self.name_image()
             print('Writing to image file: \'' + str(img_name) + '\'')
             vispy.io.write_png(img_name, img)
+
         elif event.key.name == 'T': # test
             for child,coloring in self.markers:
                 print(child)
@@ -89,45 +99,40 @@ class Canvas(vispy.scene.SceneCanvas):
                     debug()
         elif event.key.name == 'Left': # Toggle stitches
             self.update_stitches(increment=1)
-        #####
-        #These keys are for adjusting bead values
-        elif event.key.name == 'U':
+
+        # These numerical keys are for adjusting bead values
+        elif event.key.name == '1':
             print('Changing config.max_pixels_to_be_a_bead from ' + str(config.max_pixels_to_be_a_bead), end='')
             # from myconfig import set_config.max_pixels_to_be_a_bead
             config.max_pixels_to_be_a_bead = int(1.1 * config.max_pixels_to_be_a_bead) + 10
             print(' to ' + str(config.max_pixels_to_be_a_bead))# + ' which by get = ' + str(config.get_config.max_pixels_to_be_a_bead()))
             self.refresh_bead_markers()
 
-
-        elif event.key.name == 'J':
+        elif event.key.name == '2':
             print('Changing config.max_pixels_to_be_a_bead from ' + str(config.max_pixels_to_be_a_bead), end='')
             config.max_pixels_to_be_a_bead = int(config.max_pixels_to_be_a_bead / 1.1)
             print(' to ' + str(config.max_pixels_to_be_a_bead))
             self.refresh_bead_markers()
 
-
-        elif event.key.name == 'I':
+        elif event.key.name == '3':
             print('Changing config.max_subbeads_to_be_a_bead from ' + str(config.max_subbeads_to_be_a_bead), end='')
             config.max_subbeads_to_be_a_bead += 1
             print(' to ' + str(config.max_subbeads_to_be_a_bead))
             self.refresh_bead_markers()
 
-
-        elif event.key.name == 'K':
+        elif event.key.name == '4':
             print('Changing config.max_subbeads_to_be_a_bead from ' + str(config.max_subbeads_to_be_a_bead), end='')
             config.max_subbeads_to_be_a_bead -= 1
             print(' to ' + str(config.max_subbeads_to_be_a_bead))
             self.refresh_bead_markers()
 
-
-        elif event.key.name == 'O':
+        elif event.key.name == '5':
             print('Changing config.child_bead_difference from ' + str(config.child_bead_difference), end='')
             config.child_bead_difference += 1
             print(' to ' + str(config.child_bead_difference))
             self.refresh_bead_markers()
 
-
-        elif event.key.name == 'L':
+        elif event.key.name == '6':
             print('Changing config.child_bead_difference from ' + str(config.child_bead_difference), end='')
             config.child_bead_difference -= 1
             print(' to ' + str(config.child_bead_difference))
@@ -139,6 +144,11 @@ class Canvas(vispy.scene.SceneCanvas):
                 print(b3d)
                 for b2d in b3d.blob2ds:
                     print('  ' + str(Blob2d.get(b2d)))
+
+        elif event.key.name == 'V': # Change cameras
+            self.current_camera_index = (self.current_camera_index + 1) % len(self.cameras)
+            self.view.camera = self.cameras[self.current_camera_index]
+            self.update_title()
 
     def refresh_bead_markers(self):
         # from myconfig import config.max_subbeads_to_be_a_bead
@@ -239,7 +249,12 @@ class Canvas(vispy.scene.SceneCanvas):
         self.view.add(self.stitches[-1][0])
 
     def update_title(self):
-        self.title =  '# B3ds: ' + str(self.b3d_count) + ', # B2ds: ' + str(self.b2d_count) + ', Coloring = ' + str(self.current_blob_color)
+        self.title =  '# B3ds: ' + str(self.b3d_count) + ', # B2ds: ' + str(self.b2d_count) + ', Coloring = ' + str(self.current_blob_color) + ', Camera = ' + self.extract_camera_name()
+
+    def extract_camera_name(self):
+        # buf = str(type(self.cameras[self.current_camera_index]))
+        # return buf[buf.rindex("."):buf.rindex("'")]
+        return self.view.camera.name
 
     def add_marker(self, marker, coloring):
         self.markers.append((marker,coloring))
@@ -740,127 +755,13 @@ def showColors(canvas_size=(800,800)):
         canvas.view.add(visuals.Text(color, pos=np.reshape([0, 0, 1-(i / len(colors))], (1,3)), color=color, bold=True))
     vispy.app.run()
 
-def plotPixels(pixellist, canvas_size=(800, 800)):
-    canvas = Canvas(canvas_size)
-    xmin = min(pixel.x for pixel in pixellist)
-    ymin = min(pixel.y for pixel in pixellist)
-    xmax = max(pixel.x for pixel in pixellist)
-    ymax = max(pixel.y for pixel in pixellist)
-    edge_pixel_array = np.zeros([len(pixellist), 3])
-    for (p_num, pixel) in enumerate(pixellist):
-        edge_pixel_array[p_num] = [(pixel.x - xmin) / len(pixellist), (pixel.y - ymin) / len(pixellist), pixel.z /  (config.z_compression * len(pixellist))]
-    marker = visuals.Markers()
-    marker.set_data(edge_pixel_array, edge_color=None, face_color=colors[0 % len(colors)], size=8)
-    canvas.view.add(marker)
-    vispy.app.run()
-
-def plotPixelLists(pixellists, canvas_size=(800, 800)): # NOTE works well to show bloom results
-    canvas = Canvas(canvas_size)
-    xmin = min(pixel.x for pixellist in pixellists for pixel in pixellist)
-    ymin = min(pixel.y for pixellist in pixellists for pixel in pixellist)
-    xmax = max(pixel.x for pixellist in pixellists for pixel in pixellist)
-    ymax = max(pixel.y for pixellist in pixellists for pixel in pixellist)
-    zmin = min(pixel.z for pixellist in pixellists for pixel in pixellist)
-    zmax = max(pixel.z for pixellist in pixellists for pixel in pixellist)
-    xdim = xmax - xmin + 1
-    ydim = ymax - ymin + 1
-    zdim = zmax - zmin + 1
-
-    total_pixels = sum(len(pixellist) for pixellist in pixellists)
-    edge_pixel_arrays = []
-    markers = []
-    # TODO plot all of a color at once
-
-
-    markers_per_color = [0 for i in range(min(len(colors), len(pixellists)))]
-    offsets = [0] * min(len(colors), len(pixellists))
-    for blobnum, pixellist in enumerate(pixellists):
-        markers_per_color[blobnum % len(markers_per_color)] += len(pixellist)
-    for num,i in enumerate(markers_per_color):
-        edge_pixel_arrays.append(np.zeros([i, 3]))
-    for blobnum, pixellist in enumerate(pixellists):
-        index = blobnum % len(markers_per_color)
-        for p_num, pixel in enumerate(pixellist):
-            edge_pixel_arrays[index][p_num + offsets[index]] = [pixel.x / xdim, pixel.y / ydim, pixel.z / ( config.z_compression * zdim)]
-        offsets[index] += len(pixellist)
-
-    print('NUM ARRAYS=' + str(len(edge_pixel_arrays)))
-    for color_num, edge_array in enumerate(edge_pixel_arrays):
-        markers = visuals.Markers()
-        markers.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
-        # view.add(visuals.Markers(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 ))
-        canvas.view.add(markers)
-    vispy.app.run()
-
-def contrastSaturatedBlob2ds(blob2ds, minimal_edge_pixels=350):
-    '''
-    Used to view each blob2d with a threshold number of edge_pixels of a blob3d,
-    before and after saturating the outside, with and without normalization.
-    :param blob2ds: A list of blob2ds, normally from a single blob3d, which will be experimentally saturated and normalized.
-    :param minimal_edge_pixels:
-    :return:
-    '''
-    import matplotlib.pylab as plt
-    from sklearn.preprocessing import normalize
-
-    for b2d_num, blob2d in enumerate(blob2ds):
-        print('Start on blob2d: ' + str(b2d_num) + ' / ' + str(len(blob2ds)) + ' which has ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
-        if len(blob2d.edge_pixels) > minimal_edge_pixels: # using edge to emphasize skinny or spotty blob2d's
-            before = blob2d.edgeToArray()
-            saturated = blob2d.gen_saturated_array()
-            normal_before = normalize(before)
-            normal_saturated = normalize(saturated)
-            xx, yy = saturated.shape
-            print(' array dim xx,yy: ' + str(xx) + ',' + str(yy))
-            fig, axes = plt.subplots(2,2, figsize=(12,12))
-            for img_num, ax in enumerate(axes.flat):
-                print('>>DB img_num:' + str(img_num))
-                ax.set_xticks([])
-                ax.set_yticks([])
-                if img_num == 0:
-                    ax.imshow(before, interpolation='nearest', cmap=plt.cm.jet)
-                elif img_num == 1:
-                    ax.imshow(saturated, interpolation='nearest', cmap=plt.cm.jet)
-                elif img_num == 2:
-                    ax.imshow(normal_before, interpolation='nearest', cmap=plt.cm.jet)
-                elif img_num == 3:
-                    ax.imshow(normal_saturated, interpolation='nearest', cmap=plt.cm.jet)
-            plt.show()
-        else:
-            print('Skipping, as blob2d had only: ' + str(len(blob2d.edge_pixels)) + ' edge_pixels')
-
 def getBloomedHeight(b2d, explode, zdim):
     if explode:
         return b2d.height + b2d.recursive_depth / (zdim * max([len(b2d.getrelated()), 1]))
     else:
         return b2d.height
 
-def showSlide(slide):
-    import matplotlib.pylab as plt
-    if len(slide.alive_pixels) > 0:
-        maxx = max(b2d.maxx for b2d in slide.blob2dlist)
-        maxy = max(b2d.maxy for b2d in slide.blob2dlist)
-        minx = min(b2d.minx for b2d in slide.blob2dlist)
-        miny = min(b2d.miny for b2d in slide.blob2dlist)
-        array = np.zeros([maxx - minx + 1, maxy - miny + 1])
-        for pixel in slide.alive_pixels:
-            array[pixel.x - minx][pixel.y - miny] = pixel.val
-        plt.imshow(array, cmap='rainbow', interpolation='none')
-        # plt.matshow(array)
-        plt.show()
-    else:
-        print('Cannot show slide with no pixels:' + str(slide))
 
-def showBlob2d(b2d):
-    import matplotlib.pylab as plt
-    width = b2d.maxx - b2d.minx + 1
-    height = b2d.maxy - b2d.miny + 1
-    array = np.zeros([width, height])
-    for pixel in b2d.pixels:
-        array[pixel.x - b2d.minx][pixel.y - b2d.miny] = pixel.val
-    plt.imshow(array, cmap='rainbow', interpolation='none')
-    plt.colorbar()
-    plt.show()
 
 
 # NOTE: all marker types:
