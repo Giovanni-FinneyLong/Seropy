@@ -96,7 +96,9 @@ class config:
                   # Experimental
     minimal_pixel_overlap_to_be_possible_partners = .10 # The minimal portion of area that one of a pair of blob2ds must overlap with the other to be partners
                                                         # Experimental
-
+    max_pixels_to_be_a_bead = 500
+    max_subbeads_to_be_a_bead = 4
+    child_bead_difference = 2
 
     '''
       _____       _      _
