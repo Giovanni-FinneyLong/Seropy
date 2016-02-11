@@ -25,9 +25,10 @@ class Canvas(vispy.scene.SceneCanvas):
             self.unfreeze()
         self.view = self.central_widget.add_view()
 
-        self.fov = 10
+        self.fov = 90 # Must be 0 < fov < 180
 
-        turn_camera = vispy.scene.cameras.TurntableCamera(fov=self.fov, azimuth=80, parent=self.view.scene, distance=1, elevation=-55, name='Turntable')
+        turn_camera = vispy.scene.cameras.TurntableCamera(fov=0, azimuth=80, parent=self.view.scene, distance=1, elevation=-55, name='Turntable')
+        # Using a fov of zero b/c fov makes turn harder to use
         fly_camera = vispy.scene.cameras.FlyCamera(parent=self.view.scene, fov=self.fov, name='Fly')
         panzoom_camera = vispy.scene.cameras.PanZoomCamera(parent=self.view.scene, name='Panzoom')
         arcball_camera = vispy.scene.cameras.ArcballCamera(parent=self.view.scene, fov=self.fov, distance=1, name='Arcball')
@@ -79,6 +80,9 @@ class Canvas(vispy.scene.SceneCanvas):
         self.stitches = []
         self.current_stitch_color = 'neutral'
         self.plot_call = '' # Used to remember which function created the canvas
+
+        # self.measure_fps()
+
 
     def on_mouse_press(self, event):
         """Pan the view based on the change in mouse position."""
@@ -179,6 +183,23 @@ class Canvas(vispy.scene.SceneCanvas):
             self.view.camera = self.cameras[self.current_camera_index]
             self.update_title()
 
+        elif event.key.name == '=': # Increase fov for all cameras
+            self.fov = (self.fov + 10) % 180
+            for camera in self.cameras:
+                if camera.name == 'Fly':# and hasattr(camera, 'fov'):
+                    camera.fov = self.fov
+            self.update_title()
+
+        elif event.key.name == '-': # Decrease fov for all cameras
+            if self.fov - 10 < 0:
+                self.fov = 0
+            else:
+                self.fov -= 10
+            for camera in self.cameras:
+                if camera.name == 'Fly':#if hasattr(camera, 'fov'):
+                    camera.fov = self.fov
+            self.update_title()
+
     def refresh_bead_markers(self):
         # from myconfig import config.max_subbeads_to_be_a_bead
         Blob3d.tag_all_beads()
@@ -193,7 +214,7 @@ class Canvas(vispy.scene.SceneCanvas):
                 # self.view.remove(marker)
                 remove_markers.append((marker,coloring))
         for marker,coloring in remove_markers:
-            marker.remove_parent(marker.parent)
+            # marker.remove_parent(marker.parent) # FIXME
             self.markers.remove((marker, coloring))
             del marker
 
@@ -282,7 +303,7 @@ class Canvas(vispy.scene.SceneCanvas):
         self.view.add(self.stitches[-1][0])
 
     def update_title(self):
-        self.title = str(self.plot_call) +  ': # B3ds: ' + str(len(self.b3ds)) + ', # B2ds: ' + str(len(self.b2ds)) + ', Coloring = ' + str(self.current_blob_color) + ', Stitches = ' + str(self.current_stitch_color) + ', Camera = ' + self.extract_camera_name()
+        self.title = str(self.plot_call) +  ': # B3ds: ' + str(len(self.b3ds)) + ', # B2ds: ' + str(len(self.b2ds)) + ', Coloring = ' + str(self.current_blob_color) + ', Stitches = ' + str(self.current_stitch_color) + ', Camera = ' + self.extract_camera_name() + ', fov = ' + str(self.fov)
 
     def extract_camera_name(self):
         # buf = str(type(self.cameras[self.current_camera_index]))
