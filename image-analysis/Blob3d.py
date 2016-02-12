@@ -2,7 +2,7 @@ from Blob2d import Blob2d
 from Pixel import Pixel
 from util import warn
 from util import debug
-from myconfig import config
+from myconfig import Config
 
 def printGeneralInfo(prefix='', indent=0, suffix=''):
     prefix = (' ' * indent) + prefix
@@ -307,7 +307,10 @@ class Blob3d:
         # print(', max_pixels_to_be_a_bead = ' + str(max_pixels_to_be_a_bead) + ', child_bead_difference = ' + str(child_bead_difference))
         # if self.recursive_depth > 0:
             # DEBUG
-        self.isBead = (child_bead_count < config.max_subbeads_to_be_a_bead) and (self.get_edge_pixel_count() <= config.max_pixels_to_be_a_bead) and (self.recursive_depth > 0)# and  (child_bead_count > (len(self.children) - config.child_bead_difference))
+        self.isBead = \
+            (child_bead_count < Config.max_subbeads_to_be_a_bead) \
+            and (self.get_edge_pixel_count() <= Config.max_pixels_to_be_a_bead) \
+            #and (self.recursive_depth > 0)# and  (child_bead_count > (len(self.children) - config.child_bead_difference))
         return self.isBead
 
     @staticmethod
@@ -346,7 +349,7 @@ class Blob3d:
         slice_arrays = []
         for i in range(self.highslideheight - self.lowslideheight + 1):
             slice_arrays.append(np.zeros((self.maxx - self.minx + 1, self.maxy - self.miny + 1)))
-        savename = config.FIGURES_DIR + filename
+        savename = Config.FIGURES_DIR + filename
         for b2d in self.blob2ds:
             for pixel in b2d.pixels:
                 slice_arrays[pixel.z - self.lowslideheight][pixel.x - self.minx][pixel.y - self.miny] = pixel.val

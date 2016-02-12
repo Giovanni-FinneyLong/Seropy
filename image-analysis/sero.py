@@ -10,12 +10,12 @@ from Stitches import Pairing
 import glob
 import sys
 from util import warn, getImages, progressBar
-from myconfig import config
+from myconfig import Config
 import time
 
 
 
-def save(blob3dlist, filename, directory=config.PICKLEDIR):
+def save(blob3dlist, filename, directory=Config.PICKLEDIR):
     if directory != '':
         if directory[-1] not in ['/', '\\']:
             slash = '/'
@@ -52,7 +52,7 @@ def save(blob3dlist, filename, directory=config.PICKLEDIR):
             pass
 
 
-def load(filename, directory=config.PICKLEDIR):
+def load(filename, directory=Config.PICKLEDIR):
         if directory[-1] not in ['/', '\\']:
             slash = '/'
         else:
@@ -182,20 +182,21 @@ def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
 
 
 def main():
-    print('Current recusion limit: ' + str(sys.getrecursionlimit()) + ' updating to: ' + str(config.recursion_limit))
-    sys.setrecursionlimit(config.recursion_limit) # HACK
-    if config.test_instead_of_data:
+    print('Current recusion limit: ' + str(sys.getrecursionlimit()) + ' updating to: ' + str(Config.recursion_limit))
+    sys.setrecursionlimit(Config.recursion_limit) # HACK
+    if Config.test_instead_of_data:
          picklefile = 'All_test_pre_b3d_tree.pickle' # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
     else:
-        if config.swell_instead_of_c57bl6:
+        if Config.swell_instead_of_c57bl6:
             picklefile = 'Swellshark_Adult_012615.pickle'
         else:
             picklefile = 'C57BL6_Adult_CerebralCortex.pickle'
-    if not config.dePickle:
-        all_slides, blob3dlist = Slide.dataToSlides(stitch=config.base_b3ds_with_stitching) # Reads in images and converts them to slides.
-                                                     # This process involves generating Pixels & Blob2ds, but NOT Blob3ds
-        if config.process_internals:
-            bloomed_b3ds = bloom_b3ds(blob3dlist, stitch=config.stitch_bloomed_b2ds) # Includes setting partners, and optionally stitching
+    if not Config.dePickle:
+        all_slides, blob3dlist = Slide.dataToSlides(stitch=Config.base_b3ds_with_stitching)
+            # Reads in images and converts them to slides.
+            # This process involves generating Pixels & Blob2ds, but NOT Blob3ds
+        if Config.process_internals:
+            bloomed_b3ds = bloom_b3ds(blob3dlist, stitch=Config.stitch_bloomed_b2ds) # Includes setting partners, and optionally stitching
             blob3dlist = blob3dlist + bloomed_b3ds
         Blob3d.mergeall()
         save(blob3dlist, picklefile)
@@ -209,7 +210,7 @@ def main():
                 print('------------')
                 plotBlob3ds([b3d] + [Blob3d.get(blob) for blob in (b3d.children)])
 
-        plotBlob2ds(list(Blob2d.all.values()), stitches=True, parentlines=config.process_internals, explode=config.process_internals)
+        plotBlob2ds(list(Blob2d.all.values()), stitches=True, parentlines=Config.process_internals, explode=Config.process_internals)
         plotBlob3ds(list(Blob3d.all.values()))
 
     else:
@@ -287,13 +288,11 @@ def main():
         exit()
     # plotBlob2ds(depth, stitches=True, ids=False, parentlines=False,explode=True, edge=False)
 
-# TODO TODO
-# Children of base b3ds not getting set correctly..., nor are the children's parents...
 
 
 
 if __name__ == '__main__':
-    if config.mayPlot:
+    if Config.mayPlot:
         from serodraw import *
         filter_available_colors()
     main()  # Run the main function

@@ -4,7 +4,7 @@ import numpy as np
 from PIL import Image
 import time
 from Pixel import Pixel
-from myconfig import config
+from myconfig import Config
 from util import printElapsedTime, getImages, warn, progressBar
 from Stitches import Pairing
 from Blob3d import Blob3d
@@ -76,7 +76,7 @@ class Slide:
 
         # Lets go further and grab the maximal pixels, which are at the front
         endmax = 0
-        while (endmax < len(pixels) and pixels[endmax].val >= config.min_val_threshold ):
+        while (endmax < len(pixels) and pixels[endmax].val >= Config.min_val_threshold):
             endmax += 1
         if not self.isSubslide:
             if not quiet:
@@ -99,7 +99,7 @@ class Slide:
             print('There were ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(total_ids) + ' blobs.')
         most_common_ids = counter.most_common()# HACK Grabbing all for now, +1 b/c we start at 0 # NOTE Stored as (id, count)
 
-        id_lists = getIdLists(self.alive_pixels, remap=config.remap_ids_by_group_size, id_counts=most_common_ids) # Hack, don't ned to supply id_counts of remap is false; just convenient for now
+        id_lists = getIdLists(self.alive_pixels, remap=Config.remap_ids_by_group_size, id_counts=most_common_ids) # Hack, don't ned to supply id_counts of remap is false; just convenient for now
         self.blob2dlist = [] # Note that blobs in the blob list are ordered by number of pixels, not id, this makes merging faster
 
         for (blobnum, blobslist) in enumerate(id_lists):
@@ -294,10 +294,10 @@ class Slide:
                         neighbor = pixel_array[xpos + horizontal_offset][ypos + vertical_offset]
                         if (neighbor != 0):
                             difference = abs(float(pixel.val) - float(neighbor.val)) # Note: Need to convert to floats, otherwise there's an overflow error due to the value range being int8 (0-255)
-                            if difference <= config.max_val_step: # Within acceptrable bound to be grouped by id
+                            if difference <= Config.max_val_step: # Within acceptrable bound to be grouped by id
                                 if neighbor.blob_id != -1:
                                     if pixel.blob_id != -1 and pixel.blob_id != neighbor.blob_id:
-                                        if config.debug_pixel_ops:
+                                        if Config.debug_pixel_ops:
                                             print('\n*****Pixel:' + str(pixel) + ' conflicts on neighbor with non-zero blob_id:' + str(neighbor))
                                         conflict_differences.append(difference)
 
@@ -319,16 +319,16 @@ class Slide:
                                         pixel_id_groups[pixel.blob_id].append(pixel)
 
             else:
-                if config.debug_pixel_ops:
+                if Config.debug_pixel_ops:
                     print('****Pixel:' + str(pixel) + ' already had an id when the cursor reached it')
             if pixel.blob_id == -1: # Didn't manage to derive an id_num from the neighboring pixels
                 pixel.blob_id = len(pixel_id_groups) # This is used to assign the next id to a pixel, using an id that is new
                 pixel_id_groups.append([pixel])
                 derived_ids.append(pixel.blob_id) # Todo should refactor 'derived_ids' to be more clear
                 equivalent_labels.append(pixel.blob_id) # Map the new pixel to itself until a low equivalent is found
-                if config.debug_pixel_ops:
+                if Config.debug_pixel_ops:
                     print('**Never derived a value for pixel:' + str(pixel) + ', assigning it a new one:' + str(pixel.blob_id))
-        if config.debug_pixel_ops:
+        if Config.debug_pixel_ops:
             print('EQUIVALENT LABELS: ' + str(equivalent_labels))
         # Time to clean up the first member of each id group-as they are skipped from the remapping
         id_to_reuse = []
@@ -337,20 +337,20 @@ class Slide:
 
         for id in range(maxid):
             if id != equivalent_labels[id]:
-                if config.debug_blob_ids:
+                if Config.debug_blob_ids:
                     print('ID #' + str(id) + ' wasnt in the list, adding to ids_to _replace')
                 id_to_reuse.append(id)
             else:
                 if(len(id_to_reuse) != 0):
                     buf = id_to_reuse[0]
-                    if config.debug_blob_ids:
+                    if Config.debug_blob_ids:
                         print('Replacing ' + str(id) + ' with ' + str(buf) + ' and adding ' + str(id) + ' to the ids to be reused')
                     id_to_reuse.append(id)
                     for id_fix in range(len(equivalent_labels)):
                         if equivalent_labels[id_fix] == id:
                             equivalent_labels[id_fix] = buf
                     id_to_reuse.pop(0)
-            if config.debug_blob_ids:
+            if Config.debug_blob_ids:
                 print('New equiv labels:' + str(equivalent_labels))
 
         for pixel in pixel_list:
@@ -427,7 +427,7 @@ def filterSparsePixelsFromList(listin, local_dim_tuple, quiet=False):
                         cur_neighbor_val = max_float_array[xpos + horizontal_offset][ypos + vertical_offset]
                         if (cur_neighbor_val > 0):
                             buf_nzn += 1
-        if buf_nzn >= config.minimal_nonzero_neighbors:
+        if buf_nzn >= Config.minimal_nonzero_neighbors:
             filtered_pixels.append(pixel)
         else:
             removed_pixel_ids.append(pixel.id)

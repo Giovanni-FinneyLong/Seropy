@@ -1,4 +1,4 @@
-from myconfig import config
+from myconfig import Config
 import numpy as np
 import math
 from Pixel import Pixel
@@ -236,8 +236,8 @@ class Blob2d:
                 # print('Len of difference:' + str(len(my_pixel_coor - pair_coor)))
                 overlap_amount = len(my_pixel_coor) - len(my_pixel_coor - pair_coor)
 
-                if len(pair_coor) and len(my_pixel_coor) and ((overlap_amount / len(my_pixel_coor) > config.minimal_pixel_overlap_to_be_possible_partners  and len(my_pixel_coor) > 7)
-                or ((overlap_amount / len(pair_coor) > config.minimal_pixel_overlap_to_be_possible_partners) and len(pair_coor) > 7)): #HACK
+                if len(pair_coor) and len(my_pixel_coor) and ((overlap_amount / len(my_pixel_coor) > Config.minimal_pixel_overlap_to_be_possible_partners  and len(my_pixel_coor) > 7)
+                or ((overlap_amount / len(pair_coor) > Config.minimal_pixel_overlap_to_be_possible_partners) and len(pair_coor) > 7)): #HACK
                     # len(my_pixel_coor - pair_coor) != len(my_pixel_coor)): # Overlapping coordinates
                     self.possible_partners.append(blob.id)
                     Blob2d.get(self.id).possible_partners.append(blob.id)
@@ -245,18 +245,18 @@ class Blob2d:
                         # Use partner's (blob) midpoints, and expand a proportion of minx, maxx, miny, maxy
                         midx = blob.avgx
                         midy = blob.avgy
-                        left_bound = midx - ((blob.avgx - blob.minx) * config.overscan_coefficient)
-                        right_bound = midx + ((blob.maxx - blob.avgx) * config.overscan_coefficient)
-                        down_bound = midy - ((blob.avgy - blob.miny) * config.overscan_coefficient)
-                        up_bound = midy + ((blob.maxy - blob.avgy) * config.overscan_coefficient)
+                        left_bound = midx - ((blob.avgx - blob.minx) * Config.overscan_coefficient)
+                        right_bound = midx + ((blob.maxx - blob.avgx) * Config.overscan_coefficient)
+                        down_bound = midy - ((blob.avgy - blob.miny) * Config.overscan_coefficient)
+                        up_bound = midy + ((blob.maxy - blob.avgy) * Config.overscan_coefficient)
                     else:
                         # Use partner's (blob) midpoints, and expand a proportion of minx, maxx, miny, maxy
                         midx = self.avgx
                         midy = self.avgy
-                        left_bound = midx - ((self.avgx - self.minx) * config.overscan_coefficient)
-                        right_bound = midx + ((self.maxx - self.avgx) * config.overscan_coefficient)
-                        down_bound = midy - ((self.avgy - self.miny) * config.overscan_coefficient)
-                        up_bound = midy + ((self.maxy - self.avgy) * config.overscan_coefficient)
+                        left_bound = midx - ((self.avgx - self.minx) * Config.overscan_coefficient)
+                        right_bound = midx + ((self.maxx - self.avgx) * Config.overscan_coefficient)
+                        down_bound = midy - ((self.avgy - self.miny) * Config.overscan_coefficient)
+                        up_bound = midy + ((self.maxy - self.avgy) * Config.overscan_coefficient)
                     partner_subpixel_indeces = []
                     my_subpixel_indeces = []
                     for p_num, pixel in enumerate(blob.edge_pixels):
@@ -340,7 +340,7 @@ class Blob2d:
         if (len(self.pixels) < len(Blob2d.get(self.id).pixels)):
             warn('Gained pixels!!!! (THIS SHOULD NEVER HAPPEN!)')
 
-        if depth < config.max_depth:
+        if depth < Config.max_depth:
             if len(livepix) > 1:
                 for b2d in b2ds:
                     Blob2d.get(b2d).bloomInwards(depth=depth+1)
@@ -388,48 +388,48 @@ class Blob2d:
         '''
         newlist = []
         copylist = list(bloblist) # Hack, fix by iterating backwards: http://stackoverflow.com/questions/2612802/how-to-clone-or-copy-a-list-in-python
-        if config.debug_set_merge:
+        if Config.debug_set_merge:
             print('Blobs to merge:' + str(copylist))
         while len(copylist) > 0:
-            if config.debug_set_merge:
+            if Config.debug_set_merge:
                 print('Len of copylist:' + str(len(copylist)))
             blob1 = copylist[0]
             newpixels = []
             merged = False
-            if config.debug_set_merge:
+            if Config.debug_set_merge:
                 print('**Curblob:' + str(blob1))
             for (index2, blob2) in enumerate(copylist[1:]):
                 if blob2 == blob1:
-                    if config.debug_set_merge:
+                    if Config.debug_set_merge:
                         print('   Found blobs to merge: ' + str(blob1) + ' & ' + str(blob2))
                     if Blob2d.get(blob1).recursive_depth != Blob2d.get(blob2).recursive_depth:
                         print('WARNING merging two blobs of different recursive depths:' + str(blob1) + ' & ' + str(blob2))
                     merged = True
                     newpixels = newpixels + Blob2d.get(blob2).pixels
             if merged == False:
-                if config.debug_set_merge:
+                if Config.debug_set_merge:
                     print('--Never merged on blob:' + str(blob1))
                 newlist.append(blob1)
                 del copylist[0]
             else:
-                if config.debug_set_merge:
+                if Config.debug_set_merge:
                     print(' Merging, newlist-pre:' + str(newlist))
                     print(' Merging, copylist-pre:' + str(copylist))
                 index = 0
                 while index < len(copylist):
-                    if config.debug_set_merge:
+                    if Config.debug_set_merge:
                         print(' Checking to delete:' + str(copylist[index]))
                     if copylist[index] == blob1:
-                        if config.debug_set_merge:
+                        if Config.debug_set_merge:
                             print('  Deleting:' + str(copylist[index]))
                         del copylist[index]
                         index -= 1
                     index += 1
                 newlist.append(Blob2d(Blob2d.get(blob1).pixels + newpixels, Blob2d.get(blob1).master_array, Blob2d.get(blob1).slide, recursive_depth=Blob2d.get(blob1).recursive_depth, parentID=min(Blob2d.get(blob1).parentID, Blob2d.get(blob2).parentID), direct_children=Blob2d.get(blob1).children + Blob2d.get(blob2).children))
-                if config.debug_set_merge:
+                if Config.debug_set_merge:
                     print(' Merging, newlist-post:' + str(newlist))
                     print(' Merging, copylist-post:' + str(copylist))
-        if config.debug_set_merge:
+        if Config.debug_set_merge:
             print('Merge result' + str(newlist))
         return newlist
 
@@ -499,7 +499,7 @@ class Blob2d:
         from scipy import misc as scipy_misc
         array_rep = self.edgeToArray(buffer=0)
         img = scipy_misc.toimage(array_rep, cmin=0.0, cmax=255.0)
-        savename = config.FIGURES_DIR + filename
+        savename = Config.FIGURES_DIR + filename
         print('Saving Image of Blob2d as: ' + str(savename))
         img.save(savename)
 
@@ -514,9 +514,9 @@ class Blob2d:
                   if body_arr[y][x] == 0] # HACK TODO
         saturated = self.edgeToArray()
         for x,y in xy_sat:
-            saturated[y][x] = config.hard_max_pixel_value
+            saturated[y][x] = Config.hard_max_pixel_value
         # At this stage, the entire array is reversed, so will invert the value (not an array inv)
-        saturated = abs(saturated - config.hard_max_pixel_value)
+        saturated = abs(saturated - Config.hard_max_pixel_value)
         return saturated
 
 

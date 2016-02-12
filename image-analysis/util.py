@@ -1,4 +1,4 @@
-from myconfig import config
+from myconfig import Config
 import time
 import pickle
 import math
@@ -66,7 +66,7 @@ class progressBar:
 
 
 def warn(string):
-    if not config.disable_warnings:
+    if not Config.disable_warnings:
         print('\n>\n->\n--> WARNING: ' + str(string) + ' <--\n->\n>')
 
 def debug():
@@ -74,12 +74,12 @@ def debug():
 
 
 def getImages():
-    if config.test_instead_of_data:
-        dir = config.TEST_DIR
+    if Config.test_instead_of_data:
+        dir = Config.TEST_DIR
         extension = '*.png'
     else:
-        dir = config.DATA_DIR
-        if config.swell_instead_of_c57bl6:
+        dir = Config.DATA_DIR
+        if Config.swell_instead_of_c57bl6:
             extension = 'Swell*.tif'
         else:
             extension = 'C57BL6*.tif'

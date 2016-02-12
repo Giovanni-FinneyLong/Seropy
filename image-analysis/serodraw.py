@@ -2,7 +2,7 @@ __author__ = 'gio'
 # This file includes the various functions written to visualize data from within sero.py
 # These functions have been separated for convenience; they are higher volume and lower maintenance.
 
-from myconfig import config
+from myconfig import Config
 import numpy as np
 from Blob2d import Blob2d
 from Pixel import Pixel
@@ -39,7 +39,7 @@ class Canvas(vispy.scene.SceneCanvas):
         turn_speed = .6
         assert(turn_speed >= .6) # This is because below this value, the camera stops reponding to turn requests when not already moving
 
-        # fly_camera.set_range(x=(0,1),y=(0,1),z=(0,1))
+        fly_camera.set_range(x=(0,1),y=(0,1),z=(0,1)) # Doesn't seem to improve performance..
         # fly_camera.link(turn_camera) # Can't link b/c dont share rotation :/
 
         # Mapping that defines keys to thrusters
@@ -81,7 +81,7 @@ class Canvas(vispy.scene.SceneCanvas):
         self.current_stitch_color = 'neutral'
         self.plot_call = '' # Used to remember which function created the canvas
 
-        # self.measure_fps()
+        self.measure_fps()
 
 
     def on_mouse_press(self, event):
@@ -135,40 +135,40 @@ class Canvas(vispy.scene.SceneCanvas):
 
         # These numerical keys are for adjusting bead values
         elif event.key.name == '1':
-            print('Changing config.max_pixels_to_be_a_bead from ' + str(config.max_pixels_to_be_a_bead), end='')
+            print('Changing config.max_pixels_to_be_a_bead from ' + str(Config.max_pixels_to_be_a_bead), end='')
             # from myconfig import set_config.max_pixels_to_be_a_bead
-            config.max_pixels_to_be_a_bead = int(1.1 * config.max_pixels_to_be_a_bead) + 10
-            print(' to ' + str(config.max_pixels_to_be_a_bead))# + ' which by get = ' + str(config.get_config.max_pixels_to_be_a_bead()))
+            Config.max_pixels_to_be_a_bead = int(1.1 * Config.max_pixels_to_be_a_bead) + 10
+            print(' to ' + str(Config.max_pixels_to_be_a_bead))# + ' which by get = ' + str(config.get_config.max_pixels_to_be_a_bead()))
             self.refresh_bead_markers()
 
         elif event.key.name == '2':
-            print('Changing config.max_pixels_to_be_a_bead from ' + str(config.max_pixels_to_be_a_bead), end='')
-            config.max_pixels_to_be_a_bead = int(config.max_pixels_to_be_a_bead / 1.1)
-            print(' to ' + str(config.max_pixels_to_be_a_bead))
+            print('Changing config.max_pixels_to_be_a_bead from ' + str(Config.max_pixels_to_be_a_bead), end='')
+            Config.max_pixels_to_be_a_bead = int(Config.max_pixels_to_be_a_bead / 1.1)
+            print(' to ' + str(Config.max_pixels_to_be_a_bead))
             self.refresh_bead_markers()
 
         elif event.key.name == '3':
-            print('Changing config.max_subbeads_to_be_a_bead from ' + str(config.max_subbeads_to_be_a_bead), end='')
-            config.max_subbeads_to_be_a_bead += 1
-            print(' to ' + str(config.max_subbeads_to_be_a_bead))
+            print('Changing config.max_subbeads_to_be_a_bead from ' + str(Config.max_subbeads_to_be_a_bead), end='')
+            Config.max_subbeads_to_be_a_bead += 1
+            print(' to ' + str(Config.max_subbeads_to_be_a_bead))
             self.refresh_bead_markers()
 
         elif event.key.name == '4':
-            print('Changing config.max_subbeads_to_be_a_bead from ' + str(config.max_subbeads_to_be_a_bead), end='')
-            config.max_subbeads_to_be_a_bead -= 1
-            print(' to ' + str(config.max_subbeads_to_be_a_bead))
+            print('Changing config.max_subbeads_to_be_a_bead from ' + str(Config.max_subbeads_to_be_a_bead), end='')
+            Config.max_subbeads_to_be_a_bead -= 1
+            print(' to ' + str(Config.max_subbeads_to_be_a_bead))
             self.refresh_bead_markers()
 
         elif event.key.name == '5':
-            print('Changing config.child_bead_difference from ' + str(config.child_bead_difference), end='')
-            config.child_bead_difference += 1
-            print(' to ' + str(config.child_bead_difference))
+            print('Changing config.child_bead_difference from ' + str(Config.child_bead_difference), end='')
+            Config.child_bead_difference += 1
+            print(' to ' + str(Config.child_bead_difference))
             self.refresh_bead_markers()
 
         elif event.key.name == '6':
-            print('Changing config.child_bead_difference from ' + str(config.child_bead_difference), end='')
-            config.child_bead_difference -= 1
-            print(' to ' + str(config.child_bead_difference))
+            print('Changing config.child_bead_difference from ' + str(Config.child_bead_difference), end='')
+            Config.child_bead_difference -= 1
+            print(' to ' + str(Config.child_bead_difference))
             self.refresh_bead_markers()
 
         elif event.key.name == 'P':
@@ -186,7 +186,7 @@ class Canvas(vispy.scene.SceneCanvas):
         elif event.key.name == '=': # Increase fov for all cameras
             self.fov = (self.fov + 10) % 180
             for camera in self.cameras:
-                if camera.name == 'Fly':# and hasattr(camera, 'fov'):
+                if camera.name in ['Fly','Arcball']:# and hasattr(camera, 'fov'):
                     camera.fov = self.fov
             self.update_title()
 
@@ -196,12 +196,14 @@ class Canvas(vispy.scene.SceneCanvas):
             else:
                 self.fov -= 10
             for camera in self.cameras:
-                if camera.name == 'Fly':#if hasattr(camera, 'fov'):
+                if camera.name in ['Fly', 'Arcball']:#if hasattr(camera, 'fov'):
                     camera.fov = self.fov
             self.update_title()
 
     def refresh_bead_markers(self):
         # from myconfig import config.max_subbeads_to_be_a_bead
+        # print('Db called refresh bead markers')
+
         Blob3d.tag_all_beads()
         self.remove_markers_of_color('bead')
         self.add_bead_markers(self.b3ds)
@@ -214,7 +216,10 @@ class Canvas(vispy.scene.SceneCanvas):
                 # self.view.remove(marker)
                 remove_markers.append((marker,coloring))
         for marker,coloring in remove_markers:
-            # marker.remove_parent(marker.parent) # FIXME
+            try: #HACK
+                marker.remove_parent(marker.parent) # FIXME
+            except:
+                pass
             self.markers.remove((marker, coloring))
             del marker
 
@@ -263,8 +268,8 @@ class Canvas(vispy.scene.SceneCanvas):
         self.update_title()
 
     def name_image(self):
-        prefix = config.FIGURES_DIR
-        if config.test_instead_of_data:
+        prefix = Config.FIGURES_DIR
+        if Config.test_instead_of_data:
             prefix += 'Test_'
         else:
             prefix += 'Data_'
@@ -332,11 +337,11 @@ class Canvas(vispy.scene.SceneCanvas):
         for blob_num, blob3d in enumerate(blob3dlist):
             if blob3d.isBead:
                 for pixel in blob3d.get_edge_pixels():
-                    bead_edge_array[bead_index] = [pixel.x / self.xdim, pixel.y / self.ydim, pixel.z / (config.z_compression * self.zdim)]
+                    bead_edge_array[bead_index] = [pixel.x / self.xdim, pixel.y / self.ydim, pixel.z / (Config.z_compression * self.zdim)]
                     bead_index += 1
             else:
                 for pixel in blob3d.get_edge_pixels():
-                    nonbead_edge_array[nonbead_index] = [pixel.x / self.xdim, pixel.y / self.ydim, pixel.z / (config.z_compression * self.zdim)]
+                    nonbead_edge_array[nonbead_index] = [pixel.x / self.xdim, pixel.y / self.ydim, pixel.z / (Config.z_compression * self.zdim)]
                     nonbead_index += 1
         bead_markers = visuals.Markers()
         nonbead_markers = visuals.Markers()
@@ -356,7 +361,7 @@ class Canvas(vispy.scene.SceneCanvas):
         for blobnum, blob3d in enumerate(blob3dlist):
             index = blobnum % len(markers_per_color)
             for p_num, pixel in enumerate(blob3d.get_edge_pixels()):
-                edge_pixel_arrays[index][p_num + offsets[index]] = [pixel.x / self.xdim, pixel.y / self.ydim, pixel.z / ( config.z_compression * self.zdim)]
+                edge_pixel_arrays[index][p_num + offsets[index]] = [pixel.x / self.xdim, pixel.y / self.ydim, pixel.z / (Config.z_compression * self.zdim)]
             offsets[index] += blob3d.get_edge_pixel_count()
         for color_num, edge_array in enumerate(edge_pixel_arrays):
             marker = visuals.Markers()
@@ -383,7 +388,7 @@ class Canvas(vispy.scene.SceneCanvas):
             for b3d in depth_list:
                 ep_buf = b3d.get_edge_pixels()
                 for pixel in ep_buf:
-                    edge_pixel_arrays[-1][p_num] = [pixel.x / self.xdim, pixel.y / self.ydim, pixel.z / ( config.z_compression * self.zdim)]
+                    edge_pixel_arrays[-1][p_num] = [pixel.x / self.xdim, pixel.y / self.ydim, pixel.z / (Config.z_compression * self.zdim)]
                     p_num += 1
             markers = visuals.Markers()
             markers.set_data(edge_pixel_arrays[-1], edge_color=None, face_color=colors[depth % len(colors)], size=8)
@@ -411,7 +416,7 @@ class Canvas(vispy.scene.SceneCanvas):
             index = blob2d.recursive_depth % len(markers_per_color)
             for p_num, pixel in enumerate(blob2d.edge_pixels):
                 pixel = Pixel.get(pixel)
-                pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xoffset) / self.xdim, (pixel.y - yoffset) / self.ydim, (getBloomedHeight(blob2d, explode, self.zdim)  - zoffset) / ( config.z_compression * self.zdim)]
+                pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xoffset) / self.xdim, (pixel.y - yoffset) / self.ydim, (getBloomedHeight(blob2d, explode, self.zdim)  - zoffset) / (Config.z_compression * self.zdim)]
             offsets[index] += len(blob2d.edge_pixels)
 
         for color_num, edge_array in enumerate(pixel_arrays):
@@ -447,12 +452,12 @@ class Canvas(vispy.scene.SceneCanvas):
             if edge:
                 for p_num, pixel in enumerate(blob2d.edge_pixels):
                     pixel = Pixel.get(pixel)
-                    pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xoffset) / self.xdim, (pixel.y - yoffset) / self.ydim, (getBloomedHeight(blob2d, explode, self.zdim) - zoffset) / ( config.z_compression * self.zdim)]
+                    pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xoffset) / self.xdim, (pixel.y - yoffset) / self.ydim, (getBloomedHeight(blob2d, explode, self.zdim) - zoffset) / (Config.z_compression * self.zdim)]
                 offsets[index] += len(blob2d.edge_pixels)
             else:
                 for p_num, pixel in enumerate(blob2d.pixels):
                     pixel = Pixel.get(pixel)
-                    pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xoffset) / self.xdim, (pixel.y - yoffset) / self.ydim, (getBloomedHeight(blob2d, explode, self.zdim)  - zoffset) / ( config.z_compression * self.zdim)]
+                    pixel_arrays[index][p_num + offsets[index]] = [(pixel.x - xoffset) / self.xdim, (pixel.y - yoffset) / self.ydim, (getBloomedHeight(blob2d, explode, self.zdim)  - zoffset) / (Config.z_compression * self.zdim)]
                 offsets[index] += len(blob2d.pixels)
 
         for color_num, edge_array in enumerate(pixel_arrays):
@@ -478,7 +483,7 @@ class Canvas(vispy.scene.SceneCanvas):
         for blobnum, b3d_list in enumerate(b3d_lists):
             index = blobnum % len(markers_per_color)
             for p_num, pixel in enumerate(Pixel.get(pixel) for b2d in b3d_list for pixel in b2d.edge_pixels):
-                edge_pixel_arrays[index][p_num + offsets[index]] = [pixel.x / self.xdim, pixel.y / self.ydim, pixel.z / ( config.z_compression * self.zdim)]
+                edge_pixel_arrays[index][p_num + offsets[index]] = [pixel.x / self.xdim, pixel.y / self.ydim, pixel.z / (Config.z_compression * self.zdim)]
             offsets[index] += sum([len(b2d.edge_pixels) for b2d in b3d_list])
         for color_num, edge_array in enumerate(edge_pixel_arrays):
             buf = visuals.Markers()
@@ -495,7 +500,7 @@ class Canvas(vispy.scene.SceneCanvas):
         for blob3d in blob3dlist:
             ep_buf = blob3d.get_edge_pixels()
             for pixel in ep_buf:
-                edge_pixel_array[index] = [pixel.x / self.xdim, pixel.y / self.ydim, pixel.z / (config.z_compression * self.zdim)]
+                edge_pixel_array[index] = [pixel.x / self.xdim, pixel.y / self.ydim, pixel.z / (Config.z_compression * self.zdim)]
                 index += 1
             for stitch in blob3d.pairings:
                 line_endpoints += (2 * len(stitch.indeces)) # 2 as each line has 2 endpoints
@@ -519,12 +524,12 @@ class Canvas(vispy.scene.SceneCanvas):
                     lowerpixel = Pixel.get(stitch.lowerpixel)
                     upperpixel = Pixel.get(stitch.upperpixel)
                     blob_color_index = blob_num % num_markers
-                    line_location_lists[blob_color_index][offsets[blob_color_index] + (2 * stitch_no)] = [lowerpixel.x / self.xdim, lowerpixel.y / self.ydim, (pairing.lowerheight ) / (config.z_compression * self.zdim)]
-                    line_location_lists[blob_color_index][offsets[blob_color_index] + (2 * stitch_no) + 1] = [upperpixel.x / self.xdim, upperpixel.y / self.ydim, (pairing.upperheight ) / (config.z_compression * self.zdim)]
+                    line_location_lists[blob_color_index][offsets[blob_color_index] + (2 * stitch_no)] = [lowerpixel.x / self.xdim, lowerpixel.y / self.ydim, (pairing.lowerheight ) / (Config.z_compression * self.zdim)]
+                    line_location_lists[blob_color_index][offsets[blob_color_index] + (2 * stitch_no) + 1] = [upperpixel.x / self.xdim, upperpixel.y / self.ydim, (pairing.upperheight ) / (Config.z_compression * self.zdim)]
                 offsets[blob_color_index] += 2 * len(pairing.stitches)
         print(' DB adding a total of ' + str(len(line_location_lists)) + ' blob3d stitch line groups')
         for list_no, line_location_list in enumerate(line_location_lists):
-            stitch_lines = (visuals.Line(method=config.linemethod))
+            stitch_lines = (visuals.Line(method=Config.linemethod))
             stitch_lines.set_data(pos=line_location_list, connect='segments', color=colors[list_no % len(colors)])
             self.add_stitch(stitch_lines, 'blob3d')
 
@@ -540,10 +545,10 @@ class Canvas(vispy.scene.SceneCanvas):
                 for stitch in pairing.stitches:
                     lowerpixel = Pixel.get(stitch.lowerpixel)
                     upperpixel = Pixel.get(stitch.upperpixel)
-                    line_locations[line_index] = [lowerpixel.x / self.xdim, lowerpixel.y / self.ydim, (pairing.lowerheight ) / ( config.z_compression * self.zdim)]
-                    line_locations[line_index + 1] = [upperpixel.x / self.xdim, upperpixel.y / self.ydim, (pairing.upperheight ) / ( config.z_compression * self.zdim)]
+                    line_locations[line_index] = [lowerpixel.x / self.xdim, lowerpixel.y / self.ydim, (pairing.lowerheight ) / (Config.z_compression * self.zdim)]
+                    line_locations[line_index + 1] = [upperpixel.x / self.xdim, upperpixel.y / self.ydim, (pairing.upperheight ) / (Config.z_compression * self.zdim)]
                     line_index += 2
-        stitch_lines = visuals.Line(method=config.linemethod)
+        stitch_lines = visuals.Line(method=Config.linemethod)
         stitch_lines.set_data(pos=line_locations, connect='segments')
         self.add_stitch(stitch_lines, 'neutral')
 
@@ -569,10 +574,10 @@ class Canvas(vispy.scene.SceneCanvas):
                     for lowerpnum, upperpnum in pairing.indeces:
                         lowerpixel = Pixel.get(pairing.lowerpixels[lowerpnum])
                         upperpixel = Pixel.get(pairing.upperpixels[upperpnum])
-                        line_locations[line_index] = [(lowerpixel.x - xoffset) / self.xdim, (lowerpixel.y - yoffset) / self.ydim, (pairing.lowerheight - zoffset) / ( config.z_compression * self.zdim)]
-                        line_locations[line_index + 1] = [(upperpixel.x - xoffset) / self.xdim, (upperpixel.y - yoffset) / self.ydim, (pairing.upperheight - zoffset) / ( config.z_compression * self.zdim)]
+                        line_locations[line_index] = [(lowerpixel.x - xoffset) / self.xdim, (lowerpixel.y - yoffset) / self.ydim, (pairing.lowerheight - zoffset) / (Config.z_compression * self.zdim)]
+                        line_locations[line_index + 1] = [(upperpixel.x - xoffset) / self.xdim, (upperpixel.y - yoffset) / self.ydim, (pairing.upperheight - zoffset) / (Config.z_compression * self.zdim)]
                         line_index += 2
-            stitch_lines = visuals.Line(method=config.linemethod)
+            stitch_lines = visuals.Line(method=Config.linemethod)
             stitch_lines.set_data(pos=line_locations, connect='segments')
             self.add_stitch(stitch_lines, 'neutral')
 
@@ -594,10 +599,10 @@ class Canvas(vispy.scene.SceneCanvas):
             for b2d in blob2dlist:
                 for child in b2d.children:
                     child = Blob2d.get(child)
-                    line_locations[line_index] = [(b2d.avgx - xoffset) / self.xdim, (b2d.avgy - yoffset) / self.ydim, (getBloomedHeight(b2d, explode, self.zdim)  - zoffset) / ( config.z_compression * self.zdim)]
-                    line_locations[line_index + 1] = [(child.avgx - xoffset) / self.xdim, (child.avgy - yoffset) / self.ydim, (getBloomedHeight(child, explode, self.zdim) - zoffset) / ( config.z_compression * self.zdim)]
+                    line_locations[line_index] = [(b2d.avgx - xoffset) / self.xdim, (b2d.avgy - yoffset) / self.ydim, (getBloomedHeight(b2d, explode, self.zdim)  - zoffset) / (Config.z_compression * self.zdim)]
+                    line_locations[line_index + 1] = [(child.avgx - xoffset) / self.xdim, (child.avgy - yoffset) / self.ydim, (getBloomedHeight(child, explode, self.zdim) - zoffset) / (Config.z_compression * self.zdim)]
                     line_index += 2
-            parent_lines = visuals.Line(method=config.linemethod)
+            parent_lines = visuals.Line(method=Config.linemethod)
             parent_lines.set_data(pos=line_locations, connect='segments', color='y')
             self.add_stitch(parent_lines, 'parentID')
 
@@ -624,9 +629,6 @@ class Canvas(vispy.scene.SceneCanvas):
             print(bloblist)
             debug()
             exit(1)
-
-
-
 
     def set_canvas_bounds(self, b2ds_not_b3ds):
         '''
@@ -663,7 +665,6 @@ class Canvas(vispy.scene.SceneCanvas):
             xmin = self.b3ds[0].minx
             ymin = self.b3ds[0].miny
             zmin = self.b3ds[0].lowslideheight
-
             xmax = self.b3ds[0].maxx
             ymax = self.b3ds[0].maxy
             zmax = self.b3ds[0].highslideheight
@@ -676,9 +677,6 @@ class Canvas(vispy.scene.SceneCanvas):
                 zmin = min(zmin, blob3d.lowslideheight)
                 zmax = max(zmax, blob3d.highslideheight)
 
-            xdim = xmax - xmin + 1
-            ydim = ymax - ymin + 1
-            zdim = zmax - zmin + 1
             # zdim += 1 # Note this is b/c numbering starts at 0
             self.xmin = xmin
             self.xmax = xmax
@@ -686,9 +684,9 @@ class Canvas(vispy.scene.SceneCanvas):
             self.ymax = ymax
             self.zmin = zmin
             self.zmax = zmax
-            self.xdim = xdim
-            self.ydim = ydim
-            self.zdim = zdim
+            self.xdim = xmax - xmin + 1
+            self.ydim = ymax - ymin + 1
+            self.zdim = zmax - zmin + 1
 
 
 def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitches=False, titleNote='', edge=True, parentlines=False, explode=False, showStitchCosts=0, b2dmidpoints=False, offset=False):
@@ -704,18 +702,6 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
         blob2ds = [Blob2d.get(b2d) for b2d in blob2ds]
 
 
-
-    # xmin = min(blob2d.minx for blob2d in blob2ds)
-    # ymin = min(blob2d.miny for blob2d in blob2ds)
-    # xmax = max(blob2d.maxx for blob2d in blob2ds)
-    # ymax = max(blob2d.maxy for blob2d in blob2ds)
-    # zmin = min(blob2d.height for blob2d in blob2ds)
-    # zmax = max(blob2d.height for blob2d in blob2ds)
-    #
-    # xdim = xmax - xmin + 1
-    # ydim = ymax - ymin + 1
-    # zdim = zmax - zmin + 1
-
     if coloring == '':
         coloring = 'blob2d' # For the canvas title
 
@@ -723,20 +709,6 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
     canvas.plot_call = 'PlotBlob2ds'
     canvas.set_blobs(blob2ds)
 
-
-    # canvas.xmin = xmin
-    # canvas.xmax = xmax
-    # canvas.ymin = ymin
-    # canvas.ymax = ymax
-    # canvas.zmin = zmin
-    # canvas.zmax=  zmax
-    # canvas.xdim = xdim
-    # canvas.ydim = ydim
-    # canvas.zdim = zdim
-
-    # blob3dlist = getBlob2dOwners(blob2ds, ids=False)
-    # print('setting canvas.b3ds to a b3dlist of len: ' + str(len(canvas.b3ds)))
-    # canvas.b3ds = blob3dlist
 
     if coloring == 'blob2d' or canvas.buffering:
         canvas.add_blob2d_markers(blob2ds, edge=edge, offset=offset, explode=explode)
@@ -772,7 +744,7 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
         midpoints = []
         midpoints.append(np.zeros([1,3]))
         for b2d_num, b2d in enumerate(blob2ds):
-            midpoints[-1] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, ((getBloomedHeight(b2d, explode, zdim)  + .25 - zmin) / (config.z_compression * zdim))]
+            midpoints[-1] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, ((getBloomedHeight(b2d, explode, zdim)  + .25 - zmin) / (Config.z_compression * zdim))]
             textStr = str(b2d.id)
             if coloring == '' or coloring == 'blob2d':
                 color = colors[b2d_num % len(colors)]
@@ -790,15 +762,11 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
 
 def plotBlob3ds(blob3dlist, stitches=True, color='blob3d', lineColoring=None, costs=0, maxcolors=-1, b2dmidpoints=False, b3dmidpoints=False, canvas_size=(800, 800), b2d_midpoint_values=0, titleNote=''):
     global colors
-    canvas = Canvas(canvas_size, coloring='blob3d',
-                       title='plotBlob3ds(' + str(len(blob3dlist)) + '-Blob3ds, coloring=' + str(color) + ', canvas_size=' + str(canvas_size) + ') ' + titleNote)
+    canvas = Canvas(canvas_size, coloring='blob3d')
     if maxcolors > 0 and maxcolors < len(colors):
         colors = colors[:maxcolors]
     canvas.plot_call = 'PlotBlob3ds'
     canvas.set_blobs(blob3dlist)
-
-    # Finding the maximal slide, so that the vertical dimension of the plot can be evenly divided
-
 
     if color == 'bead' or canvas.buffering:
         canvas.add_bead_markers(blob3dlist)
@@ -814,7 +782,7 @@ def plotBlob3ds(blob3dlist, stitches=True, color='blob3d', lineColoring=None, co
 
     if stitches or canvas.buffering:
         if lineColoring == 'blob3d' or canvas.buffering: # TODO need to change this so that stitchlines of the same color are the same object
-            if config.test_instead_of_data:
+            if Config.test_instead_of_data:
                 canvas.add_blob3d_stitches(blob3dlist)
             else:
                 print('Skipping adding blob3d stitches as it overloads ram (for now)')
@@ -872,7 +840,7 @@ def plotBlob3ds(blob3dlist, stitches=True, color='blob3d', lineColoring=None, co
 
 def filter_available_colors():
     global colors
-    if config.mayPlot:
+    if Config.mayPlot:
         colors = vispy.color.get_color_names() # ALl possible colors
         # note getting rid of annoying colors
         rejectwords = ['dark', 'light', 'slate', 'grey', 'white', 'pale', 'medium']
