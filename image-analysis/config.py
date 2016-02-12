@@ -13,18 +13,19 @@ class Config:
       ___) |  \ V  V /  | | | |_  | (__  | | | | |  __/ \__ \
      |____/    \_/\_/   |_|  \__|  \___| |_| |_|  \___| |___/
      '''
-    remap_ids_by_group_size = True
+    mayPlot = True # Used to control the importing of visualization packages; vispy doesn't run on arm :(
     test_instead_of_data = True
     swell_instead_of_c57bl6 = False # Allows swellshark files to be in the same folder as c57b16
     dePickle = False
-    OpenGLLinesInsteadOfAgg = True
-    mayPlot = True # Used to control the importing of visualization packages; vispy doesn't run on arm :(
-    disable_warnings = False
 
     process_internals = True # Do blooming, set possible partners for the generated b2ds, then create b3ds from them
     base_b3ds_with_stitching = True # TODO TODO TODO this still needs to be true to get good results, abstractify for filtering b2ds in both cases
     # NOTE can allow this to control creation of b3ds, or allow a quick create method for b3ds (noting no stitching and much less accuracy)
     stitch_bloomed_b2ds = False # Default False
+
+    remap_ids_by_group_size = True
+    OpenGLLinesInsteadOfAgg = True
+    disable_warnings = False
 
     debug_blob_ids = False
     debug_pixel_ops = False
