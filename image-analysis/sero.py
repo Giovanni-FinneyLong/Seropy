@@ -194,24 +194,21 @@ def main():
     if not Config.dePickle:
         all_slides, blob3dlist = Slide.dataToSlides(stitch=Config.base_b3ds_with_stitching)
             # Reads in images and converts them to slides.
-            # This process involves generating Pixels & Blob2ds, but NOT Blob3ds
+            # This process involves generating Pixels & Blob2ds & Blob3ds & Pairings
         if Config.process_internals:
             bloomed_b3ds = bloom_b3ds(blob3dlist, stitch=Config.stitch_bloomed_b2ds) # Includes setting partners, and optionally stitching
             blob3dlist = blob3dlist + bloomed_b3ds
         Blob3d.mergeall()
         save(blob3dlist, picklefile)
-
-
-        for b3d in Blob3d.all.values():
-            print(b3d)
-            for child in b3d.children:
-                print('  cld:' + str(Blob3d.get(child)))
-            if len(b3d.children) > 0:
-                print('------------')
-                plotBlob3ds([b3d] + [Blob3d.get(blob) for blob in (b3d.children)])
+        # for b3d in Blob3d.all.values():
+        #     print(b3d)
+        #     for child in b3d.children:
+        #         print('  cld:' + str(Blob3d.get(child)))
+        #     if len(b3d.children) > 0:
+        #         print('------------')
+        #         plotBlob3ds([b3d] + [Blob3d.get(blob) for blob in (b3d.children)])
 
         plotBlob2ds(list(Blob2d.all.values()), stitches=True, parentlines=Config.process_internals, explode=Config.process_internals)
-        plotBlob3ds(list(Blob3d.all.values()))
 
     else:
         # HACK
@@ -265,11 +262,25 @@ def main():
         # print('Plotting beads only')
         # plotBlob3ds(beads)p
         # plotBlob2ds([blob2d for blob3d in beads for blob2d in blob3d.blob2ds],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=False, stitches=True)
-        print('Now plotting all b3ds')
-        plotBlob3ds(list(Blob3d.all.values()))
-        print('Plotting all but base b3ds, which assists with viewing')
-        plotBlob3ds(list(b3d for b3d in Blob3d.all.values() if b3d.recursive_depth > 0))
-        plotBlob2ds([blob2d for blob3d in Blob3d.all.values() for blob2d in blob3d.blob2ds],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=False, stitches=True)
+
+
+
+
+        non_beads = [b3d for b3d in blob3dlist if not b3d.isBead]
+        # print('Plotting simple children of non_beads one by one..')
+        # for nb in non_beads:
+        #     print(nb)
+        #     print(' ' + str(nb.get_first_child_beads()))
+        #     plotBlob3ds([nb], color='simple')
+
+        print('Plotting all simple:')
+        plotBlob3ds(blob3dlist, color='simple')
+        #
+        # print('Now plotting all b3ds')
+        # plotBlob3ds(list(Blob3d.all.values()))
+        # print('Plotting all but base b3ds, which assists with viewing')
+        # plotBlob3ds(list(b3d for b3d in Blob3d.all.values() if b3d.recursive_depth > 0))
+        # plotBlob2ds([blob2d for blob3d in Blob3d.all.values() for blob2d in blob3d.blob2ds],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=False, stitches=True)
 
 
 

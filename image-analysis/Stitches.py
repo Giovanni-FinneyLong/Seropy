@@ -102,20 +102,20 @@ class Pairing:
                     cost += math.pow(bins1[i] - bins2[i], 2) / (bins1[i] + bins2[i])
             return cost / 2
 
-        def distanceCostBetweenPoints(pixel1, pixel2):
-            pixel1 = Pixel.get(pixel1)
-            pixel2 = Pixel.get(pixel2)
-
-            buf = math.sqrt(math.pow(pixel1.x - pixel2.x, 2) + math.pow(pixel1.y - pixel2.y, 2))
-            if buf > 0.0: # Because floats..
-                try:
-                    return math.log(buf, 2)
-                except:
-                    print('DB ERROR: buf = ' + str(buf))
-                    import pdb
-                    pdb.set_trace()
-            else:
-                return 0.0
+        # def distanceCostBetweenPoints(pixel1, pixel2):
+        #     pixel1 = Pixel.get(pixel1)
+        #     pixel2 = Pixel.get(pixel2)
+        #
+        #     buf = math.sqrt(math.pow(pixel1.x - pixel2.x, 2) + math.pow(pixel1.y - pixel2.y, 2))
+        #     if buf > 0.0: # Because floats..
+        #         try:
+        #             return math.log(buf, 2)
+        #         except:
+        #             print('DB ERROR: buf = ' + str(buf))
+        #             import pdb
+        #             pdb.set_trace()
+        #     else:
+        #         return 0.0
 
         def makeCostArray():
             """
@@ -129,7 +129,7 @@ class Pairing:
             for i in range(ndim):
                 for j in range(ndim):
                     contourCost = costBetweenPoints(self.lower_context_bins[i], self.upper_context_bins[j])
-                    distanceCost = distanceCostBetweenPoints(self.lowerpixels[i], self.upperpixels[j])
+                    distanceCost = Pixel.distanceCostBetweenPoints(self.lowerpixels[i], self.upperpixels[j])
                     distance = math.sqrt(math.pow(Pixel.get(self.lowerpixels[i]).x - Pixel.get(self.upperpixels[j]).x, 2) + math.pow(Pixel.get(self.lowerpixels[i]).y - Pixel.get(self.upperpixels[j]).y, 2))
                     net_cost = contourCost * distanceCost
                     self.cost_array[i][j] = [contourCost, distanceCost, net_cost, distance] # TODO can reduce this later for efficiency

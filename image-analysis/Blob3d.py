@@ -308,9 +308,13 @@ class Blob3d:
         # if self.recursive_depth > 0:
             # DEBUG
         self.isBead = \
-            (child_bead_count < Config.max_subbeads_to_be_a_bead) \
-            and (self.get_edge_pixel_count() <= Config.max_pixels_to_be_a_bead) \
-            #and (self.recursive_depth > 0)# and  (child_bead_count > (len(self.children) - config.child_bead_difference))
+            ((child_bead_count < Config.max_subbeads_to_be_a_bead) \
+            and (self.get_edge_pixel_count() <= Config.max_pixels_to_be_a_bead)) \
+            or (self.recursive_depth == 0 and len(self.children) == 0)
+            #and (self.recursive_depth > 0) # <== This makes bead tagging greedy and merges otherwise correctly disconnected beads
+
+
+        #  and  (child_bead_count > (len(self.children) - config.child_bead_difference))
         return self.isBead
 
     @staticmethod
@@ -357,3 +361,15 @@ class Blob3d:
             img = scipy_misc.toimage(slice, cmin=0.0, cmax=255.0)
             print('Saving Image of Blob2d as: ' + str(savename) + str(slice_num) + '.png')
             img.save(savename+ str(slice_num) + '.png')
+
+    def get_first_child_beads(self):
+        # This is meant to be called for a non_bead
+        # Will descent it's tree, finding all beads that aren't in anyway children of another bead
+        beads = []
+        for child in self.children:
+            child = Blob3d.get(child)
+            if child.isBead:
+                beads.append(child)
+            else:
+                beads = beads + child.get_first_child_beads()
+        return beads

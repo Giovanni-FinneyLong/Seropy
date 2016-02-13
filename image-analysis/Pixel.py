@@ -122,3 +122,18 @@ class Pixel:
                 print('Pixel:' + str(pixel))
         return [arr, minx, miny]
 
+    @staticmethod
+    def distanceCostBetweenPoints(pixel1, pixel2):
+        pixel1 = Pixel.get(pixel1)
+        pixel2 = Pixel.get(pixel2)
+
+        buf = math.sqrt(math.pow(pixel1.x - pixel2.x, 2) + math.pow(pixel1.y - pixel2.y, 2))
+        if buf > 0.0: # Because floats..
+            try:
+                return math.log(buf, 2) # TODO adjust this?
+            except:
+                print('DB ERROR: buf = ' + str(buf))
+                import pdb
+                pdb.set_trace()
+        else:
+            return 0.0
