@@ -208,7 +208,7 @@ def main():
         #         print('------------')
         #         plotBlob3ds([b3d] + [Blob3d.get(blob) for blob in (b3d.children)])
 
-        plotBlob2ds(list(Blob2d.all.values()), stitches=True, parentlines=Config.process_internals, explode=Config.process_internals)
+        plotBlob2ds(list(Blob2d.all.values()), stitches=True, parentlines=Config.process_internals, explode=Config.process_internals, edge=False)
 
     else:
         # HACK
@@ -262,6 +262,7 @@ def main():
         # print('Plotting beads only')
         # plotBlob3ds(beads)p
         # plotBlob2ds([blob2d for blob3d in beads for blob2d in blob3d.blob2ds],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=False, stitches=True)
+        plotBlob2ds([b2d for b2d in Blob2d.all.values()],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=False, stitches=True)
 
 
 
@@ -272,6 +273,14 @@ def main():
         #     print(nb)
         #     print(' ' + str(nb.get_first_child_beads()))
         #     plotBlob3ds([nb], color='simple')
+
+
+        # print('Plotting b3ds with plotly')
+        # plot_plotly(blob3dlist)
+        # print('Plotting b2ds with plotly')
+        #
+        # plot_plotly(list(Blob2d.all.values()), b2ds=True)
+
 
         print('Plotting all simple:')
         plotBlob3ds(blob3dlist, color='simple')
