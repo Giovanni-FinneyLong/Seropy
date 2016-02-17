@@ -62,8 +62,8 @@ class Config:
     # 0 = no filter
     # Recommended = 2
 
-    z_compression = 1 # A value in the range of (0, 10), which multiplies the spacing between the slides.
-    # A value of 2, double the separation between slides when plotted, .5 halves it
+    z_compression = 1 # A value in the range of (0, 100), which multiplies the spacing between the slides.
+    # A value of 2, halves the separation between slides when plotted, .5 doubles it
     # The upper bound is to prevent unreasonable values
 
     slide_portion = 1 # A value in the range of (0,1]
@@ -127,7 +127,7 @@ class Config:
      |____/  \__,_||_|   \___| \__| \__, |
                                     |___/
     '''
-    assert 0 < z_compression <= 1
+    assert 0 < z_compression <= 10
     assert 0 < slide_portion <= 1
     assert 1 <= overscan_coefficient <= 2
     assert 0 < min_val_threshold <= hard_max_pixel_value

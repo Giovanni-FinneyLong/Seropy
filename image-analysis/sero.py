@@ -198,7 +198,6 @@ def main():
         if Config.process_internals:
             bloomed_b3ds = bloom_b3ds(blob3dlist, stitch=Config.stitch_bloomed_b2ds) # Includes setting partners, and optionally stitching
             blob3dlist = blob3dlist + bloomed_b3ds
-        Blob3d.mergeall()
         save(blob3dlist, picklefile)
         # for b3d in Blob3d.all.values():
         #     print(b3d)
@@ -262,7 +261,7 @@ def main():
         # print('Plotting beads only')
         # plotBlob3ds(beads)p
         # plotBlob2ds([blob2d for blob3d in beads for blob2d in blob3d.blob2ds],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=False, stitches=True)
-        plotBlob2ds([b2d for b2d in Blob2d.all.values()],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=False, stitches=True)
+        plotBlob2ds([b2d for b2d in Blob2d.all.values()],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=True, stitches=True)
 
 
 
@@ -314,6 +313,9 @@ def main():
 if __name__ == '__main__':
     if Config.mayPlot:
         from serodraw import *
+        global colors
+        colors = vispy.color.get_color_names() # ALl possible colors
+
         filter_available_colors()
     main()  # Run the main function
 

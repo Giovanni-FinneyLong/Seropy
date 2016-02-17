@@ -293,10 +293,11 @@ class Blob2d:
         edgep = len(self.edge_pixels)
         self.context_bins = np.zeros((edgep , num_bins)) # Each edge pixel has rows of num_bins each
         # First bin is 0 - (360 / num_bins) degress
-        for (pix_num, pixel) in enumerate(self.edge_pixels):
-            pixel = Pixel.get(pixel)
-            for (pix_num2, pixel2) in enumerate(self.edge_pixels):
-                pixel2 = Pixel.get(pixel2)
+        edge_pixels = list(Pixel.get(pixel) for pixel in self.edge_pixels)
+        for (pix_num, pixel) in enumerate(edge_pixels):
+            # pixel = Pixel.get(pixel)
+            for (pix_num2, pixel2) in enumerate(edge_pixels):
+                # pixel2 = Pixel.get(pixel2)
                 if pix_num != pix_num2: # Only check against other pixels.
                     distance = math.sqrt(math.pow(pixel.x - pixel2.x, 2) + math.pow(pixel.y - pixel2.y, 2))
                     angle = math.degrees(math.atan2(pixel2.y - pixel.y, pixel2.x - pixel.x)) # Note using atan2 handles the dy = 0 case

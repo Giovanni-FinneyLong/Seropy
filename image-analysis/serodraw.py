@@ -747,8 +747,6 @@ class Canvas(vispy.scene.SceneCanvas):
         :return:
         '''
 
-        print('DB called set-blobs on bloblist:' + str(bloblist))
-
         if all(type(blob) is Blob3d for blob in bloblist):
             # Given a list of blob3ds
             self.b3ds = bloblist
