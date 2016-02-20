@@ -61,7 +61,6 @@ def plot_plotly(bloblist, b2ds=False):
 
 
 
-
 class Canvas(vispy.scene.SceneCanvas):
     def __init__(self, canvas_size=(800,800), title='', coloring='simple', buffering=True): # Note may want to make buffering default to False
         vispy.scene.SceneCanvas.__init__(self, keys='interactive', show=True, size=canvas_size, title=title)
@@ -69,7 +68,7 @@ class Canvas(vispy.scene.SceneCanvas):
             self.unfreeze()
         self.view = self.central_widget.add_view()
 
-        self.fov = 90 # Must be 0 < fov < 180
+        self.fov = 50 # Must be 0 < fov < 180
 
         turn_camera = vispy.scene.cameras.TurntableCamera(fov=0, azimuth=80, parent=self.view.scene, distance=1, elevation=-55, name='Turntable')
         # Using a fov of zero b/c fov makes turn harder to use
@@ -120,7 +119,7 @@ class Canvas(vispy.scene.SceneCanvas):
         self.show()
         self.coloring = coloring.lower()
 
-        print('----' + str(self.coloring))
+        print('----Starting canvas color: ' + str(self.coloring))
         self.markers = []
         self.available_marker_colors = ['simple', 'depth', 'blob2d', 'blob3d', 'bead', 'b2d_depth', 'neutral']
         self.available_stitch_colors = ['simple', 'neutral', 'parentID', 'blob3d']
@@ -495,6 +494,9 @@ class Canvas(vispy.scene.SceneCanvas):
             xoffset = 0
             yoffset = 0
             zoffset = 0
+
+        # print("When adding blob2d markers, using offset=" + str(offset))
+
         if edge:
             for blobnum, blob2d in enumerate(blob2dlist):
                 markers_per_color[blobnum % len(markers_per_color)] += len(blob2d.edge_pixels)
@@ -518,7 +520,8 @@ class Canvas(vispy.scene.SceneCanvas):
 
         for color_num, edge_array in enumerate(pixel_arrays):
             buf = visuals.Markers()
-            buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8 )
+            buf.set_data(pos=edge_array, edge_color=None, face_color=colors[color_num % len(colors)], size=8)
+            # print("Adding blob2d markers with locations: " + str(edge_array))
             self.add_marker(buf, 'blob2d')
 
     def add_blob3d_markers_from_blob2ds(self, blob2dlist): # This makes sure that the whole b3d isnt shown, instead just the relevant b2ds
@@ -737,7 +740,6 @@ class Canvas(vispy.scene.SceneCanvas):
             parent_lines.set_data(pos=line_locations, connect='segments', color='y')
             self.add_stitch(parent_lines, 'parentID')
 
-
     def set_blobs(self, bloblist):
         '''
         Setups the necessary parts of the canvas according to supplied blob2ds or blob3ds (exclusive)
@@ -746,7 +748,7 @@ class Canvas(vispy.scene.SceneCanvas):
         :param bloblist: A list of entirely blob2ds or entirely blob3ds
         :return:
         '''
-
+        print("-- Called set_blobs")
         if all(type(blob) is Blob3d for blob in bloblist):
             # Given a list of blob3ds
             self.b3ds = bloblist
@@ -783,17 +785,6 @@ class Canvas(vispy.scene.SceneCanvas):
                 ymax = max(ymax, b2d.maxy)
                 zmin = min(zmin, b2d.height)
                 zmax = max(zmax, b2d.height)
-
-            # zdim += 1 # Note this is b/c numbering starts at 0
-            self.xmin = xmin
-            self.xmax = xmax
-            self.ymin = ymin
-            self.ymax = ymax
-            self.zmin = zmin
-            self.zmax = zmax
-            self.xdim = xmax - xmin + 1
-            self.ydim = ymax - ymin + 1
-            self.zdim = zmax - zmin + 1
         else:
             xmin = self.b3ds[0].minx
             ymin = self.b3ds[0].miny
@@ -811,19 +802,22 @@ class Canvas(vispy.scene.SceneCanvas):
                 zmax = max(zmax, blob3d.highslideheight)
 
             # zdim += 1 # Note this is b/c numbering starts at 0
-            self.xmin = xmin
-            self.xmax = xmax
-            self.ymin = ymin
-            self.ymax = ymax
-            self.zmin = zmin
-            self.zmax = zmax
-            self.xdim = xmax - xmin + 1
-            self.ydim = ymax - ymin + 1
-            self.zdim = zmax - zmin + 1
+        self.xmin = xmin
+        self.xmax = xmax
+        self.ymin = ymin
+        self.ymax = ymax
+        self.zmin = zmin
+        self.zmax = zmax
+        self.xdim = xmax - xmin + 1
+        self.ydim = ymax - ymin + 1
+        self.zdim = zmax - zmin + 1
+        print("xmin: " + str(self.xmin) + ", xmax: " + str(self.xmax) + ", ymin: " + str(self.ymin) + ", ymax: " + str(self.ymax) + ", zmin: " + str(self.zmin) + ", zmax: " + str(self.zmax))
+        print("xdim: " + str(self.xdim) + ', ydim: ' + str(self.ydim) + ', zdim: ' + str(self.zdim))
+
 
 
 def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitches=False, titleNote='', edge=True,
-                parentlines=False, explode=False, showStitchCosts=0, b2dmidpoints=False, offset=False, images_and_heights=None):
+                parentlines=False, explode=False, showStitchCosts=0, b2dmidpoints=False, offset=False, pixel_ids=False, images_and_heights=None):
     global colors
     coloring = coloring.lower()
     assert coloring in ['blob2d', '', 'b2d_depth', 'blob3d', 'bead']
@@ -864,6 +858,15 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
 
         if parentlines or canvas.buffering:
             canvas.add_parent_lines(blob2ds, offset=offset, explode=explode)
+
+        # if pixel_ids:
+        #     print("\nWARNING adding ids for every pixel, this could overload if not a small dataset, so skipping if not a test_set!!")
+        #     if Config.test_instead_of_data:
+        #         for blob2d in blob2ds:
+        #                 for pixel in blob2d.pixels:
+        #                     pixel = Pixel.get(pixel)
+        #                     canvas.view.add(visuals.Text(str(pixel.id), pos=[(pixel.x) / canvas.xdim,(pixel.y) / canvas.ydim,(pixel.z) / canvas.zdim], font_size=4, bold=False, color='w'))
+
 
         if b2dmidpoints:
             b2d_num = 0
@@ -923,7 +926,7 @@ def plotBlob3ds(blob3dlist, stitches=True, color='blob3d', lineColoring=None, co
 
 
     # HACK
-    # canvas.add_simple_beads(blob3dlist)
+    canvas.add_simple_beads(blob3dlist)
     # /HACK
 
     if color == 'bead' or canvas.buffering:
@@ -995,6 +998,22 @@ def plotBlob3ds(blob3dlist, stitches=True, color='blob3d', lineColoring=None, co
     canvas.setup_stitches()
     vispy.app.run()
 
+def plotBlob2d(b2d, canvas_size=(1080,1080)):
+    #Automatically labels all pixels
+    global colors
+    canvas = Canvas(canvas_size, coloring='blob2d')
+    canvas.plot_call = 'PlotBlob2ds'
+    canvas.set_blobs([b2d])
+    canvas.add_blob2d_markers([b2d], edge=False, offset=True, explode=False)
+    for pixel in b2d.pixels:
+        pixel = Pixel.get(pixel)
+        canvas.view.add(visuals.Text(str(pixel.id), pos=[(pixel.x - canvas.xmin) / canvas.xdim,(pixel.y - canvas.ymin) / canvas.ydim,(pixel.z - canvas.zmin) / canvas.zdim], font_size=15, bold=False, color='w'))
+
+
+    canvas.setup_markers()
+    canvas.setup_stitches()
+    vispy.app.run()
+    print("EXITING plotb2d")
 
 def filter_available_colors():
     global colors

@@ -92,36 +92,24 @@ class Slide:
 
         # NOTE Vertical increases downwards, horizontal increases to the right. (Origin top left)
         # Order of neighboring pixels visitation:
-        # 0 1 2
-        # 3 X 4
-        # 5 6 7
-        # For 8 way connectivity, should check NE, N, NW, W (2,1,0,3)
-        # For origin in the top left, = SE,S,SW,W
+        # 3 5 8
+        # 2 X 7
+        # 1 4 6
+        # For 8 way connectivity, should check SW, W, NW, S (1,2,3,4)
 
         # Note scanning starts at top left, and increases down, until resetting to the top and moving +1 column right
-        # Therefore, the ONLY examined neighbors of any pixel are : 0, 3, 5 ,1
-        # 0 = (-1, -1)
-        # 3 = (-1, 0)
-        # 5 = (-1, 1)
-        # 1 = (0, -1
 
         local_xdim = max(pixel.x for pixel in pixel_list) + 1
         local_ydim = max(pixel.y for pixel in pixel_list) + 1
-        vertical_offsets  = [-1, -1, -1, 0]#[1, 0, -1, -1]#,  0,   1, -1] #, 1, -1, 0, 1]
-        horizontal_offsets = [-1, 0, 1, -1]#[-1, -1, -1, 0]#, 1, 1,  0] #, 0, 1, 1, 1]
-
-        derived_pixels = []
-        pixel_id_groups = []
-        conflict_differences = []
-
+        horizontal_offsets = [-1, -1, -1, 0]
+        vertical_offsets = [-1, 0, 1, -1]
         equivalent_labels = []
-
+        number_of_blob_ids = 0
         pixel_array = np.zeros([local_xdim, local_ydim], dtype=object) # Can use zeros instead of empty; moderately slower, but better to have non-empty entries incase of issues
         for pixel in pixel_list:
             pixel_array[pixel.x][pixel.y] = pixel # Pointer :) Modifications to the pixels in the list affect the array
-
-        processed_pixels = []
         for pixel in pixel_list: # Need second iteration so that all of the pixels of the array have been set
+            possible_ids = set()
             if pixel.blob_id == -1: # Value not yet set
                 xpos = pixel.x
                 ypos = pixel.y
@@ -129,83 +117,44 @@ class Slide:
                     if (ypos + vertical_offset < local_ydim and ypos + vertical_offset >= 0 and xpos + horizontal_offset < local_xdim and xpos + horizontal_offset >= 0):  # Boundary check.
                         neighbor = pixel_array[xpos + horizontal_offset][ypos + vertical_offset]
                         if (neighbor != 0):
+                            # print(' Checking neighbor: ' + str(neighbor) + ' offsets: h:' + str(horizontal_offset) + ', v: ' + str(vertical_offset))
                             difference = abs(float(pixel.val) - float(neighbor.val)) # Note: Need to convert to floats, otherwise there's an overflow error due to the value range being int8 (0-255)
                             if difference <= Config.max_val_step: # Within acceptable bound to be grouped by id
                                 if neighbor.blob_id != -1:
-                                    if pixel.blob_id != -1 and pixel.blob_id != neighbor.blob_id:
-
-                                        conflict_differences.append(difference)
-
-                                        if pixel.blob_id < neighbor.blob_id:
-                                            pair = (pixel.blob_id, neighbor.blob_id)
-                                        else:
-                                            pair = (neighbor.blob_id, pixel.blob_id)
-                                        # pair is (lower_id, higher_id); want lower id to dominate
-                                        base = pair[0]
-                                        if Config.debug_pixel_ops:
-                                            print('---Pixel:' + str(pixel) + ' conflicts on neighbor with non-zero blob_id:' + str(neighbor))
-                                            print('   Pair: ' + str(pair) + ' remapping first to equivalent label..')
-
-                                        while equivalent_labels[base] != base: # Id maps to a lower id
-                                            if Config.debug_pixel_ops:
-                                                print('    equivlabels[' + str(base) + '] = ' + str(equivalent_labels[base] != base) + ' which is being used as the new base')
-
-                                            base = equivalent_labels[base]
-                                        equivalent_labels[pair[1]] = base # Remapped the larger value to the end of the chain of the smaller
-                                        old_id = neighbor.blob_id
-                                        for update_pixel in processed_pixels:
-                                            if update_pixel.blob_id == old_id:
-                                                update_pixel.blob_id = base
-                                        pixel.blob_id = base
-                                        if Config.debug_pixel_ops:
-                                            print('   After conflict pixel=' + str(pixel) + ', neighbor=' + str(neighbor))
-                                    elif pixel.blob_id != neighbor.blob_id:
-                                        pixel.blob_id = neighbor.blob_id
-                                        derived_pixels.append(pixel)
-                                        pixel_id_groups[pixel.blob_id].append(pixel)
-
-            else:
-                if Config.debug_pixel_ops:
-                    print('****Pixel:' + str(pixel) + ' already had an id when the cursor reached it')
-            if pixel.blob_id == -1: # Didn't manage to derive an id_num from the neighboring pixels
-                pixel.blob_id = len(pixel_id_groups) # This is used to assign the next id to a pixel, using an id that is new
-                pixel_id_groups.append([pixel])
+                                    possible_ids.add(neighbor.blob_id)
+            if len(possible_ids) == 0:
+                pixel.blob_id = number_of_blob_ids
                 equivalent_labels.append(pixel.blob_id) # Map the new pixel to itself until a low equivalent is found
-                if Config.debug_pixel_ops:
-                    print('**Never derived a value for pixel:' + str(pixel) + ', assigning it a new one:' + str(pixel.blob_id))
-            processed_pixels.append(pixel)
-        if Config.debug_pixel_ops:
-            print('EQUIVALENT LABELS: ' + str(equivalent_labels))
-        # Time to clean up the first member of each id group-as they are skipped from the remapping
-        id_to_reuse = []
-
-        maxid = max(pixel.blob_id for pixel in pixel_list)
-
-        for id in range(maxid):
-            if id != equivalent_labels[id]:
-                if Config.debug_blob_ids:
-                    print('ID #' + str(id) + ' wasnt in the list, adding to ids_to _replace')
-                id_to_reuse.append(id)
+                number_of_blob_ids += 1
+            elif len(possible_ids) == 1:
+                pixel.blob_id = possible_ids.pop() # Note that this changes possible_ids!
             else:
-                if(len(id_to_reuse) != 0):
-                    buf = id_to_reuse[0]
-                    if Config.debug_blob_ids:
-                        print('Replacing ' + str(id) + ' with ' + str(buf) + ' and adding ' + str(id) + ' to the ids to be reused')
-                    id_to_reuse.append(id)
-                    for id_fix in range(len(equivalent_labels)):
-                        if equivalent_labels[id_fix] == id:
-                            equivalent_labels[id_fix] = buf
-                    id_to_reuse.pop(0)
-            if Config.debug_blob_ids:
-                print('New equiv labels:' + str(equivalent_labels))
+                p_ids_list = list(possible_ids)
+                eql_visted = set()
+                for index, eql in enumerate(p_ids_list):
+                    #looking at each id, and finding which one maps to lowest thing
+                    while(equivalent_labels[eql] != eql): # Maps to a smaller value
+                        eql = equivalent_labels[eql]
+                        eql_visted.add(eql)
+                    eql_visted.add(eql)
+                low_eql = min(eql_visted)
+                for eql in eql_visted:
+                    equivalent_labels[eql] = low_eql
+                pixel.blob_id = low_eql
+        if Config.debug_pixel_ops:
+            print('\nDOING FINAL ASSIGNMENTS:')
+            print(list(enumerate(equivalent_labels)))
         for pixel in pixel_list:
-            pixel.blob_id = equivalent_labels[pixel.blob_id]
-
+            # print(str(pixel) + ' -> ', end='')
+            base = equivalent_labels[pixel.blob_id]
+            while(base != equivalent_labels[base]):
+                base = equivalent_labels[base]
+            pixel.blob_id = equivalent_labels[base]
+            # print(' ' + str(pixel.blob_id))
 
     @staticmethod
     def dataToSlides(stitch=True):
         t_gen_slides_0 = time.time()
-
         all_images = getImages()
         all_slides = []
         for imagefile in all_images:
@@ -229,7 +178,6 @@ class Slide:
             print('\n-> Skipping stitching the slides, this will result in less accurate blob3ds for the time being')
         blob3dlist = Slide.extract_blob3ds(all_slides, stitched=stitch)
         print('There are a total of ' + str(len(blob3dlist)) + ' blob3ds')
-
         return all_slides, blob3dlist  # Returns slides and all their blob3ds in a list
 
     @staticmethod

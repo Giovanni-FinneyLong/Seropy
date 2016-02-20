@@ -156,11 +156,7 @@ class Pairing:
         for slide_num, slide in enumerate(slidelist):
             t_start_stitching_this_slide = time.time()
             print('Stitching ' + str(len(slide.blob2dlist)) + ' blob2ds from slide #' + str(slide_num + 1) + '/' + str(len(slidelist)), end=' ') # Note that slide number is offset of non-technical users
-            last_print = 0
-
             progress = progressBar(max_val=len(slide.blob2dlist), increments=10, symbol='.') # Note actually more responsive to do based on blob than # of pixels, due to using only a subset to stitch
-
-
             for b_num, blob1 in enumerate(slide.blob2dlist):
                 blob1 = Blob2d.get(blob1)
                 if len(blob1.possible_partners) > 0:

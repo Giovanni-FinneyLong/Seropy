@@ -20,7 +20,7 @@ def create_test_images():
         for j in range(0,test_ydim - 10, 10):
             for x in range(0,5):
                 for y in range(0,5):
-                    image1[i+x][j+y] = 200 + randint(0, 55)
+                    image1[i+x][j+y] = 245 + randint(0, 10)
 
     image2 = np.zeros([test_xdim,test_ydim]) # Random static
     for i in range(0,test_xdim):
@@ -28,14 +28,15 @@ def create_test_images():
             image2[i][j] = Config.min_val_threshold - 1 + randint(0,2)
 
     image3 = np.zeros([test_xdim,test_ydim])# Lines
-    for i in range(0, test_xdim, 10):
+    for i in range(0, test_xdim, 5):
         for j in range(0, test_ydim):
             image3[i][j] = Config.hard_max_pixel_value
+            image3[j][i] = 245 + randint(0, 10)
 
 
 
 
-    images = [image0, image1, image2]
+    images = [image0, image1, image2, image3]
     slides = []
     # for index,im in enumerate(images):
     #     slides.append(Slide(matrix=im, height=index))
@@ -43,8 +44,9 @@ def create_test_images():
 
     s1 = Slide(matrix=image1, height=1)
 
-    s2 = Slide(matrix=image2, height=2)
+    # s2 = Slide(matrix=image2, height=2)
 
+    s3 = Slide(matrix=image3, height=3)
 
     # plt.imshow(image2, cmap='rainbow', interpolation='none')
     # plt.imshow(image2, interpolation='none')
@@ -53,7 +55,7 @@ def create_test_images():
 
     # showSlide(s1)
 
-    plotBlob2ds(list(b2d for b2d in Blob2d.all.values()), edge=False, images_and_heights=[(image0, 0), (image1, 1)])
+    plotBlob2ds(list(b2d for b2d in Blob2d.all.values()), edge=False)#, images_and_heights=[(image0, 0), (image1, 1)])
     # plot_plotly(list(Blob2d.all.values()), b2ds=True)
 
     # plt.imshow(image1, cmap='rainbow', interpolation='none')
@@ -106,5 +108,5 @@ def showSlide(slide):
 
 filter_available_colors()
 
-# create_test_images()
-single_test()
+create_test_images()
+# single_test()

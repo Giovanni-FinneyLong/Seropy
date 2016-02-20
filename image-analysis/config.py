@@ -23,7 +23,6 @@ class Config:
     # NOTE can allow this to control creation of b3ds, or allow a quick create method for b3ds (noting no stitching and much less accuracy)
     stitch_bloomed_b2ds = False # Default False
 
-    remap_ids_by_group_size = True
     OpenGLLinesInsteadOfAgg = True
     disable_warnings = False
 
@@ -102,7 +101,7 @@ class Config:
 
     minimal_pixel_overlap_to_be_possible_partners = .10  # The minimal portion of area that one of a pair of blob2ds must overlap with the other to be partners
     # Experimental
-    max_pixels_to_be_a_bead = 125
+    max_pixels_to_be_a_bead = 250
     max_subbeads_to_be_a_bead = 4
     child_bead_difference = 2
 

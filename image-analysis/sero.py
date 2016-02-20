@@ -152,6 +152,7 @@ def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
                             all_d1_with_pp_in_this_b3d.append(desc.id)
 
             all_d1_with_pp_in_this_b3d = set(all_d1_with_pp_in_this_b3d)
+            # print('DB len of all_d1_with_pp: ' + str(len(all_d1_with_pp_in_this_b3d)))
             for b2d in all_d1_with_pp_in_this_b3d:
                 b2d = Blob2d.get(b2d)
                 if b2d.b3did == -1: # unset
@@ -197,17 +198,18 @@ def main():
             # This process involves generating Pixels & Blob2ds & Blob3ds & Pairings
         if Config.process_internals:
             bloomed_b3ds = bloom_b3ds(blob3dlist, stitch=Config.stitch_bloomed_b2ds) # Includes setting partners, and optionally stitching
+            print('Blooming resulted in ' + str(len(bloomed_b3ds)) + ' new b3ds:')
+            for b3d in bloomed_b3ds:
+                print(b3d)
+
             blob3dlist = blob3dlist + bloomed_b3ds
         save(blob3dlist, picklefile)
-        # for b3d in Blob3d.all.values():
-        #     print(b3d)
-        #     for child in b3d.children:
-        #         print('  cld:' + str(Blob3d.get(child)))
-        #     if len(b3d.children) > 0:
-        #         print('------------')
-        #         plotBlob3ds([b3d] + [Blob3d.get(blob) for blob in (b3d.children)])
+        plotBlob2ds(list(Blob2d.all.values()), stitches=True, parentlines=Config.process_internals, explode=Config.process_internals, edge=False, pixel_ids=True)
+        print("Debug going to plot each blob2d individually:")
+        for b2d in Blob2d.all.values():
+            print("B2d: " + str(b2d))
+            plotBlob2d(b2d)
 
-        plotBlob2ds(list(Blob2d.all.values()), stitches=True, parentlines=Config.process_internals, explode=Config.process_internals, edge=False)
 
     else:
         # HACK
