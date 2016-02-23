@@ -12,6 +12,7 @@ from vispy.scene import visuals
 from vispy.util import keys
 from util import warn, debug
 colors = None
+
 from Blob3d import getBlob2dOwners, Blob3d
 import math
 from munkres import Munkres
@@ -256,9 +257,8 @@ class Canvas(vispy.scene.SceneCanvas):
             self.update_title()
 
     def refresh_bead_markers(self):
-        Blob3d.tag_all_beads()
         self.remove_markers_of_color('bead')
-        self.add_bead_markers(self.b3ds)
+        self.add_bead_markers(self.b3ds) # Also re-tags
         self.update()
 
     def remove_markers_of_color(self, color):
@@ -375,6 +375,8 @@ class Canvas(vispy.scene.SceneCanvas):
         self.view.add(self.markers[-1][0]) # add the above marker
 
     def add_bead_markers(self, blob3dlist):
+        # Tagging beads for safety
+        Blob3d.tag_all_beads()
         total_bead_points = 0
         total_nonbead_points = 0 # Points from blob3ds that may be part of strands
         for blob3d in blob3dlist:
@@ -382,7 +384,6 @@ class Canvas(vispy.scene.SceneCanvas):
                 total_bead_points += blob3d.get_edge_pixel_count()
             else:
                 total_nonbead_points += blob3d.get_edge_pixel_count()
-
         # print('Total bead points: ' + str(total_bead_points))
         # print('Total nonbead points: ' + str(total_nonbead_points))
         bead_edge_array = np.zeros([total_bead_points, 3])
@@ -400,10 +401,12 @@ class Canvas(vispy.scene.SceneCanvas):
                     nonbead_index += 1
         bead_markers = visuals.Markers()
         nonbead_markers = visuals.Markers()
-        bead_markers.set_data(bead_edge_array, edge_color=None, face_color='red', size=8)
-        nonbead_markers.set_data(nonbead_edge_array, edge_color=None, face_color='green', size=8)
-        self.add_marker(bead_markers, 'bead')
-        self.add_marker(nonbead_markers, 'bead')
+        if total_bead_points !=0:
+            bead_markers.set_data(bead_edge_array, edge_color=None, face_color='red', size=8)
+            self.add_marker(bead_markers, 'bead')
+        if total_nonbead_points !=0:
+            nonbead_markers.set_data(nonbead_edge_array, edge_color=None, face_color='green', size=8)
+            self.add_marker(nonbead_markers, 'bead')
 
     def add_blob3d_markers(self, blob3dlist): # Note that for now, this only does edges
         edge_pixel_arrays = [] # One array per 3d blob
@@ -868,32 +871,34 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
         #                     canvas.view.add(visuals.Text(str(pixel.id), pos=[(pixel.x) / canvas.xdim,(pixel.y) / canvas.ydim,(pixel.z) / canvas.zdim], font_size=4, bold=False, color='w'))
 
 
-        if b2dmidpoints:
-            b2d_num = 0
-            b2d_midpoint_pos = np.zeros([len(blob2ds), 3])
-            for blob2d in blob2ds:
-                b2d_midpoint_pos[b2d_num] = [blob2d.avgx / xdim, blob2d.avgy / ydim, blob2d.height / zdim]
-                b2d_num += 1
-            b2d_midpoint_markers = visuals.Markers()
-            b2d_midpoint_markers.set_data(b2d_midpoint_pos, edge_color='w', face_color='yellow', size=15)
-            b2d_midpoint_markers.symbol = 'diamond'
-            # canvas.view.add(b2d_midpoint_markers)
-            canvas.add_marker(b2d_midpoint_markers, 'blob2d_mid')
+        # if b2dmidpoints:
+        #     b2d_num = 0
+        #     b2d_midpoint_pos = np.zeros([len(blob2ds), 3])
+        #     for blob2d in blob2ds:
+        #         b2d_midpoint_pos[b2d_num] = [blob2d.avgx / xdim, blob2d.avgy / ydim, blob2d.height / zdim]
+        #         b2d_num += 1
+        #     b2d_midpoint_markers = visuals.Markers()
+        #     b2d_midpoint_markers.set_data(b2d_midpoint_pos, edge_color='w', face_color='yellow', size=15)
+        #     b2d_midpoint_markers.symbol = 'diamond'
+        #     canvas.add_marker(b2d_midpoint_markers, 'blob2d_mid')
 
         if ids:
-            midpoints = []
-            midpoints.append(np.zeros([1,3]))
-            for b2d_num, b2d in enumerate(blob2ds):
-                midpoints[-1] = [(b2d.avgx - xmin) / xdim, (b2d.avgy - ymin) / ydim, ((getBloomedHeight(b2d, explode, zdim)  + .25 - zmin) / (Config.z_compression * zdim))]
-                textStr = str(b2d.id)
-                if coloring == '' or coloring == 'blob2d':
-                    color = colors[b2d_num % len(colors)]
-                else:
-                    if coloring in colors:
-                        color = coloring
-                    else:
-                        color = 'yellow'
-                canvas.view.add(visuals.Text(textStr, pos=midpoints[-1], color=color, font_size=15, bold=True))
+            print("\nWARNING adding ids for every blob2d, this could overload if not a small dataset, so skipping if not a test_set!!")
+            if Config.test_instead_of_data:
+
+                midpoints= np.zeros([1,3])
+                for b2d_num, b2d in enumerate(blob2ds):
+                    if b2d.recursive_depth == 0:
+                        midpoints = [(b2d.avgx - canvas.xmin) / canvas.xdim, (b2d.avgy - canvas.ymin) / canvas.ydim, ((getBloomedHeight(b2d, explode, canvas.zdim)  + .25 - canvas.zmin) / (Config.z_compression * canvas.zdim))]
+                        textStr = str(b2d.id)
+                        # if coloring == '' or coloring == 'blob2d':
+                        color = colors[b2d.id % len(colors)]
+                        # else:
+                        #     if coloring in colors:
+                        #         color = coloring
+                        #     else:
+                        #         color = 'yellow'
+                        canvas.view.add(visuals.Text(textStr, pos=midpoints, color=color, font_size=8, bold=False))
 
         # if images_and_heights is not None:
         #     for image, height in images_and_heights:

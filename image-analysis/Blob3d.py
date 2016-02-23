@@ -79,14 +79,16 @@ class Blob3d:
             # print('Their b3dids: ' + str(parent_b3dids))
             if len(parent_b3dids) > 0:
                 if len(parent_b3dids) > 1:
-                    print(' Found more than one b3d parent for b3d: ' + str(self.id) + ' attempting to merge parents: ' + str(parent_b3dids))
+                    print('*Found more than one b3d parent for b3d: ' + str(self) + ' attempting to merge parents: ' + str(list(Blob3d.get(b3d) for b3d in parent_b3dids)))
                     Blob3d.merge(list(parent_b3dids))
                     new_parent_b3dids = list(set([b2d.b3did for b2d in all_b2d_parents])) # TODO can remove this, just for safety for now
                     print('  Post merging b3d parents, updated parent b3dids: ' + str(new_parent_b3dids))
                 else:
                     new_parent_b3dids = list(parent_b3dids)
                 self.parentID = new_parent_b3dids[0] # HACK HACK HACK
-                Blob3d.all[new_parent_b3dids[0]].children.append(self.id)
+                if len(new_parent_b3dids) != 0 or self.parentID == -1:
+                    print(" -DB updated parentID to: " + str(self.parentID) + ' from new_parent_ids ')
+                Blob3d.all[self.parentID].children.append(self.id)
                 # print('--> set parentID to: ' + str(self.parentID) + ' from the available parent_b3dids (after merging): ' + str(new_parent_b3dids))
                 # print('Which has been updated to: ' + str(Blob3d.get(self.parentID)))
                 if len(new_parent_b3dids) != 1:
@@ -324,6 +326,7 @@ class Blob3d:
         :return:
         '''
         print('<< CLEANING B3DS >>')
+        print("These are the b3ds that will need fixing!")
         set_isBead_after = False
         for b3d in Blob3d.all.values():
             if not hasattr(b3d, 'isBead'):

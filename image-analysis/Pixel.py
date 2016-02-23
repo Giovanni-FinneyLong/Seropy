@@ -40,10 +40,10 @@ class Pixel:
         self.blob_id = new_val
 
     def toTuple(self):
-        return (self.val, self.x, self.y)
+        return (self.val, self.x, self.y, self.z)
 
     def toArray(self):
-        return np.array([self.val, self.x, self.y])
+        return np.array([self.val, self.x, self.y, self.z])
 
     def __str__(self):
         '''Method used to convert Pixel to string, generall for printing'''

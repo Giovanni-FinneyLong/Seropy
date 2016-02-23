@@ -196,15 +196,20 @@ def main():
         all_slides, blob3dlist = Slide.dataToSlides(stitch=Config.base_b3ds_with_stitching)
             # Reads in images and converts them to slides.
             # This process involves generating Pixels & Blob2ds & Blob3ds & Pairings
+        print("DB saving a rd0 copy!")
+        save(blob3dlist, picklefile + '_rd0_only')
+
         if Config.process_internals:
             bloomed_b3ds = bloom_b3ds(blob3dlist, stitch=Config.stitch_bloomed_b2ds) # Includes setting partners, and optionally stitching
             print('Blooming resulted in ' + str(len(bloomed_b3ds)) + ' new b3ds:')
             for b3d in bloomed_b3ds:
                 print(b3d)
-
             blob3dlist = blob3dlist + bloomed_b3ds
+
         save(blob3dlist, picklefile)
-        plotBlob2ds(list(Blob2d.all.values()), stitches=True, parentlines=Config.process_internals, explode=Config.process_internals, edge=False, pixel_ids=True)
+        plotBlob2ds(list(Blob2d.all.values()),
+                    stitches=True, parentlines=Config.process_internals,
+                    explode=Config.process_internals, edge=False, pixel_ids=False, ids=False)
         print("Debug going to plot each blob2d individually:")
         for b2d in Blob2d.all.values():
             print("B2d: " + str(b2d))
@@ -213,46 +218,22 @@ def main():
 
     else:
         # HACK
-        load_base = True # Note that each toggle dominates those below it due to elif
+        load_base = False # Note that each toggle dominates those below it due to elif
         dosave = False
         # HACK
 
         if load_base:
-            load(picklefile)
-            # print('Blob3d.possible_merges:')
-            # for pm in Blob3d.possible_merges:
-            #     print(' ' + str(pm))
+            load(picklefile + '_rd0_only')
             blob3dlist = list(Blob3d.all.values())
-            #
-            # if hasattr(Blob3d, 'possible_merges'):
-            #     print('Blob3d does contain possible_merges: ' + str(Blob3d.possible_merges))
-            #     for tuple in Blob3d.possible_merges:
-            #         print(' ' + str(tuple))
-            # else:
-            #     print('Blob3d does not contain possible_merges')
-
-            # if process_internals:
-            #     new_b3ds = bloom_b3ds(blob3dlist, stitch=stitch_bloomed_b2ds) # This will set pairings, and stitch if so desired
-            #     blob3dlist += new_b3ds
-            #     if dosave:
-            #         suffix = '_bloomed_'
-            #         if stitch_bloomed_b2ds:
-            #             suffix += 'stitched'
-            #         else:
-            #             suffix += 'non-stitched'
-            #         save(blob3dlist, picklefile + suffix)
+            if Config.process_internals:
+                bloomed_b3ds = bloom_b3ds(blob3dlist, stitch=Config.stitch_bloomed_b2ds) # Includes setting partners, and optionally stitching
+                print('Blooming resulted in ' + str(len(bloomed_b3ds)) + ' new b3ds:')
+                for b3d in bloomed_b3ds:
+                    print(b3d)
+                blob3dlist = blob3dlist + bloomed_b3ds
         else:
-            load(picklefile + '_bloomed_stitched')
-            blob3dlist = Blob3d.all.values()
-
-        # for b3d in Blob3d.all.values():
-        #     print(b3d)
-        #     for child in b3d.children:
-        #         print('  cld:' + str(Blob3d.get(child)))
-        #     if len(b3d.children) > 0:
-        #         print('------------')
-        #         plotBlob3ds([b3d] + [Blob3d.get(blob) for blob in (b3d.children)])
-
+            load(picklefile)
+            blob3dlist = list(Blob3d.all.values())
 
 
         Blob3d.cleanB3ds()
@@ -261,12 +242,10 @@ def main():
         beads = list(b3d for b3d in Blob3d.all.values() if b3d.isBead)
         print('Total number of beads: ' + str(len(beads)) + ' out of ' + str(len(Blob3d.all)) + ' total b3ds')
         # print('Plotting beads only')
-        # plotBlob3ds(beads)p
+        # plotBlob3ds(beads)
         # plotBlob2ds([blob2d for blob3d in beads for blob2d in blob3d.blob2ds],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=False, stitches=True)
-        plotBlob2ds([b2d for b2d in Blob2d.all.values()],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=True, stitches=True)
-
-
-
+        plotBlob2ds([b2d for b2d in Blob2d.all.values()],
+                    ids=False, parentlines=True,explode=True, coloring='blob3d',edge=True, stitches=True)
 
         non_beads = [b3d for b3d in blob3dlist if not b3d.isBead]
         # print('Plotting simple children of non_beads one by one..')
@@ -320,6 +299,27 @@ if __name__ == '__main__':
 
         filter_available_colors()
     main()  # Run the main function
+
+# NOTE: C57BL6, stitched base, non-stitched blooming 2/22
+# Pickling 8294 b3ds took 55.75 seconds
+# Pickling 49891 b2ds took 1 minute & 1 seconds
+# Pickling 782067 pixels took 18.64 seconds
+# Saving took: 2 minutes & 15 seconds
+
+
+# NOTE: C57BL6, non-stitched base, non-blooming 2/22
+# Pickling 10118 b3ds took 0.26 seconds
+# Pickling 30815 b2ds took 1.39 seconds
+# Pickling 782067 pixels took 14.71 seconds
+# Saving took: 16.35 seconds
+
+
+# NOTE: Swell, stitched base, non-stitched blooming: 2/20
+# Loading b3ds (3851) took 15.63 seconds
+# Loading b2ds (26218) took 2 minutes & 49 seconds
+# Loading pixels (708062) took 12.96 seconds
+# Total time to load: 3 minutes & 18 seconds
+
 
 # NOTE: Swell, stitched base, non-stitched blooming: 1/25
 # Pickling 9606 b3ds took 27.79 seconds
