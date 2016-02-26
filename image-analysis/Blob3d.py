@@ -1,13 +1,13 @@
 from Blob2d import Blob2d
 from Pixel import Pixel
 from util import warn
-from util import debug
+from util import debug, printl
 from myconfig import Config
 
 def printGeneralInfo(prefix='', indent=0, suffix=''):
     prefix = (' ' * indent) + prefix
-    print(prefix + '<Blob3d>: Count:' + str(len(Blob3d.all)) + suffix)
-    print(prefix + '<Blob2d>: Count:' + str(len(Blob2d.all)) + suffix)
+    printl(prefix + '<Blob3d>: Count:' + str(len(Blob3d.all)) + suffix)
+    printl(prefix + '<Blob2d>: Count:' + str(len(Blob2d.all)) + suffix)
 
 def getBlob2dOwners(blob2dlist, ids=False):
     '''
@@ -53,7 +53,7 @@ class Blob3d:
             blob = Blob2d.get(blobid)
             if Blob2d.all[blob.id].b3did != -1: # DEBUG #FIXME THE ISSUES COME BACK TO THIS, find the source
                 # warn('NOT assigning a new b3did (' + str(self.id) + ') to blob2d: ' + str(Blob2d.all[blob.id]))
-                print('---NOT assigning a new b3did (' + str(self.id) + ') to blob2d: ' + str(Blob2d.all[blob.id]))
+                printl('---NOT assigning a new b3did (' + str(self.id) + ') to blob2d: ' + str(Blob2d.all[blob.id]))
                 Blob3d.possible_merges.append((Blob2d.all[blob.id].b3did, self.id, blob.id))
                 ids_that_are_removed_due_to_reusal.add(blobid)
             else: # Note not adding to the new b3d
@@ -74,23 +74,23 @@ class Blob3d:
         self.note = '' # This is a note that can be manually added for identifying certain characteristics..
         if r_depth != 0:
             all_b2d_parents = [Blob2d.get(Blob2d.get(b2d).parentID) for b2d in blob2dlist]
-            # print('All b2d_parents of our b2ds that are going into a new b3d: ' + str(all_b2d_parents))
+            # printl('All b2d_parents of our b2ds that are going into a new b3d: ' + str(all_b2d_parents))
             parent_b3dids = set([b2d.b3did for b2d in all_b2d_parents if b2d.b3did != -1])
-            # print('Their b3dids: ' + str(parent_b3dids))
+            # printl('Their b3dids: ' + str(parent_b3dids))
             if len(parent_b3dids) > 0:
                 if len(parent_b3dids) > 1:
-                    print('*Found more than one b3d parent for b3d: ' + str(self) + ' attempting to merge parents: ' + str(list(Blob3d.get(b3d) for b3d in parent_b3dids)))
+                    printl('*Found more than one b3d parent for b3d: ' + str(self) + ' attempting to merge parents: ' + str(list(Blob3d.get(b3d) for b3d in parent_b3dids)))
                     Blob3d.merge(list(parent_b3dids))
-                    new_parent_b3dids = list(set([b2d.b3did for b2d in all_b2d_parents])) # TODO can remove this, just for safety for now
-                    print('  Post merging b3d parents, updated parent b3dids: ' + str(new_parent_b3dids))
+                    new_parent_b3dids = list(set([b2d.b3did for b2d in all_b2d_parents if b2d.b3did != -1])) # TODO can remove this, just for safety for now
+                    printl('  Post merging b3d parents, updated parent b3dids: ' + str(new_parent_b3dids))
                 else:
                     new_parent_b3dids = list(parent_b3dids)
                 self.parentID = new_parent_b3dids[0] # HACK HACK HACK
                 if len(new_parent_b3dids) != 0 or self.parentID == -1:
-                    print(" -DB updated parentID to: " + str(self.parentID) + ' from new_parent_ids ')
+                    printl(" -DB updated parentID to: " + str(self.parentID) + ' from new_parent_ids ')
                 Blob3d.all[self.parentID].children.append(self.id)
-                # print('--> set parentID to: ' + str(self.parentID) + ' from the available parent_b3dids (after merging): ' + str(new_parent_b3dids))
-                # print('Which has been updated to: ' + str(Blob3d.get(self.parentID)))
+                # printl('--> set parentID to: ' + str(self.parentID) + ' from the available parent_b3dids (after merging): ' + str(new_parent_b3dids))
+                # printl('Which has been updated to: ' + str(Blob3d.get(self.parentID)))
                 if len(new_parent_b3dids) != 1:
                     warn('New b3d (' + str(self.id) + ') ended up with more than one parent!')
             else:
@@ -134,7 +134,7 @@ class Blob3d:
         '''
         # Experimenting with merging blob3ds.
         if len(Blob3d.possible_merges):
-            print('Before merging:--------------')
+            printl('Before merging:--------------')
             printGeneralInfo()
             all_ids_to_merge = set(id for triple in Blob3d.possible_merges for id in [triple[0], triple[1]])
             merged_set_no = [-1] * (max(all_ids_to_merge) + 1)
@@ -159,17 +159,17 @@ class Blob3d:
                         # Both are already in sets, THEY BETTER BE THE SAME!!!!
                         if merged_set_no[b3d1] != merged_set_no[b3d2]:
                             warn('FOUND TWO THAT SHOULD HAVE BEEN MATCHED IN DIFFERENT SETS!!!!!')
-            print('After merge:----------------')
+            printl('After merge:----------------')
             printGeneralInfo()
             for merge_set in merges:
                 Blob3d.merge(list(merge_set))
         else:
-            print('Didnt find any blob3ds to merge')
+            printl('Didnt find any blob3ds to merge')
 
 
     @staticmethod
     def merge(b3dlist):
-        print('Called merge on b3dlist: ' + str(b3dlist))
+        printl('Called merge on b3dlist: ' + str(b3dlist))
         b3d = b3dlist.pop()
         while len(b3dlist):
             next = b3dlist.pop()
@@ -188,11 +188,11 @@ class Blob3d:
         :return:
         '''
         if b1 == -1 or b2 == -1:
-            print('Skipping merging b3ds' + str(b1) + ' and ' + str(b2) + ' because at least one of them is -1, this should be fixed soon..') # TODO
+            printl('Skipping merging b3ds' + str(b1) + ' and ' + str(b2) + ' because at least one of them is -1, this should be fixed soon..') # TODO
         else:
             b1 = Blob3d.get(b1)
             b2 = Blob3d.get(b2)
-            print('-MERGING two b3ds: ' + str(b1) + '   ' + str(b2))
+            printl('-MERGING two b3ds: ' + str(b1) + '   ' + str(b2))
 
             # if b1.id < b2.id: #HACK
             smaller = b1
@@ -281,7 +281,7 @@ class Blob3d:
             else:
                 non_singular_count += 1
         if not quiet:
-            print('There are ' + str(singular_count) + ' singular 3d-blobs and ' + str(non_singular_count) + ' non-singular 3d-blobs')
+            printl('There are ' + str(singular_count) + ' singular 3d-blobs and ' + str(non_singular_count) + ' non-singular 3d-blobs')
 
     @staticmethod
     def tag_all_beads():
@@ -291,12 +291,12 @@ class Blob3d:
         # clean up
         unset = sorted( list(b3d for b3d in Blob3d.all.values() if b3d.isBead is None),
                         key=lambda b3d: b3d.recursive_depth) # Do by recursive depth
-        print('When tagging all beads, there were ' + str(len(unset)) + ' b3ds which could not be reached from base b3ds')
+        printl('When tagging all beads, there were ' + str(len(unset)) + ' b3ds which could not be reached from base b3ds')
         if len(unset):
-            print(' They are: ' + str(unset)) # Want this to always be zero, otherwise theres a tree problem
+            printl(' They are: ' + str(unset)) # Want this to always be zero, otherwise theres a tree problem
         for b3d in unset:
             b3d.check_bead()
-        print("Total number of beads = " + str(sum(b3d.isBead for b3d in Blob3d.all.values())) + ' / ' + str(len(Blob3d.all)))
+        printl("Total number of beads = " + str(sum(b3d.isBead for b3d in Blob3d.all.values())) + ' / ' + str(len(Blob3d.all)))
 
 
     def check_bead(self):
@@ -305,8 +305,8 @@ class Blob3d:
             child_is_bead = Blob3d.get(child).check_bead()
             if child_is_bead:
                 child_bead_count += 1
-        # print('Calling check_bead, max_subbeads_to_be_a_bead = ' + str(max_subbeads_to_be_a_bead), end='')
-        # print(', max_pixels_to_be_a_bead = ' + str(max_pixels_to_be_a_bead) + ', child_bead_difference = ' + str(child_bead_difference))
+        # printl('Calling check_bead, max_subbeads_to_be_a_bead = ' + str(max_subbeads_to_be_a_bead), end='')
+        # printl(', max_pixels_to_be_a_bead = ' + str(max_pixels_to_be_a_bead) + ', child_bead_difference = ' + str(child_bead_difference))
         # if self.recursive_depth > 0:
             # DEBUG
         self.isBead = \
@@ -325,8 +325,8 @@ class Blob3d:
         This is a dev method, used to clean up errors in b3ds. Use sparingly!
         :return:
         '''
-        print('<< CLEANING B3DS >>')
-        print("These are the b3ds that will need fixing!")
+        printl('<< CLEANING B3DS >>')
+        # printl("These are the b3ds that will need fixing!")
         set_isBead_after = False
         for b3d in Blob3d.all.values():
             if not hasattr(b3d, 'isBead'):
@@ -339,9 +339,9 @@ class Blob3d:
             if len(remove_children):
                 for child in remove_children:
                     b3d.children.remove(child)
-                print('While cleaning b3d:' + str(b3d) + ' had to remove children that no longer existed ' + str(remove_children))
+                printl('While cleaning b3d:' + str(b3d) + ' had to remove children that no longer existed ' + str(remove_children))
         if set_isBead_after:
-            print(' While cleaning, found b3ds without isBead attr, so setting isBead for all b3ds')
+            printl(' While cleaning, found b3ds without isBead attr, so setting isBead for all b3ds')
             Blob3d.tag_all_beads()
 
 
@@ -362,7 +362,7 @@ class Blob3d:
                 slice_arrays[pixel.z - self.lowslideheight][pixel.x - self.minx][pixel.y - self.miny] = pixel.val
         for slice_num, slice in enumerate(slice_arrays):
             img = scipy_misc.toimage(slice, cmin=0.0, cmax=255.0)
-            print('Saving Image of Blob2d as: ' + str(savename) + str(slice_num) + '.png')
+            printl('Saving Image of Blob2d as: ' + str(savename) + str(slice_num) + '.png')
             img.save(savename+ str(slice_num) + '.png')
 
     def get_first_child_beads(self):

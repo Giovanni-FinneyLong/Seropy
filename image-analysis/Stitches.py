@@ -5,7 +5,7 @@ from myconfig import Config
 from util import debug
 from Blob2d import Blob2d
 import time
-from util import printElapsedTime, progressBar
+from util import print_elapsed_time, progressBar, printl
 from Pixel import Pixel
 class Pairing:
     """
@@ -66,7 +66,7 @@ class Pairing:
                     angle = math.degrees(math.atan2(pixel2.y - pixel.y, pixel2.x - pixel.x)) # Note using atan2 handles the dy = 0 case
                     angle += 180
                     if not 0 <= angle <= 360:
-                        print('\n\n\n--ERROR: Angle=' + str(angle))
+                        printl('\n\n\n--ERROR: Angle=' + str(angle))
                     # Now need bin # and magnitude for histogram
                     bin_num = math.floor((angle / 360.) * (num_bins - 1)) # HACK PSOE from -1
                     value = math.log(distance, 10)
@@ -80,7 +80,7 @@ class Pairing:
                     angle = math.degrees(math.atan2(pixel2.y - pixel.y, pixel2.x - pixel.x)) # Note using atan2 handles the dy = 0 case
                     angle += 180
                     if not 0 <= angle <= 360:
-                        print('\n\n\n--ERROR: Angle=' + str(angle))
+                        printl('\n\n\n--ERROR: Angle=' + str(angle))
                     # Now need bin # and magnitude for histogram
                     bin_num = math.floor((angle / 360.) * (num_bins - 1)) # HACK PSOE from -1
                     value = math.log(distance, 10)
@@ -111,7 +111,7 @@ class Pairing:
         #         try:
         #             return math.log(buf, 2)
         #         except:
-        #             print('DB ERROR: buf = ' + str(buf))
+        #             printl('DB ERROR: buf = ' + str(buf))
         #             import pdb
         #             pdb.set_trace()
         #     else:
@@ -152,38 +152,38 @@ class Pairing:
 
         pairlist = []
         t_start_stitching = time.time()
-        print('')
+        printl('')
         for slide_num, slide in enumerate(slidelist):
             t_start_stitching_this_slide = time.time()
-            print('Stitching ' + str(len(slide.blob2dlist)) + ' blob2ds from slide #' + str(slide_num + 1) + '/' + str(len(slidelist)), end=' ') # Note that slide number is offset of non-technical users
+            printl('Stitching ' + str(len(slide.blob2dlist)) + ' blob2ds from slide #' + str(slide_num + 1) + '/' + str(len(slidelist)), end=' ') # Note that slide number is offset of non-technical users
             progress = progressBar(max_val=len(slide.blob2dlist), increments=20, symbol='.') # Note actually more responsive to do based on blob than # of pixels, due to using only a subset to stitch
             for b_num, blob1 in enumerate(slide.blob2dlist):
                 blob1 = Blob2d.get(blob1)
                 if len(blob1.possible_partners) > 0:
                     if debug:
-                        print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
+                        printl('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
                 for b2_num, blob2 in enumerate(blob1.possible_partners):
                     blob2 = Blob2d.get(blob2)
                     if debug:
-                        print('   Comparing to blob2:' + str(blob2))
+                        printl('   Comparing to blob2:' + str(blob2))
                     t0 = time.time()
                     bufStitch = Pairing(blob1, blob2, 1.1, 36, quiet=quiet)
                     if bufStitch.isConnected:
                         if debug:
-                            print('    +Blobs connected')
+                            printl('    +Blobs connected')
                         pairlist.append(bufStitch)
                         if not quiet:
                             tf = time.time()
-                            printElapsedTime(t0, tf, pad='    ')
+                            print_elapsed_time(t0, tf, pad='    ')
                     elif debug:
-                        print('    -Blobs not connected')
+                        printl('    -Blobs not connected')
                 progress.update(b_num, set=True)
 
             if quiet and not debug:
                 progress.finish()
-                printElapsedTime(t_start_stitching_this_slide, time.time(), prefix='took')
-        printElapsedTime(t_start_stitching, time.time(), prefix='Stitching all slides took', endline=False)
-        print(' total')
+                print_elapsed_time(t_start_stitching_this_slide, time.time(), prefix='took')
+        print_elapsed_time(t_start_stitching, time.time(), prefix='Stitching all slides took', endline=False)
+        printl(' total')
         return pairlist
 
     @staticmethod
@@ -194,27 +194,27 @@ class Pairing:
         for b_num, blob1 in enumerate(b2ds):
             blob1 = Blob2d.get(blob1)
             # if ((b_num - last_print) / len(b2ds)) >= .1:
-            #     print('.', end='', flush=True)
+            #     printl('.', end='', flush=True)
             #     last_print = b_num
             if len(blob1.possible_partners) > 0:
                 if debug:
-                    print('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
+                    printl('  Starting on a new blob from bloblist:' + str(blob1) + ' which has:' + str(len(blob1.possible_partners)) + ' possible partners')
             for b2_num, blob2 in enumerate(blob1.possible_partners):
                 blob2 = Blob2d.get(blob2)
                 if debug:
-                    print('   Comparing to blob2:' + str(blob2))
+                    printl('   Comparing to blob2:' + str(blob2))
                 t0 = time.time()
-                # print('- DB b1, b2 before pairing:' + str(blob1) + ', ' + str(blob2))
+                # printl('- DB b1, b2 before pairing:' + str(blob1) + ', ' + str(blob2))
                 bufStitch = Pairing(blob1, blob2, 1.1, 36, quiet=True)
-                # print('- DB b1, b2 after pairing:' + str(blob1) + ', ' + str(blob2))
+                # printl('- DB b1, b2 after pairing:' + str(blob1) + ', ' + str(blob2))
 
                 if bufStitch.isConnected:
                     # if debug:
-                    #     print('    +Blobs connected')
+                    #     printl('    +Blobs connected')
                     pairlist.append(bufStitch)
                 elif debug:
-                    print('    -Blobs not connected')
-            # print('.', flush=True)
+                    printl('    -Blobs not connected')
+            # printl('.', flush=True)
         return pairlist
 
 
@@ -255,7 +255,7 @@ class Pairing:
             # selective [::3] with 5 slides = 36 mins
             if len(self.upperpixels) > Config.max_pixels_to_stitch or len(self.lowerpixels) > Config.max_pixels_to_stitch:
                 if not quiet:
-                    print('-->Too many pixels in the below stitch, reducing to a subset, originally was: ' + str(len(self.lowerpixels)) +
+                    printl('-->Too many pixels in the below stitch, reducing to a subset, originally was: ' + str(len(self.lowerpixels)) +
                         '/' + str(len(self.lowerblob.edge_pixels)) + ' lower blob pixels and ' + str(len(self.upperpixels)) +
                         '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels.')
                 pickoneovers = max(1, math.ceil(len(self.upperpixels) / Config.max_pixels_to_stitch)), max(1, math.ceil(len(self.lowerpixels) / Config.max_pixels_to_stitch)) # HACK TODO Modify these values to be more suitable dependent on computation time
@@ -265,12 +265,12 @@ class Pairing:
             self.isConnected = True
             self.setShapeContexts(num_bins) # Set lower and upper context bins
             if not quiet:
-                print('   ' + str(self))
+                printl('   ' + str(self))
             self.munkresCost() # Now have set self.cost and self.indeces and self.connect
 
 
-            # print('******DEBUG before, lowerblob = ' + str(lowerblob) + ' and entry = ' + str(Blob2d.all[lowerblob.id]))
-            # print('******DEBUG before, lowerblob = ' + str(len(lowerblob.pairings)) + ' and entry = ' + str(len(Blob2d.all[lowerblob.id].pairings)))
+            # printl('******DEBUG before, lowerblob = ' + str(lowerblob) + ' and entry = ' + str(Blob2d.all[lowerblob.id]))
+            # printl('******DEBUG before, lowerblob = ' + str(len(lowerblob.pairings)) + ' and entry = ' + str(len(Blob2d.all[lowerblob.id].pairings)))
 
             Blob2d.all[lowerblob.id].pairings.append(self)
             Blob2d.all[upperblob.id].pairings.append(self)
@@ -278,8 +278,8 @@ class Pairing:
             lowerblob.pairings.append(self)
             upperblob.pairings.append(self)
             # HACK
-            # print('******DEBUG after, lowerblob = ' + str(lowerblob) + ' and entry = ' + str(Blob2d.all[lowerblob.id]))
-            # print('******DEBUG after, lowerblob = ' + str(len(lowerblob.pairings)) + ' and entry = ' + str(len(Blob2d.all[lowerblob.id].pairings)))
+            # printl('******DEBUG after, lowerblob = ' + str(lowerblob) + ' and entry = ' + str(Blob2d.all[lowerblob.id]))
+            # printl('******DEBUG after, lowerblob = ' + str(len(lowerblob.pairings)) + ' and entry = ' + str(len(Blob2d.all[lowerblob.id].pairings)))
 
         else:
             self.isConnected = False

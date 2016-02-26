@@ -160,10 +160,10 @@ class Canvas(vispy.scene.SceneCanvas):
 
     def on_key_press(self, event):
 
-        # modifiers = [key.name for key in event.modifiers]
+        # modifiers = [key.log_name for key in event.modifiers]
         # if event.key != 'Escape':
         #     print('Key pressed - text: %r, key: %s, modifiers: %r' % (
-        #     event.text, event.key.name, modifiers))
+        #     event.text, event.key.log_name, modifiers))
 
         if event.key.name == 'Up': # Next color cheme
             self.update_markers(increment=1)

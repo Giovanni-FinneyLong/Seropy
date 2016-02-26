@@ -1,5 +1,6 @@
 import numpy as np
 import math
+from util import printl
 class Pixel:
     '''
     This class is being used to hold the coordinates, base info and derived info of a pixel of a single image\'s layer
@@ -119,7 +120,7 @@ class Pixel:
             try:
                 arr[pixel.x - minx][pixel.y - miny] = pixel.val
             except:
-                print('Pixel:' + str(pixel))
+                printl('Pixel:' + str(pixel))
         return [arr, minx, miny]
 
     @staticmethod
@@ -132,7 +133,7 @@ class Pixel:
             try:
                 return math.log(buf, 2) # TODO adjust this?
             except:
-                print('DB ERROR: buf = ' + str(buf))
+                printl('DB ERROR: buf = ' + str(buf))
                 import pdb
                 pdb.set_trace()
         else:

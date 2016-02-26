@@ -22,6 +22,8 @@ class Config:
     base_b3ds_with_stitching = True # TODO TODO TODO this still needs to be true to get good results, abstractify for filtering b2ds in both cases
     # NOTE can allow this to control creation of b3ds, or allow a quick create method for b3ds (noting no stitching and much less accuracy)
     stitch_bloomed_b2ds = False # Default False
+    do_logging = True
+    nervous_logging = True
 
     OpenGLLinesInsteadOfAgg = True
     disable_warnings = False

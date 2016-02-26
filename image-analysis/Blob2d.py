@@ -3,7 +3,7 @@ import numpy as np
 import math
 from Pixel import Pixel
 import copy
-from util import warn
+from util import warn, printl
 
 
 class Blob2d:
@@ -109,7 +109,7 @@ class Blob2d:
         pad = ''
         for _ in range(rdepth):
             pad += '-'
-        print(pad + str(self))
+        printl(pad + str(self))
         for child in self.children:
             b2d = Blob2d.all[child]
             b2d.printdescendants(rdepth=rdepth+1)
@@ -139,12 +139,12 @@ class Blob2d:
             oldid = self.id
             self.id = getNextID()
             if not quiet:
-                print('Updated id from ' + str(oldid) + ' to ' + str(self.id) + '  ' + str(self))
+                printl('Updated id from ' + str(oldid) + ' to ' + str(self.id) + '  ' + str(self))
             Blob2d.all[self.id] = self
             Blob2d.used_ids[self.id] = 1
         else: # Fill this id entry for the first time
             if not quiet:
-                print('Updated entry for ' + str(self.id))
+                printl('Updated entry for ' + str(self.id))
             Blob2d.used_ids[self.id] = 1
             Blob2d.all[self.id] = self
 
@@ -176,7 +176,7 @@ class Blob2d:
         Better this was, as we dont have to check each pixel's id, just each blobs (externally!) before chaging pixels
         '''
 
-        print(' DB updating the id for:' + str(Blob2d.all[oldid]) + ' to new id' + str(newid))
+        printl(' DB updating the id for:' + str(Blob2d.all[oldid]) + ' to new id' + str(newid))
         #TODO
         Blob2d.used_ids[oldid] = 0
         Blob2d.used_ids[newid] = 1
@@ -187,7 +187,7 @@ class Blob2d:
 
         Blob2d.all[newid] = buf
         Blob2d.all[oldid] = None
-        print(' DB updated to' + str(Blob2d.all[newid]))
+        printl(' DB updated to' + str(Blob2d.all[newid]))
 
 
 
@@ -212,7 +212,7 @@ class Blob2d:
             blob = Blob2d.get(blob)
             inBounds = False
             partnerSmaller = False
-            # print('Working on blob #' + str(b_num) + ' / ' + str(len(blob2dlist)) + ' = ' + str(blob))
+            # printl('Working on blob #' + str(b_num) + ' / ' + str(len(blob2dlist)) + ' = ' + str(blob))
 
             if (blob.minx <= self.minx <= blob.maxx) or (blob.minx <= self.maxx <= blob.maxx): # Covers the case where the blob on the above slide is larger
                 # Overlaps in the x axis; a requirement even if overlapping in the y axis
@@ -230,10 +230,10 @@ class Blob2d:
                 pair_coor = set((Pixel.get(pix).x, Pixel.get(pix).y) for b2d in blob.getdescendants(include_self=True) for pix in b2d.pixels)
 
                 #
-                # print('DEBUG running extra tests to narrow possible partners')
-                # print('Pair_coor:' + str(pair_coor))
-                # print('Len of my_pixel_coor: ' + str(len(my_pixel_coor)) + ' len of pair_coor: ' + str(len(pair_coor)))
-                # print('Len of difference:' + str(len(my_pixel_coor - pair_coor)))
+                # printl('DEBUG running extra tests to narrow possible partners')
+                # printl('Pair_coor:' + str(pair_coor))
+                # printl('Len of my_pixel_coor: ' + str(len(my_pixel_coor)) + ' len of pair_coor: ' + str(len(pair_coor)))
+                # printl('Len of difference:' + str(len(my_pixel_coor - pair_coor)))
                 overlap_amount = len(my_pixel_coor) - len(my_pixel_coor - pair_coor)
 
                 if len(pair_coor) and len(my_pixel_coor) and ((overlap_amount / len(my_pixel_coor) > Config.minimal_pixel_overlap_to_be_possible_partners  and len(my_pixel_coor) > 7)
@@ -268,7 +268,7 @@ class Blob2d:
                         if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
                             my_subpixel_indeces.append(p_num)
                 # else:# DEBUG
-                #     print('-> Avoided setting ' + str(self) + ' and ' + str(blob) + ' as possible partners')
+                #     printl('-> Avoided setting ' + str(self) + ' and ' + str(blob) + ' as possible partners')
                 #     if len(my_pixel_coor) > 20 and len(pair_coor) > 20:
                 #         from serodraw import plotBlob2ds
                 #         plotBlob2ds([self] + [blob])
@@ -303,11 +303,11 @@ class Blob2d:
                     angle = math.degrees(math.atan2(pixel2.y - pixel.y, pixel2.x - pixel.x)) # Note using atan2 handles the dy = 0 case
                     angle += 180
                     if not 0 <= angle <= 360:
-                        print('\n\n\n--ERROR: Angle=' + str(angle))
+                        printl('\n\n\n--ERROR: Angle=' + str(angle))
                     # Now need bin # and magnitude for histogram
                     bin_num = math.floor((angle / 360.) * (num_bins - 1)) # HACK PSOE from -1
                     value = math.log(distance, 10)
-                    # print('DB: Pixel:' + str(pixel) + ' Pixel2:' + str(pixel2) + ' distance:' + str(distance) + ' angle:' + str(angle) + ' bin_num:' + str(bin_num))
+                    # printl('DB: Pixel:' + str(pixel) + ' Pixel2:' + str(pixel2) + ' distance:' + str(distance) + ' angle:' + str(angle) + ' bin_num:' + str(bin_num))
                     self.context_bins[pix_num][bin_num] += value
 
 
@@ -322,7 +322,6 @@ class Blob2d:
     def bloomInwards(self, depth=0):
         livepix = set(set(self.pixels) - set(self.edge_pixels))
         last_edge = set(self.edge_pixels)
-
         alldict = Pixel.pixelidstodict(livepix)
         edge_neighbors = set()
         for pixel in last_edge:
@@ -337,7 +336,7 @@ class Blob2d:
             b2d = Blob2d.get(b2d)
             Blob2d.all[self.id].pixels = list(set(Blob2d.all[self.id].pixels) - set(b2d.pixels))
 
-        # print(depth_offset + ' After being bloomed the parentID is:' + str(Blob2d.get(blob2d.id)))
+        # printl(depth_offset + ' After being bloomed the parentID is:' + str(Blob2d.get(blob2d.id)))
         if (len(self.pixels) < len(Blob2d.get(self.id).pixels)):
             warn('Gained pixels!!!! (THIS SHOULD NEVER HAPPEN!)')
 
@@ -362,14 +361,14 @@ class Blob2d:
             if hasattr(cursorblob, 'pairings') and len(cursorblob.pairings) != 0:
                 if cursorblob not in blob2dlist:
                     if hasattr(cursorblob, 'assignedto3d') and cursorblob.assignedto3d:
-                        print('====> DB Warning, adding a blob to list that has already been assigned: ' + str(cursorblob))
+                        printl('====> DB Warning, adding a blob to list that has already been assigned: ' + str(cursorblob))
                     cursorblob.assignedto3d = True
                     blob2dlist.append(cursorblob)
-                    # print('    DB going through pairings:')
+                    # printl('    DB going through pairings:')
                     for pairing in cursorblob.pairings:
-                        # print('     Cur pairing: ' + str(pairing))
+                        # printl('     Cur pairing: ' + str(pairing))
                         for blob in (pairing.lowerblob, pairing.upperblob):
-                            # print('      Cur blob in pairing: ' + str(blob))
+                            # printl('      Cur blob in pairing: ' + str(blob))
                             followstitches(blob, blob2dlist)
             else:
                  Blob2d.blobswithoutstitches += 1
@@ -390,48 +389,48 @@ class Blob2d:
         newlist = []
         copylist = list(bloblist) # Hack, fix by iterating backwards: http://stackoverflow.com/questions/2612802/how-to-clone-or-copy-a-list-in-python
         if Config.debug_set_merge:
-            print('Blobs to merge:' + str(copylist))
+            printl('Blobs to merge:' + str(copylist))
         while len(copylist) > 0:
             if Config.debug_set_merge:
-                print('Len of copylist:' + str(len(copylist)))
+                printl('Len of copylist:' + str(len(copylist)))
             blob1 = copylist[0]
             newpixels = []
             merged = False
             if Config.debug_set_merge:
-                print('**Curblob:' + str(blob1))
+                printl('**Curblob:' + str(blob1))
             for (index2, blob2) in enumerate(copylist[1:]):
                 if blob2 == blob1:
                     if Config.debug_set_merge:
-                        print('   Found blobs to merge: ' + str(blob1) + ' & ' + str(blob2))
+                        printl('   Found blobs to merge: ' + str(blob1) + ' & ' + str(blob2))
                     if Blob2d.get(blob1).recursive_depth != Blob2d.get(blob2).recursive_depth:
-                        print('WARNING merging two blobs of different recursive depths:' + str(blob1) + ' & ' + str(blob2))
+                        printl('WARNING merging two blobs of different recursive depths:' + str(blob1) + ' & ' + str(blob2))
                     merged = True
                     newpixels = newpixels + Blob2d.get(blob2).pixels
             if merged == False:
                 if Config.debug_set_merge:
-                    print('--Never merged on blob:' + str(blob1))
+                    printl('--Never merged on blob:' + str(blob1))
                 newlist.append(blob1)
                 del copylist[0]
             else:
                 if Config.debug_set_merge:
-                    print(' Merging, newlist-pre:' + str(newlist))
-                    print(' Merging, copylist-pre:' + str(copylist))
+                    printl(' Merging, newlist-pre:' + str(newlist))
+                    printl(' Merging, copylist-pre:' + str(copylist))
                 index = 0
                 while index < len(copylist):
                     if Config.debug_set_merge:
-                        print(' Checking to delete:' + str(copylist[index]))
+                        printl(' Checking to delete:' + str(copylist[index]))
                     if copylist[index] == blob1:
                         if Config.debug_set_merge:
-                            print('  Deleting:' + str(copylist[index]))
+                            printl('  Deleting:' + str(copylist[index]))
                         del copylist[index]
                         index -= 1
                     index += 1
                 newlist.append(Blob2d(Blob2d.get(blob1).pixels + newpixels, Blob2d.get(blob1).master_array, Blob2d.get(blob1).slide, recursive_depth=Blob2d.get(blob1).recursive_depth, parentID=min(Blob2d.get(blob1).parentID, Blob2d.get(blob2).parentID), direct_children=Blob2d.get(blob1).children + Blob2d.get(blob2).children))
                 if Config.debug_set_merge:
-                    print(' Merging, newlist-post:' + str(newlist))
-                    print(' Merging, copylist-post:' + str(copylist))
+                    printl(' Merging, newlist-post:' + str(newlist))
+                    printl(' Merging, copylist-post:' + str(copylist))
         if Config.debug_set_merge:
-            print('Merge result' + str(newlist))
+            printl('Merge result' + str(newlist))
         return newlist
 
     def toArray(self):
@@ -501,7 +500,7 @@ class Blob2d:
         array_rep = self.edgeToArray(buffer=0)
         img = scipy_misc.toimage(array_rep, cmin=0.0, cmax=255.0)
         savename = Config.FIGURES_DIR + filename
-        print('Saving Image of Blob2d as: ' + str(savename))
+        printl('Saving Image of Blob2d as: ' + str(savename))
         img.save(savename)
 
     def gen_saturated_array(self):
@@ -543,25 +542,25 @@ class Blob2d:
         #hack
         alive = set(pixellistcopy)
         blob2dlists = []
-        # print('DB ORIGINALLY ALIVE IS:' + str(alive))
+        # printl('DB ORIGINALLY ALIVE IS:' + str(alive))
         while len(alive):
-            # print('DB len of alive is;' + str(len(alive)))
-            # print('    DB CALLING WITHIN pixels to blob2ds with args:' + str(alive))
+            # printl('DB len of alive is;' + str(len(alive)))
+            # printl('    DB CALLING WITHIN pixels to blob2ds with args:' + str(alive))
             alivedict = Pixel.pixelidstodict(alive)
             pixel = next(iter(alive)) # Basically alive[0]
             neighbors = set(Pixel.get(pixel).neighborsfromdict(alivedict))
             index = 1
             done = False
             while (len(neighbors) == 0 or not done) and len(alive) > 0:
-                # print('    Index:' + str(index) + ' len of neighbors:' + str(len(neighbors)) + ' len of alive:' + str(len(alive)))
+                # printl('    Index:' + str(index) + ' len of neighbors:' + str(len(neighbors)) + ' len of alive:' + str(len(alive)))
                 if index < len(alive):
                     try:
                         pixel = list(alive)[index] # Basically alive[0] # TODO fix this to get the index set to the next iteration
                         index += 1
                     except:
-                        print('Error encountered')
-                        print('Index:' + str(index))
-                        print('Length of alive:' + str(len(alive)))
+                        printl('Error encountered')
+                        printl('Index:' + str(index))
+                        printl('Length of alive:' + str(len(alive)))
                         import pbt
                         pbt.set_trace()
                 else:
@@ -570,7 +569,7 @@ class Blob2d:
                     # Assuming that all the remaining pixels are their own blob2ds essentiall, and so are removed
                 neighbors = set(Pixel.get(pixel).neighborsfromdict(alivedict))
                 if len(neighbors) == 0:
-                    # print('   Found a blob with no neighbors, removing')
+                    # printl('   Found a blob with no neighbors, removing')
                     alive = alive - set([pixel])
                     alonepixels.append(pixel)
                     index = index - 1 # Incase we damaged the index
@@ -580,17 +579,17 @@ class Blob2d:
             while len(oldneighbors) != len(neighbors):
                 oldneighbors = set(neighbors)
                 newneighbors = set(neighbors)
-                # print(' Iterating through: ' + str(len(neighbors)) + ' neighbors to cursor pixel & its found neighbors')
+                # printl(' Iterating through: ' + str(len(neighbors)) + ' neighbors to cursor pixel & its found neighbors')
                 for pixel in neighbors:
                     newneighbors = newneighbors | set(pixel.neighborsfromdict(alivedict))
                 neighbors = newneighbors
-            # print(' DB found a group which make up a blob2d:' + str(neighbors) + ' \n  consisting of ' + str(len(neighbors)) + ' pixels')
+            # printl(' DB found a group which make up a blob2d:' + str(neighbors) + ' \n  consisting of ' + str(len(neighbors)) + ' pixels')
             blob2dlists.append(list(neighbors))
 
-            # print('DB NEIGHBORS:' + str(neighbors))
-            # print('DB alive:' + str(alive))
+            # printl('DB NEIGHBORS:' + str(neighbors))
+            # printl('DB alive:' + str(alive))
             alive = alive - set(n.id for n in neighbors)
-            # print('DB after update at end of loop, alive:' + str(alive))
+            # printl('DB after update at end of loop, alive:' + str(alive))
 
         b2ds = [Blob2d(blob2dlist, blob2dlist[0].z, parentID=parentID, recursive_depth=recursive_depth) for blob2dlist in blob2dlists if len(blob2dlist) > 0]
 
@@ -602,15 +601,15 @@ class Blob2d:
         # buff = copy.deepcopy(Blob2d.get(parentID)) # Note confirmed this doesnt change Blob2d.all
         # buff.children += [b2d.id for b2d in b2ds]
         # Blob2d.all[parentID] = buff
-        # print('=======> Updated to: ' + str(buff) )
+        # printl('=======> Updated to: ' + str(buff) )
 
         Blob2d.all[parentID].children = Blob2d.all[parentID].children + [b2d.id for b2d in b2ds]
 
 
         if Blob2d.get(parentID).recursive_depth > 0:
-            # print('  BEFORE:' + str(Blob2d.get(parentID)))
+            # printl('  BEFORE:' + str(Blob2d.get(parentID)))
             Blob2d.all[parentID].pixels += [pixel for b2d in b2ds for pixel in b2d.pixels]
-            # print('  AFTER:' + str(Blob2d.get(parentID)))
+            # printl('  AFTER:' + str(Blob2d.get(parentID)))
 
         b2ds = [b2d.id for b2d in b2ds]
 

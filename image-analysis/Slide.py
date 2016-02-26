@@ -5,7 +5,7 @@ from PIL import Image
 import time
 from Pixel import Pixel
 from myconfig import Config
-from util import printElapsedTime, getImages, warn, progressBar
+from util import print_elapsed_time, getImages, warn, progressBar, Logger, log, printl
 from Stitches import Pairing
 from Blob3d import Blob3d
 
@@ -34,21 +34,21 @@ class Slide:
             self.primary_slide = True
             imagein = Image.open(filename)
             if not quiet:
-                print('Starting on image: ' + filename)
+                printl('Starting on image: ' + filename)
             imarray = np.array(imagein)
             (self.local_xdim, self.local_ydim, self.local_zdim) = imarray.shape[0],imarray.shape[1], self.height
             if not quiet:
                 if len(imarray.shape) > 2:
-                    print('The are ' + str(imarray.shape[2]) + ' channels')
+                    printl('The are ' + str(imarray.shape[2]) + ' channels')
                 else:
-                    print('There is one channel')
+                    printl('There is one channel')
             image_channels = imagein.split()
             for s in range(len(image_channels)):  # Better to split image and use splits for arrays than to split an array
                 buf = np.array(image_channels[s])
                 slices.append(buf)
                 if np.amax(slices[s]) == 0:
                     if not quiet:
-                        print('Channel #' + str(s) + ' is empty')
+                        printl('Channel #' + str(s) + ' is empty')
         else:
             slices = [matrix]
             self.local_xdim, self.local_ydim = matrix.shape
@@ -64,7 +64,7 @@ class Slide:
                 if (pixel_value >= Config.min_val_threshold):
                     pixels.append(Pixel(pixel_value, curx, cury, self.id_num, validate=False)) # No need to validate at this point
         if not quiet:
-            print('The are ' + str(len(pixels)) + ' pixels from the original ' + str(self.local_xdim * self.local_ydim) + ' pixels that are above the minimal pixel threshold')
+            printl('The are ' + str(len(pixels)) + ' pixels from the original ' + str(self.local_xdim * self.local_ydim) + ' pixels that are above the minimal pixel threshold')
         self.alive_pixels = filterSparsePixelsFromList(pixels, (self.local_xdim, self.local_ydim), quiet=quiet)
 
         if len(self.alive_pixels) == 0:
@@ -81,11 +81,11 @@ class Slide:
             newb2d = Blob2d(blobslist, self.height)
             self.blob2dlist.append(newb2d.id)
         if not quiet:
-            print('There were ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(len(self.blob2dlist)) + ' blobs.')
+            printl('There were ' + str(len(self.alive_pixels)) + ' alive pixels assigned to ' + str(len(self.blob2dlist)) + ' blobs.')
             self.tf = time.time()
-            print('Creating this slide took', end='')
-            printElapsedTime(self.t0, self.tf, prefix='')
-            print('')
+            printl('Creating this slide took', end='')
+            print_elapsed_time(self.t0, self.tf, prefix='')
+            printl('')
 
     @staticmethod
     def assignPixelsToIds(pixel_list, print_info=False):
@@ -117,7 +117,7 @@ class Slide:
                     if (ypos + vertical_offset < local_ydim and ypos + vertical_offset >= 0 and xpos + horizontal_offset < local_xdim and xpos + horizontal_offset >= 0):  # Boundary check.
                         neighbor = pixel_array[xpos + horizontal_offset][ypos + vertical_offset]
                         if (neighbor != 0):
-                            # print(' Checking neighbor: ' + str(neighbor) + ' offsets: h:' + str(horizontal_offset) + ', v: ' + str(vertical_offset))
+                            # printl(' Checking neighbor: ' + str(neighbor) + ' offsets: h:' + str(horizontal_offset) + ', v: ' + str(vertical_offset))
                             difference = abs(float(pixel.val) - float(neighbor.val)) # Note: Need to convert to floats, otherwise there's an overflow error due to the value range being int8 (0-255)
                             if difference <= Config.max_val_step: # Within acceptable bound to be grouped by id
                                 if neighbor.blob_id != -1:
@@ -142,51 +142,53 @@ class Slide:
                     equivalent_labels[eql] = low_eql
                 pixel.blob_id = low_eql
         if Config.debug_pixel_ops:
-            print('\nDOING FINAL ASSIGNMENTS:')
-            print(list(enumerate(equivalent_labels)))
+            printl('\nDOING FINAL ASSIGNMENTS:')
+            printl(list(enumerate(equivalent_labels)))
         for pixel in pixel_list:
-            # print(str(pixel) + ' -> ', end='')
+            # printl(str(pixel) + ' -> ', end='')
             base = equivalent_labels[pixel.blob_id]
             while(base != equivalent_labels[base]):
                 base = equivalent_labels[base]
             pixel.blob_id = equivalent_labels[base]
-            # print(' ' + str(pixel.blob_id))
+            # printl(' ' + str(pixel.blob_id))
 
     @staticmethod
     def dataToSlides(stitch=True):
         t_gen_slides_0 = time.time()
         all_images = getImages()
+        log.set_input_files(all_images)
+
         all_slides = []
         for imagefile in all_images:
             all_slides.append(Slide(imagefile)) # Pixel computations are done here, as the slide is created.
-        print('Total # of non-zero pixels: ' + str(Pixel.total_pixels) + ', total number of pixels after filtering: ' + str(len(Pixel.all)))
-        print('Total # of blob2ds: ' + str(len(Blob2d.all)))
-        print('Generating ' + str(len(all_slides)) + ' slides took', end='')
-        printElapsedTime(t_gen_slides_0, time.time(), prefix='')
-        print("Pairing all blob2ds with their potential partners in adjacent slides", flush=True)
+        printl('Total # of non-zero pixels: ' + str(Pixel.total_pixels) + ', total number of pixels after filtering: ' + str(len(Pixel.all)))
+        printl('Total # of blob2ds: ' + str(len(Blob2d.all)))
+        printl('Generating ' + str(len(all_slides)) + ' slides took', end='')
+        print_elapsed_time(t_gen_slides_0, time.time(), prefix='')
+        printl("Pairing all blob2ds with their potential partners in adjacent slides", flush=True)
         Slide.setAllPossiblePartners(all_slides)
 
         if stitch:
-            print('Setting shape contexts for all blob2ds ',flush=True, end="")
+            printl('Setting shape contexts for all blob2ds ',flush=True, end="")
             Slide.setAllShapeContexts(all_slides)
             t_start_munkres = time.time()
             stitchlist = Pairing.stitchAllBlobs(all_slides, debug=False) # TODO change this to work with a list of ids or blob2ds
             t_finish_munkres = time.time()
-            print('Done stitching together blobs, ', end='')
-            printElapsedTime(t_start_munkres, t_finish_munkres)
+            printl('Done stitching together blobs, ', end='')
+            print_elapsed_time(t_start_munkres, t_finish_munkres)
         else:
-            print('\n-> Skipping stitching the slides, this will result in less accurate blob3ds for the time being')
+            printl('\n-> Skipping stitching the slides, this will result in less accurate blob3ds for the time being')
         blob3dlist = Slide.extract_blob3ds(all_slides, stitched=stitch)
-        print('There are a total of ' + str(len(blob3dlist)) + ' blob3ds')
+        printl('There are a total of ' + str(len(blob3dlist)) + ' blob3ds')
         return all_slides, blob3dlist  # Returns slides and all their blob3ds in a list
 
     @staticmethod
     def extract_blob3ds(all_slides, stitched=True):
-        print('Extracting 3d blobs by combining 2d blobs into 3d', flush=True)
+        printl('Extracting 3d blobs by combining 2d blobs into 3d', flush=True)
         blob3dlist = []
         if not stitched:
             warn('Extracting blob3ds, and have been told that they haven\'t been stitched. This will be inaccurate')
-            print('Extracting blob3ds, and have been told that they haven\'t been stitched. This will be inaccurate') #DEBUG
+            printl('Extracting blob3ds, and have been told that they haven\'t been stitched. This will be inaccurate') #DEBUG
 
         for slide_num, slide in enumerate(all_slides):
             for blob in slide.blob2dlist:
@@ -227,7 +229,7 @@ class Slide:
                 Blob2d.get(blob).setShapeContexts(36)
                 pb.update(len(Blob2d.get(blob).edge_pixels), set=False)
         pb.finish()
-        printElapsedTime(t0, time.time(), prefix='took')
+        print_elapsed_time(t0, time.time(), prefix='took')
 
     def getNextBlobId(self):
         # Starts at 0, of course!!
@@ -289,7 +291,7 @@ def filterSparsePixelsFromList(listin, local_dim_tuple, quiet=False):
         else:
             removed_pixel_ids.append(pixel.id)
     if not quiet:
-        print('There are ' + str(len(listin) - len(filtered_pixels)) + ' dead pixels & ' + str(len(filtered_pixels)) + ' still alive')
+        printl('There are ' + str(len(listin) - len(filtered_pixels)) + ' dead pixels & ' + str(len(filtered_pixels)) + ' still alive')
     return filtered_pixels
 
 
