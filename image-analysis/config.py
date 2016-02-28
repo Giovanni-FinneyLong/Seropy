@@ -34,6 +34,10 @@ class Config:
     debug_set_merge = False
     debug_b3d_merge = False
     debug_stitches = False
+    debug_bead_tagging = False
+    debug_blooming = False
+    debug_partners = False
+
     '''
      __     __            _         _      _
      \ \   / /__ _  _ __ (_)  __ _ | |__  | |  ___  ___

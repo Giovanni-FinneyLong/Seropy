@@ -94,7 +94,7 @@ class Blob3d:
                 self.parentID = new_parent_b3dids[0] # HACK HACK HACK
                 if len(new_parent_b3dids) != 0 or self.parentID == -1:
                     printd(" Updating b3d " + str(self.id) + '\'s parentID to: ' + str(self.parentID)
-                           + ' from new_parent_ids(after regen after merge): ' + str(new_parent_b3dids), Config.debug_b3d_merge)
+                           + ' from new_parent_ids(after regen after merge): ' + str(list(Blob3d.getb3d) for b3d in new_parent_b3dids), Config.debug_b3d_merge)
                 Blob3d.all[self.parentID].children.append(self.id)
                 printd(' Added b3d ' + str(self.id) + ' to parent\'s list of children, updated parent: ' + str(Blob3d.all[self.parentID]), Config.debug_b3d_merge)
                 if len(new_parent_b3dids) != 1:
@@ -131,57 +131,14 @@ class Blob3d:
 
 
     @staticmethod
-    def mergeall():
-        '''
-        This cleans up any blob3ds that attempted to obtain a blob2d that was already part of another blob3d
-        Blob3d.possible_merges is generated as Blob3ds are
-        Ideally this wouldn't be necessary but code happens
-        :return:
-        '''
-        # Experimenting with merging blob3ds.
-        if len(Blob3d.possible_merges):
-            printl('Before merging:--------------')
-            printGeneralInfo()
-            all_ids_to_merge = set(id for triple in Blob3d.possible_merges for id in [triple[0], triple[1]])
-            merged_set_no = [-1] * (max(all_ids_to_merge) + 1)
-            merges = []
-            for b3d1, b3d2, b2d in Blob3d.possible_merges:
-                if merged_set_no[b3d1] == -1: # not yet in a set
-                    if merged_set_no[b3d2] == -1:
-                        merges.append(set([b3d1, b3d2]))
-                        merged_set_no[b3d1] = len(merges) - 1
-                        merged_set_no[b3d2] = len(merges) - 1
-                    else:
-                        # b3d1 not yet in a set, b3d2 is
-                        merges[merged_set_no[b3d2]].add(b3d1)
-                        merged_set_no[b3d1] = merged_set_no[b3d2]
-                else:
-                    # b3d1 is in a set
-                    if merged_set_no[b3d2] == -1:
-                        # b3d2 not yet in a set, b3d1 is
-                        merges[merged_set_no[b3d1]].add(b3d2)
-                        merged_set_no[b3d2] = merged_set_no[b3d1]
-                    else:
-                        # Both are already in sets, THEY BETTER BE THE SAME!!!!
-                        if merged_set_no[b3d1] != merged_set_no[b3d2]:
-                            warn('FOUND TWO THAT SHOULD HAVE BEEN MATCHED IN DIFFERENT SETS!!!!!')
-            printl('After merge:----------------')
-            printGeneralInfo()
-            for merge_set in merges:
-                Blob3d.merge(list(merge_set))
-        else:
-            printl('Didnt find any blob3ds to merge')
-
-
-    @staticmethod
     def merge(b3dlist):
-        printl('Called merge on b3dlist: ' + str(b3dlist))
-        b3d = b3dlist.pop()
+        printd('Called merge on b3dlist: ' + str(b3dlist), Config.debug_b3d_merge)
+        res = b3dlist.pop()
         while len(b3dlist):
             next = b3dlist.pop()
-            Blob3d.merge2(b3d, next)
-        printl(' Result of calling merge on b3dlist is b3d: ' + str(b3d))
-        return b3d
+            res = Blob3d.merge2(res, next)
+        printd(' Final result of calling merge on b3dlist is b3d: ' + str(res), Config.debug_b3d_merge)
+        return res
 
 
     @staticmethod
@@ -195,36 +152,43 @@ class Blob3d:
         :return:
         '''
 
-        #Config.debug_b3d_merge
         if b1 == -1 or b2 == -1:
             warn('***Skipping merging b3ds' + str(b1) + ' and ' + str(b2) + ' because at least one of them is -1, this should be fixed soon..') # TODO
         else:
             b1 = Blob3d.get(b1)
             b2 = Blob3d.get(b2)
-            printl(' Merging two b3ds: ' + str(b1) + '   ' + str(b2))
+            printd(' Merging two b3ds: ' + str(b1) + '   ' + str(b2), Config.debug_b3d_merge)
 
-            # if b1.id < b2.id: #HACK TODO revert this once issue is solved. This just makes things simpler to DEBUG
-            smaller = b1
-            larger = b2
-            # else:
-            #     smaller = b2
-            #     larger = b1
+            if b1.id < b2.id: #HACK TODO revert this once issue is solved. This just makes things simpler to DEBUG
+                smaller = b1
+                larger = b2
+            else:
+                smaller = b2
+                larger = b1
+
             for blob2d in larger.blob2ds:
                 Blob2d.all[blob2d].b3did = smaller.id
-                smaller.blob2ds.append(blob2d)
+                Blob3d.all[smaller.id].blob2ds.append(blob2d)
 
-            smaller.children += larger.children
+            # smaller.children += larger.children # CHANGED DEBUG
+            Blob3d.all[smaller.id].children += larger.children
 
             if larger.parentID is not None:
-                Blob3d.get(larger.parentID).children.remove(larger.id)
-                Blob3d.get(larger.parentID).children.append(smaller.id)
-
+                Blob3d.all[larger.parentID].children.remove(larger.id)
+                if smaller.id not in Blob3d.all[larger.parentID].children: # Would occur if they have the same parent
+                    Blob3d.all[larger.parentID].children.append(smaller.id)
 
             for child in larger.children:
                 Blob3d.all[child].parentID = smaller.id
 
-            smaller.blob2ds = list(set(smaller.blob2ds))
+            if smaller.parentID is not None:
+                printd('  After Merging, the parent of the original smaller is: ' + str(Blob3d.get(smaller.parentID)), Config.debug_b3d_merge)
+            if larger.parentID is not None:
+                printd('  After Merging, the parent of the original larger is: ' + str(Blob3d.get(larger.parentID)), Config.debug_b3d_merge)
             del Blob3d.all[larger.id]
+
+
+            return smaller.id
 
 
     def validate(self):
@@ -246,10 +210,10 @@ class Blob3d:
         parent_str = ' , Parent B3d: ' + str(self.parentID)
         child_str = ' , Children: ' + str(self.children)
         return str('B3D(' + str(self.id) + '): #b2ds:' + str(len(self.blob2ds)) + ', r_depth:' + str(self.recursive_depth) +
-                   ', bead=' + str(self.isBead) +
-                   ' lowslideheight=' + str(self.lowslideheight) + ' highslideheight=' + str(self.highslideheight) +
+                   ', bead=' + str(self.isBead) + parent_str + child_str + ')')
+                   # ' lowslideheight=' + str(self.lowslideheight) + ' highslideheight=' + str(self.highslideheight) +
                    #' #edgepixels=' + str(len(self.edge_pixels)) + ' #pixels=' + str(len(self.pixels)) +
-                   ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) + parent_str + child_str + ')')
+                   # ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) + parent_str + child_str + ')')
 
     __repr__ = __str__
 
@@ -294,26 +258,40 @@ class Blob3d:
 
     @staticmethod
     def tag_all_beads():
+        printd('Tagging bead blob3ds', Config.debug_bead_tagging)
         base_b3ds = Blob3d.getDepth(0, ids=False)
+        printl(' ' + str(len(base_b3ds)) + ' / ' + str(len(Blob3d.all)) + ' blob3ds are at base b3ds')
+
+        #DEBUG
+        num_base_with_children = len(list(b3d for b3d in base_b3ds if len(b3d.children)))
+        printl(str(num_base_with_children) + ' / ' + str(len(base_b3ds)) + ' base b3ds have children!')
+
         for b3d in base_b3ds:
             b3d.check_bead()
+        base_bead_count = len(list(b3d for b3d in base_b3ds if b3d.isBead))
+        printd(' ' + str(len(base_b3ds)) + ' of the ' + str(len(base_b3ds)) + ' base b3ds were tagged as beads', Config.debug_bead_tagging)
+
         # clean up
         unset = sorted( list(b3d for b3d in Blob3d.all.values() if b3d.isBead is None),
                         key=lambda b3d: b3d.recursive_depth) # Do by recursive depth
-        printl('When tagging all beads, there were ' + str(len(unset)) + ' b3ds which could not be reached from base b3ds')
         if len(unset):
-            printl(' They are: ' + str(unset)) # Want this to always be zero, otherwise theres a tree problem
+            printd('When tagging all beads, there were ' + str(len(unset)) + ' b3ds which could not be reached from base b3ds', Config.debug_bead_tagging)
+            printd(' They are: ' + str(unset), Config.debug_bead_tagging) # Want this to always be zero, otherwise theres a tree problem
         for b3d in unset:
             b3d.check_bead()
         printl("Total number of beads = " + str(sum(b3d.isBead for b3d in Blob3d.all.values())) + ' / ' + str(len(Blob3d.all)))
 
 
-    def check_bead(self):
+    def check_bead(self, indent=1):
+        prefix = ' ' * indent
+        printd(prefix + 'Called check_bead on b3d: ' + str(self), Config.debug_bead_tagging)
         child_bead_count = 0
         for child in self.children:
-            child_is_bead = Blob3d.get(child).check_bead()
+            printd(prefix + 'Checking if child of ' + str(self) + ' is bead:', Config.debug_bead_tagging)
+            child_is_bead = Blob3d.get(child).check_bead(indent=indent+1)
             if child_is_bead:
                 child_bead_count += 1
+        printd(prefix + 'Number of direct children which are beads = ' + str(child_bead_count) + ' / ' + str(len(self.children)), Config.debug_bead_tagging)
         # printl('Calling check_bead, max_subbeads_to_be_a_bead = ' + str(max_subbeads_to_be_a_bead), end='')
         # printl(', max_pixels_to_be_a_bead = ' + str(max_pixels_to_be_a_bead) + ', child_bead_difference = ' + str(child_bead_difference))
         # if self.recursive_depth > 0:
@@ -323,7 +301,12 @@ class Blob3d:
             and (self.get_edge_pixel_count() <= Config.max_pixels_to_be_a_bead)) \
             or (self.recursive_depth == 0 and len(self.children) == 0)
             #and (self.recursive_depth > 0) # <== This makes bead tagging greedy and merges otherwise correctly disconnected beads
+        printd(prefix + ' set isBead = ' + str(self.isBead), Config.debug_bead_tagging)
 
+        # DEBUG
+        printd(prefix + ' ^ was decided as: (' + str(child_bead_count) + ' < ' + str(Config.max_subbeads_to_be_a_bead)
+               + ' and ' + str(self.get_edge_pixel_count()) + ' <= ' + str(Config.max_pixels_to_be_a_bead) + ') OR ('
+               + str(self.recursive_depth) + ' == 0 and ' + str(len(self.children)) + ' == 0)', Config.debug_bead_tagging)
 
         #  and  (child_bead_count > (len(self.children) - config.child_bead_difference))
         return self.isBead
@@ -349,9 +332,9 @@ class Blob3d:
                 for child in remove_children:
                     b3d.children.remove(child)
                 printl(' While cleaning b3d:' + str(b3d) + ' had to remove children that no longer existed ' + str(remove_children))
-            if b3d.parentID is None:
+            if b3d.parentID is None and b3d.recursive_depth != 0:
                 printd(' Found b3d with None parentID: ' + str(b3d), Config.debug_b3d_merge)
-            elif b3d.parentID not in Blob3d.all:
+            elif b3d.parentID is not None and  b3d.parentID not in Blob3d.all:
                 printl(' While cleaning b3d:' + str(b3d) + ' had to set parentID to None, because parentID: ' + str(b3d.parentID) + ' is not a valid blob3d-id')
                 b3d.parentID = None
         if set_isBead_after:
@@ -377,7 +360,7 @@ class Blob3d:
         for slice_num, slice in enumerate(slice_arrays):
             img = scipy_misc.toimage(slice, cmin=0.0, cmax=255.0)
             printl('Saving Image of Blob2d as: ' + str(savename) + str(slice_num) + '.png')
-            img.save(savename+ str(slice_num) + '.png')
+            img.save(savename + str(slice_num) + '.png')
 
     def get_first_child_beads(self):
         # This is meant to be called for a non_bead

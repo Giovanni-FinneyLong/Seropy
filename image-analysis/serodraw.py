@@ -568,23 +568,24 @@ class Canvas(vispy.scene.SceneCanvas):
         self.add_marker(markers, markertype)
 
     def add_simple_beads(self, blob3dlist):
+        print("Adding simple beads from b3dlist: " + str(blob3dlist))
+
         non_beads = [b3d for b3d in blob3dlist if not b3d.isBead or (b3d.recursive_depth == 0 and b3d.isBead)]
         print('Number of non_beads = ' + str(len(non_beads)) + ' / ' + str(len(blob3dlist)))
         bead_groups = []
         for b3d in non_beads:
-            # print('Workin on b3d: ' + str(b3d))
-            if b3d.isBead:
-                first_children = [b3d] # Because this is a bead at recursive depth 0
-            else:
+            print('Workin on b3d: ' + str(b3d))
+            if b3d.isBead is not True and b3d.isBead is not None:
                 first_children = b3d.get_first_child_beads()
+                print('First_children (' + str(len(first_children)) + ') = ' + str(first_children))
                 if not len(first_children):
-                    print('Found non_bead b3d without any first children beads ' + str(b3d)) # FIXME TODO
-            # print('First_children ' + str(len(first_children)) + ' = ' + str(first_children))
+                    warn('Found non_bead b3d without any first children beads ' + str(b3d)) # FIXME TODO
                 else:
                     bead_groups.append(first_children)
 
         # print('Bead groups: ' + str(bead_groups))
         # print('DB ' + str(self.xdim) + ' ' + str(self.ymin) + ' ' + str(self.zdim))
+        print("Number of bead groups: " + str(len(bead_groups)) )
 
         for index, bg in enumerate(bead_groups):
             # print('BG=' + str(bg))
@@ -839,6 +840,11 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
         canvas.plot_call = 'PlotBlob2ds'
         canvas.set_blobs(blob2ds)
 
+        # # TODO
+        # canvas.add_simple_beads(canvas.b3ds)
+        # # TODO
+
+
 
         if coloring == 'blob2d' or canvas.buffering:
             canvas.add_blob2d_markers(blob2ds, edge=edge, offset=offset, explode=explode)
@@ -846,8 +852,8 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
         if coloring == 'blob3d' or canvas.buffering:
             canvas.add_blob3d_markers_from_blob2ds(blob2ds)
 
-        if coloring == 'bead' or canvas.buffering:
-            canvas.add_bead_markers(canvas.b3ds) # HACK
+        # if coloring == 'bead' or canvas.buffering:
+        #     canvas.add_bead_markers(canvas.b3ds) # HACK
 
         if coloring == 'b2d_depth' or canvas.buffering:
             canvas.add_depth_markers_from_blob2ds(blob2ds)
@@ -884,17 +890,17 @@ def plotBlob2ds(blob2ds, coloring='', canvas_size=(1080,1080), ids=False, stitch
 
                 midpoints= np.zeros([1,3])
                 for b2d_num, b2d in enumerate(blob2ds):
-                    if b2d.recursive_depth == 0:
-                        midpoints = [(b2d.avgx - canvas.xmin) / canvas.xdim, (b2d.avgy - canvas.ymin) / canvas.ydim, ((getBloomedHeight(b2d, explode, canvas.zdim)  + .25 - canvas.zmin) / (Config.z_compression * canvas.zdim))]
-                        textStr = str(b2d.id)
-                        # if coloring == '' or coloring == 'blob2d':
-                        color = colors[b2d.id % len(colors)]
-                        # else:
-                        #     if coloring in colors:
-                        #         color = coloring
-                        #     else:
-                        #         color = 'yellow'
-                        canvas.view.add(visuals.Text(textStr, pos=midpoints, color=color, font_size=8, bold=False))
+                    # if b2d.recursive_depth == 0:
+                    midpoints = [(b2d.avgx - canvas.xmin) / canvas.xdim, (b2d.avgy - canvas.ymin) / canvas.ydim, ((getBloomedHeight(b2d, explode, canvas.zdim)  + .25 - canvas.zmin) / (Config.z_compression * canvas.zdim))]
+                    textStr = str(b2d.id)
+                    # if coloring == '' or coloring == 'blob2d':
+                    color = colors[b2d.id % len(colors)]
+                    # else:
+                    #     if coloring in colors:
+                    #         color = coloring
+                    #     else:
+                    #         color = 'yellow'
+                    canvas.view.add(visuals.Text(textStr, pos=midpoints, color=color, font_size=8, bold=False))
 
         # if images_and_heights is not None:
         #     for image, height in images_and_heights:
@@ -926,12 +932,12 @@ def plotBlob3ds(blob3dlist, stitches=True, color='blob3d', lineColoring=None, co
     canvas.set_blobs(blob3dlist)
 
 
-    # HACK
-    canvas.add_simple_beads(blob3dlist)
-    # /HACK
+    # # HACK
+    # canvas.add_simple_beads(blob3dlist)
+    # # /HACK
 
-    if color == 'bead' or canvas.buffering:
-        canvas.add_bead_markers(blob3dlist)
+    # if color == 'bead' or canvas.buffering:
+    #     canvas.add_bead_markers(blob3dlist)
 
     if color == 'blob' or color == 'blob3d' or canvas.buffering: # Note: This is very graphics intensive.
         canvas.add_blob3d_markers(blob3dlist)

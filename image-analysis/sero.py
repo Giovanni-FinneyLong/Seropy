@@ -10,7 +10,7 @@ from Pixel import Pixel
 from Stitches import Pairing
 import glob
 import sys
-from util import warn, getImages, progressBar, Logger, log, printl # Log is the actual object that will be shared between files
+from util import warn, getImages, progressBar, Logger, log, printl, printd # Log is the actual object that will be shared between files
 from myconfig import Config
 import time
 
@@ -134,11 +134,20 @@ def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
                 b2d = Blob2d.all[b2d]
                 b2d.setPossiblePartners(ids_by_height[height_val + 1])
 
+    # print("---DEBUG printing all b2ds that aren't at rd0 and have pp!") #DEBUG
+    # for b2d in Blob2d.all.values():
+    #     if b2d.recursive_depth != 0 and len(b2d.possible_partners) != 0:
+    #         print(b2d)
+    #         print(' ' + str(b2d.possible_partners))
+
+    # debug_blooming = True
+
+
     # Creating b3ds
     printl('Creating 3d blobs from the generated 2d blobs')
     all_new_b3ds = []
     for depth_offset in range(max_avail_depth+1)[1:]: # Skip offset of zero, which refers to the b3ds which have already been stitched
-        printl('Depth_offset: ' + str(depth_offset))
+        printd('Depth_offset: ' + str(depth_offset), Config.debug_blooming)
         new_b3ds = []
 
         for b3d in blob3dlist:
@@ -153,19 +162,43 @@ def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
                             all_d1_with_pp_in_this_b3d.append(desc.id)
 
             all_d1_with_pp_in_this_b3d = set(all_d1_with_pp_in_this_b3d)
-            # printl('DB len of all_d1_with_pp: ' + str(len(all_d1_with_pp_in_this_b3d)))
+            if len(all_d1_with_pp_in_this_b3d) != 0:
+                printd(' Working on b3d: ' + str(b3d), Config.debug_blooming)
+                printd('  Len of all_d1_with_pp: ' + str(len(all_d1_with_pp_in_this_b3d)), Config.debug_blooming)
+                printd('  They are: ' + str(all_d1_with_pp_in_this_b3d), Config.debug_blooming)
+                printd('   = ' + str(list(Blob2d.get(b2d) for b2d in all_d1_with_pp_in_this_b3d)), Config.debug_blooming)
             for b2d in all_d1_with_pp_in_this_b3d:
                 b2d = Blob2d.get(b2d)
+                printd('    Working on b2d: ' + str(b2d) + ' with pp: ' + str(b2d.possible_partners), Config.debug_blooming)
                 if b2d.b3did == -1: # unset
                     cur_matches = [b2d] # NOTE THIS WAS CHANGED BY REMOVED .getdescendants() #HACK
+                    rejected = []
                     for pp in b2d.possible_partners:
-                        if pp in all_d1_with_pp_in_this_b3d:
+                        printd("     *Checking if pp:" + str(pp) + ' is in all_d1: ' + str(all_d1_with_pp_in_this_b3d), Config.debug_blooming)
+                        # if pp in all_d1_with_pp_in_this_b3d: # HACK REMOVED
+                        if True: # HACK
+                            printd("     Added partner: " + str(pp), Config.debug_blooming)
                             cur_matches += [Blob2d.get(b) for b in Blob2d.get(pp).getpartnerschain()]
-
+                        # else:
+                        #     printd("     Rejected partner: " + str(Blob2d.get(pp)) + ' because it wasnt in all_d1_with_pp', Config.debug_blooming)
+                        #     rejected.append(Blob2d.get(pp))
                     if len(cur_matches) > 1:
+                        printd("**LEN OF CUR_MATCHES MORE THAN 1", Config.debug_blooming)
                         new_b3d_list = [blob.id for blob in set(cur_matches) if blob.recursive_depth == b2d.recursive_depth and blob.b3did == -1]
                         if len(new_b3d_list):
                             new_b3ds.append(Blob3d(new_b3d_list, r_depth=b2d.recursive_depth))
+                    # else: # DEBUG
+                    #     printl("Plotting all rejected b2ds and self!")
+                    #     plotting = rejected + [b2d]
+                    #     for b2d in plotting:
+                    #         print(' ' + str(b2d))
+                    #     plotBlob2ds(plotting, ids=True, offset=True)
+                    #     plotting = [Blob2d.get(b) for r in rejected for b in r.getpartnerschain()] + [b2d]
+                    #     printl("Now plotting all those which would have been added (due to chaining!")
+                    #     for b2d in plotting:
+                    #         print(' ' + str(b2d))
+                    #     plotBlob2ds(plotting, ids=True, offset=True)
+
         all_new_b3ds += new_b3ds
     printl(' Made a total of ' + str(len(all_new_b3ds)) + ' new b3ds')
 
@@ -204,8 +237,8 @@ def main():
         if Config.process_internals:
             bloomed_b3ds = bloom_b3ds(blob3dlist, stitch=Config.stitch_bloomed_b2ds) # Includes setting partners, and optionally stitching
             printl('Blooming resulted in ' + str(len(bloomed_b3ds)) + ' new b3ds:')
-            for b3d in bloomed_b3ds:
-                printl(b3d)
+            # for b3d in bloomed_b3ds:
+            #     printl(b3d)
             blob3dlist = blob3dlist + bloomed_b3ds
 
         save(blob3dlist, picklefile)
@@ -305,6 +338,22 @@ if __name__ == '__main__':
         printl("\nEXECUTION FAILED!\n")
         printl(traceback.format_exc())
         printl('Writing object to log')
+
+# NOTE: After updating blooming (2/28)
+# NOTE: Swell, stitched base, non-stitched blooming 2/28
+# Pickling 11234 b3ds took 5.12 seconds
+# Pickling 24253 b2ds took 19.08 seconds
+# Pickling 708062 pixels took 14.06 seconds
+# Saving took: 38.27 seconds
+
+# NOTE: After updating blooming (2/28)
+# NOTE: C57BL6, stitched base, non-stitched blooming 2/28
+# Pickling 29309 b3ds took 19.27 seconds
+# Pickling 49891 b2ds took 39.61 seconds
+# Pickling 782067 pixels took 12.56 seconds
+# Saving took: 1 minute & 11 seconds
+
+
 
 # NOTE: Post Stitch fix: (Also parallel run with the below)
 # NOTE: Swell, stitched base, non-stitched blooming 2/27

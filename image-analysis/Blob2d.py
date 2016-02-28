@@ -180,8 +180,9 @@ class Blob2d:
         #  minx2 <= (minx1 | max1) <= maxx2
         #  miny2 <= (miny1 | maxy1) <= maxy2
 
+        #, Config.debug_partners
+        printd('Setting possible partners for b2d: ' + str(self) + ' from ' + str(len(blob2dlist)) + ' other blob2ds', Config.debug_partners)
         my_pixel_coor = set([(Pixel.get(pix).x, Pixel.get(pix).y) for b2d in self.getdescendants(include_self=True) for pix in b2d.pixels])
-
         for b_num, blob in enumerate(blob2dlist):
             blob = Blob2d.get(blob)
             inBounds = False
@@ -200,6 +201,8 @@ class Blob2d:
                         partnerSmaller = True
             # If either of the above was true, then one blob is within the bounding box of the other
             if inBounds:
+                printd(' Found b2d: ' + str(blob) + ' to be in-bounds, so checking other conditions', Config.debug_partners)
+
                 pair_coor = set((Pixel.get(pix).x, Pixel.get(pix).y) for b2d in blob.getdescendants(include_self=True) for pix in b2d.pixels)
                 # printl('DEBUG running extra tests to narrow possible partners')
                 # printl('Pair_coor:' + str(pair_coor))
@@ -211,7 +214,9 @@ class Blob2d:
                 or ((overlap_amount / len(pair_coor) > Config.minimal_pixel_overlap_to_be_possible_partners) and len(pair_coor) > 7)): #HACK
                     # len(my_pixel_coor - pair_coor) != len(my_pixel_coor)): # Overlapping coordinates
                     self.possible_partners.append(blob.id)
-                    Blob2d.get(self.id).possible_partners.append(blob.id)
+                    # Blob2d.get(self.id).possible_partners.append(blob.id)
+                    printd('  Above b2d confirmed to be partner, updated pp: ' + str(self.possible_partners), Config.debug_partners)
+
                     if partnerSmaller:
                         # Use partner's (blob) midpoints, and expand a proportion of minx, maxx, miny, maxy
                         midx = blob.avgx
