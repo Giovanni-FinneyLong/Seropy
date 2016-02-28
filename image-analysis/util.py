@@ -63,7 +63,12 @@ class Logger:
                 bloom += '-Nonstitched'
         else:
             bloom = 'Nonbloomed'
-        self.log_name = date + '_' + data_type + '_' + bloom + '.log'
+        if Config.dePickle:
+            save_or_load = 'Load'
+        else:
+            save_or_load = 'Save'
+
+        self.log_name = date + '_' + data_type + '_' + bloom + '_' + save_or_load + '.log'
         self.log_path = fixpath(self.dir + '/' + self.log_name)
         print('Log path: ' + str(self.log_path))
 
