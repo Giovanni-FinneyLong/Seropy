@@ -1,5 +1,6 @@
 __author__ = 'gio'
 
+import traceback
 import pickle # Note uses cPickle automatically ONLY IF python 3
 from util import print_elapsed_time
 from Slide import Slide
@@ -218,7 +219,7 @@ def main():
 
     else:
         # HACK
-        load_base = True # Note that each toggle dominates those below it due to elif
+        load_base = False # Note that each toggle dominates those below it due to elif
         dosave = False
         # HACK
 
@@ -292,13 +293,44 @@ def main():
 
 
 if __name__ == '__main__':
-    if Config.mayPlot:
-        from serodraw import *
-        global colors
-        colors = vispy.color.get_color_names() # ALl possible colors
+    try:
+        if Config.mayPlot:
+            from serodraw import *
+            global colors
+            colors = vispy.color.get_color_names() # ALl possible colors
 
-        filter_available_colors()
-    main()  # Run the main function
+            filter_available_colors()
+        main()  # Run the main function
+    except Exception as exc:
+        printl("\nEXECUTION FAILED!\n")
+        printl(traceback.format_exc())
+        printl('Writing object to log')
+
+# NOTE: Post Stitch fix: (Also parallel run with the below)
+# NOTE: Swell, stitched base, non-stitched blooming 2/27
+# Pickling 8526 b3ds took 20.99 seconds
+# Pickling 24253 b2ds took 21.02 seconds
+# Pickling 708062 pixels took 11.31 seconds
+# Saving took: 53.32 seconds
+
+# NOTE: Post Stitch fix: (Also parallel run with the below)
+# NOTE: Swell, stitched base, stitched blooming 2/27
+# Pickling 8526 b3ds took 19.95 seconds
+# Pickling 24253 b2ds took 21.11 seconds
+# Pickling 708062 pixels took 11.50 seconds
+# Saving took: 52.57 seconds
+# &
+# Loading b3ds (8526) took 10.79 seconds
+# Loading b2ds (24253) took 40.17 seconds
+# Loading pixels (708062) took 9.72 seconds
+# Total time to load: 1 minute & 1 seconds
+
+# NOTE: Post Stitch fix: (Also parallel run with the above)
+# NOTE: C57BL6, stitched base, stitched blooming 2/27
+# Pickling 26514 b3ds took 39.91 seconds
+# Pickling 49891 b2ds took 50.86 seconds
+# Pickling 782067 pixels took 13.00 seconds
+# Saving took: 1 minute & 44 seconds
 
 # NOTE: C57BL6, stitched base, non-stitched blooming 2/22
 # Pickling 8294 b3ds took 55.75 seconds
@@ -306,20 +338,17 @@ if __name__ == '__main__':
 # Pickling 782067 pixels took 18.64 seconds
 # Saving took: 2 minutes & 15 seconds
 
-
 # NOTE: C57BL6, non-stitched base, non-blooming 2/22
 # Pickling 10118 b3ds took 0.26 seconds
 # Pickling 30815 b2ds took 1.39 seconds
 # Pickling 782067 pixels took 14.71 seconds
 # Saving took: 16.35 seconds
 
-
 # NOTE: Swell, stitched base, non-stitched blooming: 2/20
 # Loading b3ds (3851) took 15.63 seconds
 # Loading b2ds (26218) took 2 minutes & 49 seconds
 # Loading pixels (708062) took 12.96 seconds
 # Total time to load: 3 minutes & 18 seconds
-
 
 # NOTE: Swell, stitched base, non-stitched blooming: 1/25
 # Pickling 9606 b3ds took 27.79 seconds

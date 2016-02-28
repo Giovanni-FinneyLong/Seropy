@@ -5,7 +5,7 @@ from PIL import Image
 import time
 from Pixel import Pixel
 from myconfig import Config
-from util import print_elapsed_time, getImages, warn, progressBar, Logger, log, printl
+from util import print_elapsed_time, getImages, warn, progressBar, Logger, log, printl, printd
 from Stitches import Pairing
 from Blob3d import Blob3d
 
@@ -141,9 +141,7 @@ class Slide:
                 for eql in eql_visted:
                     equivalent_labels[eql] = low_eql
                 pixel.blob_id = low_eql
-        if Config.debug_pixel_ops:
-            printl('\nDOING FINAL ASSIGNMENTS:')
-            printl(list(enumerate(equivalent_labels)))
+
         for pixel in pixel_list:
             # printl(str(pixel) + ' -> ', end='')
             base = equivalent_labels[pixel.blob_id]
@@ -171,11 +169,7 @@ class Slide:
         if stitch:
             printl('Setting shape contexts for all blob2ds ',flush=True, end="")
             Slide.setAllShapeContexts(all_slides)
-            t_start_munkres = time.time()
             stitchlist = Pairing.stitchAllBlobs(all_slides, debug=False) # TODO change this to work with a list of ids or blob2ds
-            t_finish_munkres = time.time()
-            printl('Done stitching together blobs, ', end='')
-            print_elapsed_time(t_start_munkres, t_finish_munkres)
         else:
             printl('\n-> Skipping stitching the slides, this will result in less accurate blob3ds for the time being')
         blob3dlist = Slide.extract_blob3ds(all_slides, stitched=stitch)

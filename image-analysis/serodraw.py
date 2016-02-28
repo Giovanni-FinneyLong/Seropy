@@ -554,7 +554,6 @@ class Canvas(vispy.scene.SceneCanvas):
 
     def add_color_markers(self, blob3dlist, colorindex=0, markertype='neutral'):
         total_points = 0
-        line_endpoints = 0
         for blob_num, blob3d in enumerate(blob3dlist):
             total_points += blob3d.get_edge_pixel_count()
         edge_pixel_array = np.zeros([total_points, 3])
@@ -564,11 +563,8 @@ class Canvas(vispy.scene.SceneCanvas):
             for pixel in ep_buf:
                 edge_pixel_array[index] = [pixel.x / self.xdim, pixel.y / self.ydim, pixel.z / (Config.z_compression * self.zdim)]
                 index += 1
-            for stitch in blob3d.pairings:
-                line_endpoints += (2 * len(stitch.indeces)) # 2 as each line has 2 endpoints
         markers = visuals.Markers()
         markers.set_data(edge_pixel_array, edge_color=None, face_color=colors[colorindex], size=8) # TODO change color
-        # canvas.view.add(markers)
         self.add_marker(markers, markertype)
 
     def add_simple_beads(self, blob3dlist):

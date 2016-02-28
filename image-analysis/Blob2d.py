@@ -3,7 +3,7 @@ import numpy as np
 import math
 from Pixel import Pixel
 import copy
-from util import warn, printl
+from util import warn, printl, printd
 
 
 class Blob2d:
@@ -169,32 +169,6 @@ class Blob2d:
                     else:
                         self.slide.equivalency_set.add((self.id, curn.blob_id))
 
-    @staticmethod
-    def updateid(oldid, newid):
-        '''
-        Update the blob's id and the id of all pixels in the blob
-        Better this was, as we dont have to check each pixel's id, just each blobs (externally!) before chaging pixels
-        '''
-
-        printl(' DB updating the id for:' + str(Blob2d.all[oldid]) + ' to new id' + str(newid))
-        #TODO
-        Blob2d.used_ids[oldid] = 0
-        Blob2d.used_ids[newid] = 1
-        buf = Blob2d.all[oldid]
-        for pix in buf.pixels:
-            pix.blob_id = newid
-        buf.id = newid
-
-        Blob2d.all[newid] = buf
-        Blob2d.all[oldid] = None
-        printl(' DB updated to' + str(Blob2d.all[newid]))
-
-
-
-        # self.id = newid
-        # for pix in self.pixels:
-        #     pix.blob_id = newid
-
 
     def setPossiblePartners(self, blob2dlist):
         '''
@@ -226,10 +200,7 @@ class Blob2d:
                         partnerSmaller = True
             # If either of the above was true, then one blob is within the bounding box of the other
             if inBounds:
-
                 pair_coor = set((Pixel.get(pix).x, Pixel.get(pix).y) for b2d in blob.getdescendants(include_self=True) for pix in b2d.pixels)
-
-                #
                 # printl('DEBUG running extra tests to narrow possible partners')
                 # printl('Pair_coor:' + str(pair_coor))
                 # printl('Len of my_pixel_coor: ' + str(len(my_pixel_coor)) + ' len of pair_coor: ' + str(len(pair_coor)))
@@ -312,8 +283,8 @@ class Blob2d:
 
 
     def __str__(self):
-        pairingidsl = [pairing.lowerblob.id for pairing in self.pairings if pairing.lowerblob.id != self.id]
-        pairingidsu = [pairing.upperblob.id for pairing in self.pairings if pairing.upperblob.id != self.id]
+        pairingidsl = [pairing.lowerblob for pairing in self.pairings if pairing.lowerblob != self.id]
+        pairingidsu = [pairing.upperblob for pairing in self.pairings if pairing.upperblob != self.id]
         pairingids = sorted(pairingidsl + pairingidsu)
         return str('B{id:' + str(self.id) + ', #P=' + str(len(self.pixels))) + ', #EP=' + str(len(self.edge_pixels)) + ', recur_depth=' + str(self.recursive_depth) + ', parentID=' + str(self.parentID) + ', b3did=' + str(self.b3did) + ', pairedids=' + str(pairingids)  + ', height=' + str(self.height) + ', (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) +'), Avg(X,Y):(%.1f' % self.avgx + ',%.1f' % self.avgy + ', children=' + str(self.children) +')}'
 
@@ -388,49 +359,39 @@ class Blob2d:
         '''
         newlist = []
         copylist = list(bloblist) # Hack, fix by iterating backwards: http://stackoverflow.com/questions/2612802/how-to-clone-or-copy-a-list-in-python
-        if Config.debug_set_merge:
-            printl('Blobs to merge:' + str(copylist))
+        printd('Blobs to merge:' + str(copylist), Config.debug_set_merge)
         while len(copylist) > 0:
-            if Config.debug_set_merge:
-                printl('Len of copylist:' + str(len(copylist)))
+            printd('Len of copylist:' + str(len(copylist)), Config.debug_set_merge)
             blob1 = copylist[0]
             newpixels = []
             merged = False
-            if Config.debug_set_merge:
-                printl('**Curblob:' + str(blob1))
+            printd('**Curblob:' + str(blob1), Config.debug_set_merge)
             for (index2, blob2) in enumerate(copylist[1:]):
                 if blob2 == blob1:
-                    if Config.debug_set_merge:
-                        printl('   Found blobs to merge: ' + str(blob1) + ' & ' + str(blob2))
+                    printd('   Found blobs to merge: ' + str(blob1) + ' & ' + str(blob2), Config.debug_set_merge)
                     if Blob2d.get(blob1).recursive_depth != Blob2d.get(blob2).recursive_depth:
                         printl('WARNING merging two blobs of different recursive depths:' + str(blob1) + ' & ' + str(blob2))
                     merged = True
                     newpixels = newpixels + Blob2d.get(blob2).pixels
             if merged == False:
-                if Config.debug_set_merge:
-                    printl('--Never merged on blob:' + str(blob1))
+                printd('--Never merged on blob:' + str(blob1) ,Config.debug_set_merge)
                 newlist.append(blob1)
                 del copylist[0]
             else:
-                if Config.debug_set_merge:
-                    printl(' Merging, newlist-pre:' + str(newlist))
-                    printl(' Merging, copylist-pre:' + str(copylist))
+                printd(' Merging, newlist-pre:', Config.debug_set_merge)
+                printd(' Merging, copylist-pre:', Config.debug_set_merge)
                 index = 0
                 while index < len(copylist):
-                    if Config.debug_set_merge:
-                        printl(' Checking to delete:' + str(copylist[index]))
+                    printd(' Checking to delete:' + str(copylist[index]), Config.debug_set_merge)
                     if copylist[index] == blob1:
-                        if Config.debug_set_merge:
-                            printl('  Deleting:' + str(copylist[index]))
+                        printd('  Deleting:' + str(copylist[index]), Config.debug_set_merge)
                         del copylist[index]
                         index -= 1
                     index += 1
                 newlist.append(Blob2d(Blob2d.get(blob1).pixels + newpixels, Blob2d.get(blob1).master_array, Blob2d.get(blob1).slide, recursive_depth=Blob2d.get(blob1).recursive_depth, parentID=min(Blob2d.get(blob1).parentID, Blob2d.get(blob2).parentID), direct_children=Blob2d.get(blob1).children + Blob2d.get(blob2).children))
-                if Config.debug_set_merge:
-                    printl(' Merging, newlist-post:' + str(newlist))
-                    printl(' Merging, copylist-post:' + str(copylist))
-        if Config.debug_set_merge:
-            printl('Merge result' + str(newlist))
+                printd(' Merging, newlist-post:' + str(newlist), Config.debug_set_merge)
+                printd(' Merging, copylist-post:' + str(copylist), Config.debug_set_merge)
+        printd('Merge result' + str(newlist), Config.debug_set_merge)
         return newlist
 
     def toArray(self):

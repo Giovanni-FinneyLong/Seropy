@@ -1,7 +1,7 @@
 from Blob2d import Blob2d
 from Pixel import Pixel
 from util import warn
-from util import debug, printl
+from util import debug, printl, printd
 from myconfig import Config
 
 def printGeneralInfo(prefix='', indent=0, suffix=''):
@@ -78,21 +78,27 @@ class Blob3d:
             parent_b3dids = set([b2d.b3did for b2d in all_b2d_parents if b2d.b3did != -1])
             # printl('Their b3dids: ' + str(parent_b3dids))
             if len(parent_b3dids) > 0:
+                printd('Attempting to create a new b3d with id: ' + str(self.id)
+                       + '\nAll b2d_parents of our b2ds that are going into a new b3d: ' + str(all_b2d_parents)
+                       + '\nAll of the b2ds\'_parents\' b3dids: ' + str(parent_b3dids), Config.debug_b3d_merge)
+
                 if len(parent_b3dids) > 1:
-                    printl('*Found more than one b3d parent for b3d: ' + str(self) + ' attempting to merge parents: ' + str(list(Blob3d.get(b3d) for b3d in parent_b3dids)))
+                    printd('*Found more than one b3d parent for b3d: ' + str(self) + ', attempting to merge parents: '
+                           + str(list(Blob3d.get(b3d) for b3d in parent_b3dids)), Config.debug_b3d_merge)
                     Blob3d.merge(list(parent_b3dids))
                     new_parent_b3dids = list(set([b2d.b3did for b2d in all_b2d_parents if b2d.b3did != -1])) # TODO can remove this, just for safety for now
-                    printl('  Post merging b3d parents, updated parent b3dids: ' + str(new_parent_b3dids))
+                    printd('  Post merging b3d parents, updated available-parent b3dids: ' + str(new_parent_b3dids),
+                           Config.debug_b3d_merge)
                 else:
                     new_parent_b3dids = list(parent_b3dids)
                 self.parentID = new_parent_b3dids[0] # HACK HACK HACK
                 if len(new_parent_b3dids) != 0 or self.parentID == -1:
-                    printl(" -DB updated parentID to: " + str(self.parentID) + ' from new_parent_ids ')
+                    printd(" Updating b3d " + str(self.id) + '\'s parentID to: ' + str(self.parentID)
+                           + ' from new_parent_ids(after regen after merge): ' + str(new_parent_b3dids), Config.debug_b3d_merge)
                 Blob3d.all[self.parentID].children.append(self.id)
-                # printl('--> set parentID to: ' + str(self.parentID) + ' from the available parent_b3dids (after merging): ' + str(new_parent_b3dids))
-                # printl('Which has been updated to: ' + str(Blob3d.get(self.parentID)))
+                printd(' Added b3d ' + str(self.id) + ' to parent\'s list of children, updated parent: ' + str(Blob3d.all[self.parentID]), Config.debug_b3d_merge)
                 if len(new_parent_b3dids) != 1:
-                    warn('New b3d (' + str(self.id) + ') ended up with more than one parent!')
+                    warn('New b3d (' + str(self.id) + ') should have ended up with more than one parent!')
             else:
                 warn('Creating a b3d at depth ' + str(r_depth) + ' with id ' + str(self.id) + ' which could not find a b3d parent')
         self.validate()
@@ -174,6 +180,7 @@ class Blob3d:
         while len(b3dlist):
             next = b3dlist.pop()
             Blob3d.merge2(b3d, next)
+        printl(' Result of calling merge on b3dlist is b3d: ' + str(b3d))
         return b3d
 
 
@@ -187,14 +194,16 @@ class Blob3d:
         :param b2: The second b3d to merge2
         :return:
         '''
+
+        #Config.debug_b3d_merge
         if b1 == -1 or b2 == -1:
-            printl('Skipping merging b3ds' + str(b1) + ' and ' + str(b2) + ' because at least one of them is -1, this should be fixed soon..') # TODO
+            warn('***Skipping merging b3ds' + str(b1) + ' and ' + str(b2) + ' because at least one of them is -1, this should be fixed soon..') # TODO
         else:
             b1 = Blob3d.get(b1)
             b2 = Blob3d.get(b2)
-            printl('-MERGING two b3ds: ' + str(b1) + '   ' + str(b2))
+            printl(' Merging two b3ds: ' + str(b1) + '   ' + str(b2))
 
-            # if b1.id < b2.id: #HACK
+            # if b1.id < b2.id: #HACK TODO revert this once issue is solved. This just makes things simpler to DEBUG
             smaller = b1
             larger = b2
             # else:
@@ -339,9 +348,14 @@ class Blob3d:
             if len(remove_children):
                 for child in remove_children:
                     b3d.children.remove(child)
-                printl('While cleaning b3d:' + str(b3d) + ' had to remove children that no longer existed ' + str(remove_children))
+                printl(' While cleaning b3d:' + str(b3d) + ' had to remove children that no longer existed ' + str(remove_children))
+            if b3d.parentID is None:
+                printd(' Found b3d with None parentID: ' + str(b3d), Config.debug_b3d_merge)
+            if b3d.parentID not in Blob3d.all:
+                printl(' While cleaning b3d:' + str(b3d) + ' had to set parentID to None, because parentID: ' + str(b3d.parentID) + ' is not a valid blob3d-id')
+                b3d.parentID = None
         if set_isBead_after:
-            printl(' While cleaning, found b3ds without isBead attr, so setting isBead for all b3ds')
+            printl(' While cleaning b3ds, found b3ds without isBead attr, so setting isBead for all b3ds')
             Blob3d.tag_all_beads()
 
 

@@ -68,7 +68,6 @@ class Logger:
         print('Log path: ' + str(self.log_path))
 
     def w(self, string, end='\n'):
-        # print('Writing string: ' + str(string))
         if self.nervous:
             self.file = open(self.log_path, 'a+')
             self.file.write(string + end)
@@ -80,15 +79,35 @@ class Logger:
 log = Logger(nervous=Config.nervous_logging) # TODO clean this up by moving it elsewhere or using Logger directly
 
 def printl(string, end='\n', flush=False):
+    '''
+    Prints to log and stdout
+    :param string: The object to be written
+    :param end: The suffix of the string
+    :param flush: Whether to force-flush the print buffer
+    :return:
+    '''
     if type(string) is not str:
         string = str(string)
     print(string, end=end, flush=flush)
     if Config.do_logging:
         log.w(string, end=end)
 
+def printd(string, toggle, end='\n', flush=False):
+    '''
+    Prints to stdout depending on the value of toggle, writes to log regardless
+    :param string: The object to be written
+    :param end: The suffix of the string
+    :param flush: Whether to force-flush the print buffer
+    :return:
+    '''
+    if toggle:
+        printl(string, end=end, flush=flush)
+    else:
+        if Config.log_everything:
+            log.w(string, end=end)
 
 class progressBar:
-    def __init__(self, start_val=0, min_val=0, max_val=100, increments=10, symbol='.'):
+    def __init__(self, start_val=0, min_val=0, max_val=100, increments=10, symbol='.', log=False):
         assert len(symbol) == 1
         assert start_val <= max_val
         self.symbol = symbol
@@ -98,6 +117,7 @@ class progressBar:
         self.increments = increments
         self.cur_val =  0
         self.symbols_printed = 0
+        self.log = log
         # printl('Db created progress bar, max_val = ' + str(max_val))
         # printl('Start val = ' + str(start_val))
 
@@ -129,7 +149,10 @@ class progressBar:
         Prints one more symbol to indicate passing another interval
         :return:
         '''
-        printl(self.symbol, end='', flush=True)
+        if self.log:
+            printl(self.symbol, end='', flush=True)
+        else:
+            print(self.symbol, end='', flush=True)
         self.symbols_printed += 1
         self.last_output = self.cur_val
 

@@ -24,6 +24,7 @@ class Config:
     stitch_bloomed_b2ds = False # Default False
     do_logging = True
     nervous_logging = True
+    log_everything = True
 
     OpenGLLinesInsteadOfAgg = True
     disable_warnings = False
@@ -31,6 +32,8 @@ class Config:
     debug_blob_ids = False
     debug_pixel_ops = False
     debug_set_merge = False
+    debug_b3d_merge = False
+    debug_stitches = False
     '''
      __     __            _         _      _
      \ \   / /__ _  _ __ (_)  __ _ | |__  | |  ___  ___

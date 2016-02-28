@@ -5,7 +5,7 @@ from myconfig import Config
 from util import debug
 from Blob2d import Blob2d
 import time
-from util import print_elapsed_time, progressBar, printl
+from util import print_elapsed_time, progressBar, printl, printd
 from Pixel import Pixel
 class Pairing:
     """
@@ -18,14 +18,17 @@ class Pairing:
 
     def edgepixelsinbounds(self, subsetblob, boundaryblob):
         """
-        :param subsetblob: A blob2d from which we will find a subset of edge_pixels which are within an acceptable bound
-        :param boundaryblob: A blob2d which is used to set the boundary constraints for pixels from subsetblob
+        :param subsetblob: A blob2d's id from which we will find a subset of edge_pixels which are within an acceptable bound
+        :param boundaryblob: A blob2d's id which is used to set the boundary constraints for pixels from subsetblob
         :param scale: Advised 1-1.2, the amount to expand the boundary of the boundary blob
             to contain the subset of the other blob
         :return: A list of pixels, chosen from subsetblob.edge_pixels,
             which are within the scaled boundary defined by boundaryblob
         """
         assert 0 < self.overscan_scale < 2
+        subsetblob = Blob2d.get(subsetblob)
+        boundaryblob = Blob2d.get(boundaryblob)
+
         left_bound = boundaryblob.avgx - ((boundaryblob.avgx - boundaryblob.minx) * self.overscan_scale)
         right_bound = boundaryblob.avgx + ((boundaryblob.maxx - boundaryblob.avgx) * self.overscan_scale)
         down_bound = boundaryblob.avgy - ((boundaryblob.avgy - boundaryblob.miny) * self.overscan_scale)
@@ -102,20 +105,6 @@ class Pairing:
                     cost += math.pow(bins1[i] - bins2[i], 2) / (bins1[i] + bins2[i])
             return cost / 2
 
-        # def distanceCostBetweenPoints(pixel1, pixel2):
-        #     pixel1 = Pixel.get(pixel1)
-        #     pixel2 = Pixel.get(pixel2)
-        #
-        #     buf = math.sqrt(math.pow(pixel1.x - pixel2.x, 2) + math.pow(pixel1.y - pixel2.y, 2))
-        #     if buf > 0.0: # Because floats..
-        #         try:
-        #             return math.log(buf, 2)
-        #         except:
-        #             printl('DB ERROR: buf = ' + str(buf))
-        #             import pdb
-        #             pdb.set_trace()
-        #     else:
-        #         return 0.0
 
         def makeCostArray():
             """
@@ -167,7 +156,7 @@ class Pairing:
                     if debug:
                         printl('   Comparing to blob2:' + str(blob2))
                     t0 = time.time()
-                    bufStitch = Pairing(blob1, blob2, 1.1, 36, quiet=quiet)
+                    bufStitch = Pairing(blob1.id, blob2.id, 1.1, 36, quiet=quiet)
                     if bufStitch.isConnected:
                         if debug:
                             printl('    +Blobs connected')
@@ -205,7 +194,7 @@ class Pairing:
                     printl('   Comparing to blob2:' + str(blob2))
                 t0 = time.time()
                 # printl('- DB b1, b2 before pairing:' + str(blob1) + ', ' + str(blob2))
-                bufStitch = Pairing(blob1, blob2, 1.1, 36, quiet=True)
+                bufStitch = Pairing(blob1.id, blob2.id, 1.1, 36, quiet=True)
                 # printl('- DB b1, b2 after pairing:' + str(blob1) + ', ' + str(blob2))
 
                 if bufStitch.isConnected:
@@ -226,26 +215,23 @@ class Pairing:
             cost_str = str(self.cost)
 
         return str('<Pairing between blob2ds at heights:(' + str(self.lowerheight) + ',' + str(self.upperheight) + ') with ids (' +
-                   str(self.lowerblob.id) + ',' + str(self.upperblob.id) + '). Chose:' + str(len(self.lowerpixels)) +
-                   '/' + str(len(self.lowerblob.edge_pixels)) + ' lower blob pixels and ' + str(len(self.upperpixels)) +
-                   '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels. ' + 'Cost:' + cost_str + '>')
+                   str(self.lowerblob) + ',' + str(self.upperblob) + '). Chose:' + str(len(self.lowerpixels)) +
+                   '/' + str(len(Blob2d.get(self.lowerblob).edge_pixels)) + ' lower blob pixels and ' + str(len(self.upperpixels)) +
+                   '/' + str(len(Blob2d.get(self.upperblob).edge_pixels)) + ' upper blob pixels. ' + 'Cost:' + cost_str + '>\n Actual lowerblob: ' + str(Blob2d.get(self.lowerblob)) + '\n Actual upperblob: ' + str(Blob2d.get(self.upperblob)))
     __repr__ = __str__
 
-    def __init__(self, lowerblob, upperblob, overscan_scale, num_bins, quiet=False):
+    def __init__(self, lowerblobid, upperblobid, overscan_scale, num_bins, quiet=True):
         self.overscan_scale = overscan_scale
         self.num_bins = num_bins
-        self.lowerheight = lowerblob.height
-        self.upperheight = upperblob.height
-        self.lowerblob = lowerblob
-        self.upperblob = upperblob
-        self.upperpixels = self.edgepixelsinbounds(upperblob, lowerblob)
-        self.lowerpixels = self.edgepixelsinbounds(lowerblob, upperblob)
+        self.lowerheight = Blob2d.get(lowerblobid).height
+        self.upperheight = Blob2d.get(upperblobid).height
+        self.lowerblob = lowerblobid
+        self.upperblob = upperblobid
+        self.upperpixels = self.edgepixelsinbounds(upperblobid, lowerblobid)
+        self.lowerpixels = self.edgepixelsinbounds(lowerblobid, upperblobid)
         self.isReduced = False # True when have chosen a subset of the edge pixels to reduce computation
         self.stitches = []
         self.cost = -1 # -1 to indicate that it is unset
-
-        if len(self.lowerpixels) != 0: # Optimization
-            self.upperpixels = self.edgepixelsinbounds(upperblob, lowerblob)
 
         if self.upperpixels is not None and len(self.upperpixels) != 0 and len(self.lowerpixels) != 0:
             # HACK
@@ -255,9 +241,9 @@ class Pairing:
             # selective [::3] with 5 slides = 36 mins
             if len(self.upperpixels) > Config.max_pixels_to_stitch or len(self.lowerpixels) > Config.max_pixels_to_stitch:
                 if not quiet:
-                    printl('-->Too many pixels in the below stitch, reducing to a subset, originally was: ' + str(len(self.lowerpixels)) +
+                    printd('-->Too many pixels in the below stitch, reducing to a subset, originally was: ' + str(len(self.lowerpixels)) +
                         '/' + str(len(self.lowerblob.edge_pixels)) + ' lower blob pixels and ' + str(len(self.upperpixels)) +
-                        '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels.')
+                        '/' + str(len(self.upperblob.edge_pixels)) + ' upper blob pixels.', quiet)
                 pickoneovers = max(1, math.ceil(len(self.upperpixels) / Config.max_pixels_to_stitch)), max(1, math.ceil(len(self.lowerpixels) / Config.max_pixels_to_stitch)) # HACK TODO Modify these values to be more suitable dependent on computation time
                 self.isReduced = True
                 self.upperpixels = self.upperpixels[::pickoneovers[0]] # Every pickoneover'th element
@@ -265,24 +251,15 @@ class Pairing:
             self.isConnected = True
             self.setShapeContexts(num_bins) # Set lower and upper context bins
             if not quiet:
-                printl('   ' + str(self))
+                printd('   ' + str(self), quiet)
             self.munkresCost() # Now have set self.cost and self.indeces and self.connect
-
-
-            # printl('******DEBUG before, lowerblob = ' + str(lowerblob) + ' and entry = ' + str(Blob2d.all[lowerblob.id]))
-            # printl('******DEBUG before, lowerblob = ' + str(len(lowerblob.pairings)) + ' and entry = ' + str(len(Blob2d.all[lowerblob.id].pairings)))
-
-            Blob2d.all[lowerblob.id].pairings.append(self)
-            Blob2d.all[upperblob.id].pairings.append(self)
-            # HACK
-            lowerblob.pairings.append(self)
-            upperblob.pairings.append(self)
-            # HACK
-            # printl('******DEBUG after, lowerblob = ' + str(lowerblob) + ' and entry = ' + str(Blob2d.all[lowerblob.id]))
-            # printl('******DEBUG after, lowerblob = ' + str(len(lowerblob.pairings)) + ' and entry = ' + str(len(Blob2d.all[lowerblob.id].pairings)))
+            Blob2d.all[lowerblobid].pairings.append(self) # TODO TODO  convert this to use ids
+            Blob2d.all[upperblobid].pairings.append(self)
 
         else:
             self.isConnected = False
+        printd('Just created stitch: ' + str(self), Config.debug_stitches)
+
 
 
 class Stitch:
