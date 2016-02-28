@@ -351,7 +351,7 @@ class Blob3d:
                 printl(' While cleaning b3d:' + str(b3d) + ' had to remove children that no longer existed ' + str(remove_children))
             if b3d.parentID is None:
                 printd(' Found b3d with None parentID: ' + str(b3d), Config.debug_b3d_merge)
-            if b3d.parentID not in Blob3d.all:
+            elif b3d.parentID not in Blob3d.all:
                 printl(' While cleaning b3d:' + str(b3d) + ' had to set parentID to None, because parentID: ' + str(b3d.parentID) + ' is not a valid blob3d-id')
                 b3d.parentID = None
         if set_isBead_after:
