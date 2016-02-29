@@ -261,7 +261,6 @@ class Pairing:
         printd('Just created stitch: ' + str(self), Config.debug_stitches)
 
 
-
 class Stitch:
     '''
     A single instance of a stitch between two blob2ds.

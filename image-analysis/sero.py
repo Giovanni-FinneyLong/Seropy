@@ -175,30 +175,14 @@ def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
                     rejected = []
                     for pp in b2d.possible_partners:
                         printd("     *Checking if pp:" + str(pp) + ' is in all_d1: ' + str(all_d1_with_pp_in_this_b3d), Config.debug_blooming)
-                        # if pp in all_d1_with_pp_in_this_b3d: # HACK REMOVED
-                        if True: # HACK
+                        if pp in all_d1_with_pp_in_this_b3d: # HACK REMOVED
                             printd("     Added partner: " + str(pp), Config.debug_blooming)
                             cur_matches += [Blob2d.get(b) for b in Blob2d.get(pp).getpartnerschain()]
-                        # else:
-                        #     printd("     Rejected partner: " + str(Blob2d.get(pp)) + ' because it wasnt in all_d1_with_pp', Config.debug_blooming)
-                        #     rejected.append(Blob2d.get(pp))
                     if len(cur_matches) > 1:
                         printd("**LEN OF CUR_MATCHES MORE THAN 1", Config.debug_blooming)
                         new_b3d_list = [blob.id for blob in set(cur_matches) if blob.recursive_depth == b2d.recursive_depth and blob.b3did == -1]
                         if len(new_b3d_list):
                             new_b3ds.append(Blob3d(new_b3d_list, r_depth=b2d.recursive_depth))
-                    # else: # DEBUG
-                    #     printl("Plotting all rejected b2ds and self!")
-                    #     plotting = rejected + [b2d]
-                    #     for b2d in plotting:
-                    #         print(' ' + str(b2d))
-                    #     plotBlob2ds(plotting, ids=True, offset=True)
-                    #     plotting = [Blob2d.get(b) for r in rejected for b in r.getpartnerschain()] + [b2d]
-                    #     printl("Now plotting all those which would have been added (due to chaining!")
-                    #     for b2d in plotting:
-                    #         print(' ' + str(b2d))
-                    #     plotBlob2ds(plotting, ids=True, offset=True)
-
         all_new_b3ds += new_b3ds
     printl(' Made a total of ' + str(len(all_new_b3ds)) + ' new b3ds')
 
@@ -275,9 +259,6 @@ def main():
         Blob3d.tag_all_beads()
         beads = list(b3d for b3d in Blob3d.all.values() if b3d.isBead)
         printl('Total number of beads: ' + str(len(beads)) + ' out of ' + str(len(Blob3d.all)) + ' total b3ds')
-        # printl('Plotting beads only')
-        # plotBlob3ds(beads)
-        # plotBlob2ds([blob2d for blob3d in beads for blob2d in blob3d.blob2ds],ids=False, parentlines=True,explode=True, coloring='blob3d',edge=False, stitches=True)
         plotBlob2ds([b2d for b2d in Blob2d.all.values()],
                     ids=False, parentlines=True,explode=True, coloring='blob3d',edge=True, stitches=True)
 
@@ -307,15 +288,15 @@ def main():
 
 
 
-        for b3d in Blob3d.all.values():
-            printl(b3d)
-            for child in b3d.children:
-                printl('  cld:' + str(Blob3d.get(child)))
-            # for b2d in b3d.blob2ds:
-            #     printl('    b2d:' + str(Blob2d.get(b2d)))
-            if len(b3d.children) > 0:
-                printl('------------')
-                plotBlob3ds([b3d] + [Blob3d.get(blob) for blob in (b3d.children)])
+        # for b3d in Blob3d.all.values():
+        #     printl(b3d)
+        #     for child in b3d.children:
+        #         printl('  cld:' + str(Blob3d.get(child)))
+        #     # for b2d in b3d.blob2ds:
+        #     #     printl('    b2d:' + str(Blob2d.get(b2d)))
+        #     if len(b3d.children) > 0:
+        #         printl('------------')
+        #         plotBlob3ds([b3d] + [Blob3d.get(blob) for blob in (b3d.children)])
 
 
 

@@ -334,6 +334,8 @@ class Blob2d:
             :param: cursorblob: The blob whose stitching is examined for connected blob2ds
             :param: blob2dlist: The accumulated list of a blob2ds which are connected directly or indirectly to the inital seed blob
             '''
+            if type(cursorblob) is int:
+                cursorblob = Blob2d.get(cursorblob)
             if hasattr(cursorblob, 'pairings') and len(cursorblob.pairings) != 0:
                 if cursorblob not in blob2dlist:
                     if hasattr(cursorblob, 'assignedto3d') and cursorblob.assignedto3d:
