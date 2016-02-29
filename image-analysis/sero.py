@@ -51,6 +51,7 @@ def save(blob3dlist, filename, directory=Config.PICKLEDIR):
             printl('Opening up an interactive console, press \'n\' then \'enter\' to load variables before interacting, and enter \'exit\' to resume execution')
             debug()
             pass
+    log.flush()
 
 
 def load(filename, directory=Config.PICKLEDIR):
@@ -217,6 +218,7 @@ def main():
 
         printl("DB saving a rd0 copy!")
         save(blob3dlist, picklefile + '_rd0_only')
+        log.flush()
 
         if Config.process_internals:
             bloomed_b3ds = bloom_b3ds(blob3dlist, stitch=Config.stitch_bloomed_b2ds) # Includes setting partners, and optionally stitching
@@ -226,6 +228,7 @@ def main():
             blob3dlist = blob3dlist + bloomed_b3ds
 
         save(blob3dlist, picklefile)
+        log.flush()
         plotBlob2ds(list(Blob2d.all.values()),
                     stitches=True, parentlines=Config.process_internals,
                     explode=Config.process_internals, edge=False, pixel_ids=False, ids=False)
@@ -254,9 +257,25 @@ def main():
             blob3dlist = list(Blob3d.all.values())
 
 
+
         Blob3d.cleanB3ds()
         printl('Setting beads!')
         Blob3d.tag_all_beads()
+
+        # largest_b3d = Blob3d.all[0]
+        # high_count = largest_b3d.get_edge_pixel_count()
+        # for b3d in Blob3d.all.values():
+        #     ep = b3d.get_edge_pixel_count()
+        #     if ep > high_count:
+        #         high_count = ep
+        #         largest_b3d = b3d
+        # print('The largest b3d: ' + str(largest_b3d) + ' with ep count: ' + str(high_count))
+        # fcb = largest_b3d.get_first_child_beads()
+        # print("The number of first child beads: " + str(len(fcb)))
+        # plotBlob3ds([largest_b3d] + largest_b3d.get_first_child_beads())
+
+
+
         beads = list(b3d for b3d in Blob3d.all.values() if b3d.isBead)
         printl('Total number of beads: ' + str(len(beads)) + ' out of ' + str(len(Blob3d.all)) + ' total b3ds')
         plotBlob2ds([b2d for b2d in Blob2d.all.values()],
@@ -315,25 +334,39 @@ if __name__ == '__main__':
 
             filter_available_colors()
         main()  # Run the main function
+        log.close()
     except Exception as exc:
         printl("\nEXECUTION FAILED!\n")
         printl(traceback.format_exc())
         printl('Writing object to log')
+        log.close()
+# TODO less b3ds after loading then when saving..?
 
 # NOTE: After updating blooming (2/28)
-# NOTE: Swell, stitched base, non-stitched blooming 2/28
-# Pickling 11234 b3ds took 5.12 seconds
-# Pickling 24253 b2ds took 19.08 seconds
-# Pickling 708062 pixels took 14.06 seconds
-# Saving took: 38.27 seconds
+# NOTE: Swell, stitched base, stitched blooming 2/28
+# Pickling 4123 b3ds took 11.19 seconds
+# Pickling 24253 b2ds took 21.77 seconds
+# Pickling 708062 pixels took 11.14 seconds
+# Saving took: 44.11 seconds
+# &
+# Loading b3ds (3829) took 4.32 seconds
+# Loading b2ds (24253) took 11.19 seconds
+# Loading pixels (708062) took 7.56 seconds
+# Total time to load: 23.08 seconds
 
 # NOTE: After updating blooming (2/28)
 # NOTE: C57BL6, stitched base, non-stitched blooming 2/28
-# Pickling 29309 b3ds took 19.27 seconds
-# Pickling 49891 b2ds took 39.61 seconds
-# Pickling 782067 pixels took 12.56 seconds
-# Saving took: 1 minute & 11 seconds
+# Pickling 8293 b3ds took 27.58 seconds
+# Pickling 49891 b2ds took 26.82 seconds
+# Pickling 782067 pixels took 12.23 seconds
+# Saving took: 1 minute & 7 seconds
+# &
+# Loading b3ds (8209) took 9.49 seconds
+# Loading b2ds (49891) took 31.66 seconds
+# Loading pixels (782067) took 8.68 seconds
+# Total time to load: 49.83 seconds
 
+# TODO less b3ds after loading then when saving..?
 
 
 # NOTE: Post Stitch fix: (Also parallel run with the below)

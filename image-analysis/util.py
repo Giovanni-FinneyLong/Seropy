@@ -41,6 +41,10 @@ class Logger:
     def close(self):
         self.file.close()
 
+    def flush(self):
+        self.close()
+        self.file = open(self.log_path, 'a+')
+
     def generate_log_name(self):
         date = datetime.now().strftime("(%m-%d-%Y)-(%H-%M-%S)")
         if Config.test_instead_of_data:

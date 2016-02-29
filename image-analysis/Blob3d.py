@@ -366,10 +366,21 @@ class Blob3d:
         # This is meant to be called for a non_bead
         # Will descent it's tree, finding all beads that aren't in anyway children of another bead
         beads = []
+        # print("Called get_first_child_beads on: " + str(self))
+        # print("Iterating though children: " + str(self.children))
         for child in self.children:
             child = Blob3d.get(child)
+            # print(" Examining child: " + str(child))
             if child.isBead:
                 beads.append(child)
             else:
                 beads = beads + child.get_first_child_beads()
         return beads
+
+    def has_parent_nonbead(self):
+        res = False
+
+        if self.parentID is not None:
+
+            res = res or Blob3d.get(self.parentID).has_parent_nonbead()
+        return res

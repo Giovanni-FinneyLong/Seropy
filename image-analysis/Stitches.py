@@ -138,7 +138,6 @@ class Pairing:
 
     @staticmethod
     def stitchAllBlobs(slidelist, quiet=True, debug=False):
-
         pairlist = []
         t_start_stitching = time.time()
         printl('')
