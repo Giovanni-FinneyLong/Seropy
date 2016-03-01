@@ -14,7 +14,7 @@ from setuptools import setup, find_packages
 setup(
     name='Serotonin',
     version='.1',
-    install_requires=['numpy', 'vispy', 'munkres'],
+    install_requires=['numpy', 'vispy', 'munkres', 'scipy', 'PIL'],
     packages=find_packages(),
     url='https://bitbucket.org/gfinneylong/serotonin',
     license='',
