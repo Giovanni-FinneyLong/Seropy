@@ -253,7 +253,7 @@ def main():
         beads = list(b3d for b3d in Blob3d.all.values() if b3d.isBead)
         printl('Total number of beads: ' + str(len(beads)) + ' out of ' + str(len(Blob3d.all)) + ' total b3ds')
         plot_b2ds([b2d for b2d in Blob2d.all.values()], coloring='simple', ids=False, stitches=True, edge=True,
-                  buffering=True, parentlines=True, explode=True)
+                  buffering=False, parentlines=True, explode=True)
 
 
 

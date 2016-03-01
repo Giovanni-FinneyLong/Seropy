@@ -140,6 +140,7 @@ class Config:
     assert 1 <= overscan_coefficient <= 2
     assert 0 < min_val_threshold <= hard_max_pixel_value
     assert 1 <= max_pixels_to_stitch
+    # Compare GL and Agg here: http://vispy.readthedocs.org/en/stable/examples/basics/visuals/line.html
     if OpenGLLinesInsteadOfAgg:
       linemethod = 'gl'
     else:

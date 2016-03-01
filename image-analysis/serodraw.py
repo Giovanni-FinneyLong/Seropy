@@ -602,55 +602,102 @@ class Canvas(vispy.scene.SceneCanvas):
 
     def add_simple_beads(self, blob3dlist):  # NOTE only doing strands for now for simplicity
         print('-----------adding simple beads')
-        # print(" Adding simple beads from b3dlist: " + str(blob3dlist))
-        base_b3ds = [b3d for b3d in blob3dlist if b3d.recursive_depth == 0]  # and not b3d.isBead]
+        # if Config.test_instead_of_data:
+        if True: # HACK
+            # print(" Adding simple beads from b3dlist: " + str(blob3dlist))
+            base_b3ds = [b3d for b3d in blob3dlist if b3d.recursive_depth == 0]  # and not b3d.isBead]
 
-        print(' Number of base_b3ds = ' + str(len(base_b3ds)) + ' / ' + str(len(blob3dlist)))
-        bead_groups = []
-        all_first_children = []
+            print(' Number of base_b3ds = ' + str(len(base_b3ds)) + ' / ' + str(len(blob3dlist)))
+            bead_groups = []
+            all_first_children = []
 
-        for b3d in base_b3ds:
-            print('  Workin on base_b3d: ' + str(b3d))
-            print('  Result of has_parent_nonbead: ' + str(b3d.has_parent_nonbead()))
+            for b3d in base_b3ds:
+                print('  Workin on base_b3d: ' + str(b3d))
+                print('  Result of has_parent_nonbead: ' + str(b3d.has_parent_nonbead()))
 
-            if b3d.isBead is not True and b3d.isBead is not None:
-                first_children = [blob3d for blob3d in b3d.get_first_child_beads() if blob3d.isBead]
-                # first_children = [Blob3d.get(blob3d) for blob3d in b3d.children if Blob3d.get(blob3d).isBead]
+                if b3d.isBead is not True and b3d.isBead is not None:
+                    first_children = [blob3d for blob3d in b3d.get_first_child_beads() if blob3d.isBead]
+                    # first_children = [Blob3d.get(blob3d) for blob3d in b3d.children if Blob3d.get(blob3d).isBead]
 
-                # print('   First_children (' + str(len(first_children)) + ') = ' + str(list(child.id for child in first_children)))
-                if not len(first_children):
-                    warn('Found non_bead b3d without any first children beads ' + str(b3d))  # FIXME TODO
+                    # print('   First_children (' + str(len(first_children)) + ') = ' + str(list(child.id for child in first_children)))
+                    if not len(first_children):
+                        warn('Found non_bead b3d without any first children beads ' + str(b3d))  # FIXME TODO
+                    else:
+                        bead_groups.append(first_children)
+                        all_first_children += first_children
                 else:
-                    bead_groups.append(first_children)
-                    all_first_children += first_children
-            else:
-                bead_groups.append([b3d])
+                    bead_groups.append([b3d])
 
-        print(' Bead groups: ' + str(bead_groups))
-        print('Len of all first children: ' + str(len(all_first_children)))
-        print('Len of all first children as set: ' + str(len(set(all_first_children))))
-        print(" Number of bead groups: " + str(len(bead_groups)))
+            print(" Number of bead groups: " + str(len(bead_groups)))
 
-        for index, bg in enumerate(bead_groups):
-            print('  BG=(' + str(len(bg)) + '): ' + str(bg))
-            bg = sorted(bg, key=lambda blob3d: (blob3d.avgx, blob3d.avgy))
-            marker_midpoints = np.zeros([len(bg), 3])
-            for group_index, b3d in enumerate(bg):
+            bg_of_one = []
+            bg_more_than_one = []
+            for bg in bead_groups:
+                if len(bg) > 1:
+                    bg_more_than_one.append(bg)
+                else:
+                    bg_of_one.append(bg[0])
+            print('BG of one: ' + str(bg_of_one))
+            print('BG of more: ' + str(bg_more_than_one))
+
+            # Adding beads that were in groups of their own all together as one group:
+            # This is done ONLY for speed reasons
+            one_marker_midpoints = np.zeros([len(bg_of_one), 3])
+            one_markers = visuals.Markers()
+            for index,b3d in enumerate(bg_of_one):
                 val = [b3d.avgx / self.xdim, b3d.avgy / self.ydim, b3d.avgz / (Config.z_compression * self.zdim)]
-                marker_midpoints[group_index] = val
-            markers = visuals.Markers()
-            if len(marker_midpoints) == 1:
-                edge_color = 'y'
-            else:
-                edge_color = None
-            markers.set_data(marker_midpoints, face_color=colors[index % len(colors)], size=15, edge_color=edge_color)
-            print('Adding simple markers from pos: \n' + str(marker_midpoints))
-            if len(bg) > 1:
-                print('-Adding stitches from same pos!')
-                lines = visuals.Line(method=Config.linemethod, color=colors[index % len(colors)])
-                lines.set_data(pos=marker_midpoints, connect='strip')
-                self.add_stitch(lines, 'simple')
-            self.add_marker(markers, 'simple')
+                one_marker_midpoints[index] = val
+            one_markers.set_data(one_marker_midpoints, face_color=colors[0], size=8, edge_color='yellow')
+            self.add_marker(one_markers, 'simple')
+
+            color_markers = [np.empty((0,3)) for _ in colors]
+            all_stitch_arr = np.zeros((0,3))
+
+            num_markers = sum(len(bg) for bg in bg_more_than_one)
+            print("Num_markers = " + str(num_markers))
+            connections = np.empty((num_markers,2))
+            marker_index = 0
+
+
+
+            for index, bg in enumerate(bg_more_than_one):
+                print('  BG=(' + str(len(bg)) + '): ' + str(bg))
+                bg = sorted(bg, key=lambda blob3d: (blob3d.avgx, blob3d.avgy))
+                marker_midpoints = np.zeros([len(bg), 3])
+                for group_index, b3d in enumerate(bg):
+                    print('Group index: ' + str(group_index) + ', len bg: ' + str(len(bg)))
+                    if group_index == len(bg) - 1:
+                        connections[marker_index] = [marker_index, marker_index]
+                    else:
+                        connections[marker_index] = [marker_index, marker_index + 1]
+
+                    val = [b3d.avgx / self.xdim, b3d.avgy / self.ydim, b3d.avgz / (Config.z_compression * self.zdim)]
+                    marker_midpoints[group_index] = val
+                    marker_index += 1
+                color_markers[index % len(colors)] = np.concatenate((color_markers[index % len(colors)], marker_midpoints))
+                all_stitch_arr = np.concatenate((all_stitch_arr, marker_midpoints))
+
+                # if len(bg) > 1:
+                #     print('-Adding stitches from same pos!')
+                #     lines = visuals.Line(method=Config.linemethod, color=colors[index % len(colors)])
+                #     lines.set_data(pos=marker_midpoints, connect='strip')
+                #     self.add_stitch(lines, 'simple')
+            for color_index, color_group in enumerate(color_markers):
+                if len(color_group) > 1:
+                    markers = visuals.Markers()
+                    markers.set_data(color_group, face_color=colors[color_index % len(colors)], size=12) #, edge_color=edge_color)
+                    self.add_marker(markers, 'simple')
+                    # all_stitch_arr = np.concatenate((all_stitch_arr, color_group))
+            print("Shape of resulting all_stitch_arr: " + str(all_stitch_arr.shape))
+            print("Shape of resulting connections: " + str(connections.shape))
+            print('Connections: ' + str(connections))
+            print('Stitch arr: ' + str(all_stitch_arr))
+            all_lines = visuals.Line(method=Config.linemethod, color=colors[0])
+            all_lines.set_data(pos=all_stitch_arr, connect=connections)
+            self.add_stitch(all_lines, 'simple')
+
+        else:
+            print("*Skipping because non-test dataset (temporary)")
 
     def add_blob3d_stitches(self, blob3dlist):  # FIXME
         num_markers = min(len(blob3dlist), len(colors))
