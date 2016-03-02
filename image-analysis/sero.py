@@ -81,7 +81,7 @@ def load(filename, directory=Config.PICKLEDIR):
             Blob3d.all[b3d.id] = b3d
 
     Blob3d.next_id = max(b3d.id for b3d in Blob3d.all.values()) + 1
-    print_elapsed_time(t, time.time(), prefix='(' + str(len(Blob3d.all)) + ') took')
+    print_elapsed_time(t, time.time(), prefix='(' + str(len(Blob3d.all)) + ') took', flush=True)
 
     printl('Loading b2ds ', end='', flush=True)
     t = time.time()
@@ -89,14 +89,14 @@ def load(filename, directory=Config.PICKLEDIR):
     Blob2d.all = buff['b2ds']
     Blob2d.used_ids = buff['used_ids']
     Blob2d.total_blobs = len(Blob2d.all)
-    print_elapsed_time(t, time.time(), prefix='(' + str(len(Blob2d.all)) + ') took')
+    print_elapsed_time(t, time.time(), prefix='(' + str(len(Blob2d.all)) + ') took', flush=True)
 
     printl('Loading pixels ', end='', flush=True)
     t = time.time()
     buff = pickle.load(open(filename + '_pixels', "rb"))
     Pixel.all = buff['pixels']
     Pixel.total_pixels = len(Pixel.all)
-    print_elapsed_time(t, time.time(), prefix='(' + str(len(Pixel.all)) + ') took')
+    print_elapsed_time(t, time.time(), prefix='(' + str(len(Pixel.all)) + ') took', flush=True)
 
     printl('Total time to load:', end='')
     print_elapsed_time(t_start, time.time(), prefix='')
@@ -253,7 +253,7 @@ def main():
         beads = list(b3d for b3d in Blob3d.all.values() if b3d.isBead)
         printl('Total number of beads: ' + str(len(beads)) + ' out of ' + str(len(Blob3d.all)) + ' total b3ds')
         plot_b2ds([b2d for b2d in Blob2d.all.values()], coloring='simple', ids=False, stitches=True, edge=True,
-                  buffering=False, parentlines=True, explode=True)
+                  buffering=True, parentlines=True, explode=True)
 
 
 
@@ -271,9 +271,8 @@ if __name__ == '__main__':
         if Config.mayPlot:
             from serodraw import *
 
-            global colors
-            colors = vispy.color.get_color_names()  # ALl possible colors
-
+            # global colors
+            # global color_dict
             filter_available_colors()
         main()  # Run the main function
         log.close()

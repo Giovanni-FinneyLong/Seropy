@@ -14,6 +14,7 @@ from myconfig import Config
 from util import warn, debug
 
 colors = None
+color_dict = None
 
 from Blob3d import get_blob2ds_b3ds, Blob3d
 
@@ -617,9 +618,6 @@ class Canvas(vispy.scene.SceneCanvas):
 
                 if b3d.isBead is not True and b3d.isBead is not None:
                     first_children = [blob3d for blob3d in b3d.get_first_child_beads() if blob3d.isBead]
-                    # first_children = [Blob3d.get(blob3d) for blob3d in b3d.children if Blob3d.get(blob3d).isBead]
-
-                    # print('   First_children (' + str(len(first_children)) + ') = ' + str(list(child.id for child in first_children)))
                     if not len(first_children):
                         warn('Found non_bead b3d without any first children beads ' + str(b3d))  # FIXME TODO
                     else:
@@ -627,9 +625,7 @@ class Canvas(vispy.scene.SceneCanvas):
                         all_first_children += first_children
                 else:
                     bead_groups.append([b3d])
-
             print(" Number of bead groups: " + str(len(bead_groups)))
-
             bg_of_one = []
             bg_more_than_one = []
             for bg in bead_groups:
@@ -655,44 +651,32 @@ class Canvas(vispy.scene.SceneCanvas):
 
             num_markers = sum(len(bg) for bg in bg_more_than_one)
             print("Num_markers = " + str(num_markers))
-            connections = np.empty((num_markers,2))
+            connections = np.empty((num_markers, 2))
+            stitch_colors = np.empty((num_markers, 4))
             marker_index = 0
-
-
 
             for index, bg in enumerate(bg_more_than_one):
                 print('  BG=(' + str(len(bg)) + '): ' + str(bg))
                 bg = sorted(bg, key=lambda blob3d: (blob3d.avgx, blob3d.avgy))
                 marker_midpoints = np.zeros([len(bg), 3])
                 for group_index, b3d in enumerate(bg):
-                    print('Group index: ' + str(group_index) + ', len bg: ' + str(len(bg)))
                     if group_index == len(bg) - 1:
                         connections[marker_index] = [marker_index, marker_index]
                     else:
                         connections[marker_index] = [marker_index, marker_index + 1]
-
+                    stitch_colors[marker_index] = color_to_rgba(colors[index % len(colors)])
                     val = [b3d.avgx / self.xdim, b3d.avgy / self.ydim, b3d.avgz / (Config.z_compression * self.zdim)]
                     marker_midpoints[group_index] = val
                     marker_index += 1
                 color_markers[index % len(colors)] = np.concatenate((color_markers[index % len(colors)], marker_midpoints))
                 all_stitch_arr = np.concatenate((all_stitch_arr, marker_midpoints))
-
-                # if len(bg) > 1:
-                #     print('-Adding stitches from same pos!')
-                #     lines = visuals.Line(method=Config.linemethod, color=colors[index % len(colors)])
-                #     lines.set_data(pos=marker_midpoints, connect='strip')
-                #     self.add_stitch(lines, 'simple')
             for color_index, color_group in enumerate(color_markers):
                 if len(color_group) > 1:
                     markers = visuals.Markers()
                     markers.set_data(color_group, face_color=colors[color_index % len(colors)], size=12) #, edge_color=edge_color)
                     self.add_marker(markers, 'simple')
                     # all_stitch_arr = np.concatenate((all_stitch_arr, color_group))
-            print("Shape of resulting all_stitch_arr: " + str(all_stitch_arr.shape))
-            print("Shape of resulting connections: " + str(connections.shape))
-            print('Connections: ' + str(connections))
-            print('Stitch arr: ' + str(all_stitch_arr))
-            all_lines = visuals.Line(method=Config.linemethod, color=colors[0])
+            all_lines = visuals.Line(method=Config.linemethod, color=stitch_colors)
             all_lines.set_data(pos=all_stitch_arr, connect=connections)
             self.add_stitch(all_lines, 'simple')
 
@@ -1038,8 +1022,10 @@ def plotBlob2d(b2d, canvas_size=(1080, 1080)):
 
 def filter_available_colors():
     global colors
+    global color_dict
     if Config.mayPlot:
         colors = vispy.color.get_color_names()  # ALl possible colors
+        color_dict = vispy.color.get_color_dict()
         # note getting rid of annoying colors
         rejectwords = ['dark', 'light', 'slate', 'grey', 'white', 'pale', 'medium']
         removewords = []
@@ -1067,6 +1053,9 @@ def filter_available_colors():
             colors.remove(color)
         print('There are a total of ' + str(len(colors)) + ' colors available for plotting')
         # openglconfig = vispy.gloo.wrappers.get_gl_configuration() # Causes opengl/vispy crash for unknown reasons
+
+def color_to_rgba(color_str):
+    return vispy.color.ColorArray(color_dict[color_str]).rgba
 
 
 def showColors(canvas_size=(800, 800)):
