@@ -198,7 +198,7 @@ def get_images():
     return all_images
 
 
-def print_elapsed_time(t0, tf, pad='', prefix='Elapsed Time:', endline=True):
+def print_elapsed_time(t0, tf, pad='', prefix='Elapsed Time:', endline=True, flush=False):
     temp = tf - t0
     m = math.floor(temp / 60)
     plural_minutes = ''
@@ -210,9 +210,9 @@ def print_elapsed_time(t0, tf, pad='', prefix='Elapsed Time:', endline=True):
     if m > 1:
         plural_minutes = 's'
     if m > 0:
-        printl(pad + prefix + ' ' + str(m) + ' minute' + str(plural_minutes) + ' & %.0f seconds' % (temp % 60), end=end)
+        printl(pad + prefix + ' ' + str(m) + ' minute' + str(plural_minutes) + ' & %.0f seconds' % (temp % 60), end=end, flush=flush)
     else:
-        printl(pad + prefix + ' %.2f seconds' % (temp % 60), end=end)
+        printl(pad + prefix + ' %.2f seconds' % (temp % 60), end=end, flush=flush)
 
 
 def time_no_spaces():
