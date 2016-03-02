@@ -252,7 +252,7 @@ class Blob3d:
     def tag_all_beads():
         printd('Tagging bead blob3ds', Config.debug_bead_tagging)
         base_b3ds = Blob3d.at_depth(0, ids=False)
-        printl(' ' + str(len(base_b3ds)) + ' / ' + str(len(Blob3d.all)) + ' blob3ds are at base b3ds')
+        printl(str(len(base_b3ds)) + ' / ' + str(len(Blob3d.all)) + ' blob3ds are at recursive_depth=0')
 
         # DEBUG
         num_base_with_children = len(list(b3d for b3d in base_b3ds if len(b3d.children)))

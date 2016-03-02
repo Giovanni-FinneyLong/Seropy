@@ -42,13 +42,11 @@ def save(blob3dlist, filename, directory=Config.PICKLEDIR):
             printl('Saving took:', end='')
             print_elapsed_time(t0, time.time(), prefix='')
         except RuntimeError:
-            printl(
-                '\nIf recursion depth has been exceeded, '
-                'you may increase the maximal depth with: sys.setrecursionlimit(<newdepth>)')
+            printl('\nIf recursion depth has been exceeded, '
+                   'you may increase the maximal depth with: sys.setrecursionlimit(<newdepth>)')
             printl('The current max recursion depth is: ' + str(sys.getrecursionlimit()))
-            printl(
-                'Opening up an interactive console, press \'n\' then \'enter\' to load variables before interacting,'
-                ' and enter \'exit\' to resume execution')
+            printl('Opening up an interactive console, press \'n\' then \'enter\' to load variables before interacting,'
+                   ' and enter \'exit\' to resume execution')
             debug()
             pass
     log.flush()
@@ -254,7 +252,7 @@ def main():
         printl('Total number of beads: ' + str(len(beads)) + ' out of ' + str(len(Blob3d.all)) + ' total b3ds')
         plot_b2ds([b2d for b2d in Blob2d.all.values()], coloring='simple', ids=False, stitches=True, edge=True,
                   buffering=True, parentlines=True, explode=True)
-
+        plot_b3ds(blob3dlist, color='simple')
 
 
         # printl('Plotting b3ds with plotly')
@@ -262,7 +260,7 @@ def main():
         # printl('Plotting b2ds with plotly')
         # plot_plotly(list(Blob2d.all.values()), b2ds=True)
         printl('Plotting all simple:')
-        plotBlob3ds(blob3dlist, color='simple')
+        plot_b3ds(blob3dlist, color='simple')
         exit()
 
 
