@@ -218,19 +218,14 @@ def main():
 
         save(blob3dlist, picklefile)
         log.flush()
-        plot_b2ds(list(Blob2d.all.values()), ids=False, stitches=True, edge=False, parentlines=Config.process_internals,
-                  explode=Config.process_internals, pixel_ids=False)
+        plot_b2ds(list(Blob2d.all.values()), ids=False, stitches=True, edge=False, parentlines=Config.process_internals,explode=Config.process_internals, pixel_ids=False)
         printl("Debug going to plot each blob2d individually:")
         for b2d in Blob2d.all.values():
             printl("B2d: " + str(b2d))
             plotBlob2d(b2d)
 
     else:
-        # HACK
-        load_base = False  # Note that each toggle dominates those below it due to elif
-        # HACK
-
-        if load_base:
+        if Config.load_base_only:
             load(picklefile + '_rd0_only')
             blob3dlist = list(Blob3d.all.values())
             if Config.process_internals:
@@ -250,9 +245,35 @@ def main():
 
         beads = list(b3d for b3d in Blob3d.all.values() if b3d.isBead)
         printl('Total number of beads: ' + str(len(beads)) + ' out of ' + str(len(Blob3d.all)) + ' total b3ds')
-        plot_b2ds([b2d for b2d in Blob2d.all.values()], coloring='simple', ids=False, stitches=True, edge=True,
-                  buffering=True, parentlines=True, explode=True)
-        plot_b3ds(blob3dlist, color='simple')
+        # plot_b2ds([b2d for b2d in Blob2d.all.values()], coloring='simple', ids=False, stitches=True, edge=True,
+        #           buffering=True, parentlines=True, explode=True)
+        # plot_b3ds(blob3dlist, color='simple')
+        #
+        largest_base_b3ds = sorted(list(blob3d for blob3d in Blob3d.all.values() if blob3d.recursive_depth == 0),
+                              key=lambda b3d: b3d.get_edge_pixel_count(), reverse=True)  # Do by recursive depth
+        # for b3d in largest_b3ds:
+        #     for b2d in b3d.blob2ds:
+        #         b2d = Blob2d.get(b2d)
+        #         if b2d.maxx > b3d.maxx:
+        #             printl("B2d with larger x than b3d")
+        #             printl(' ' + str(b2d))
+        #             printl(' ' + str(b3d))
+        #         if b2d.maxy > b3d.maxy:
+        #             printl("B2d with larger y than b3d")
+        #             printl(' ' + str(b2d))
+        #             printl(' ' + str(b3d))
+
+
+
+        for b3d in largest_base_b3ds:
+            printl(b3d)
+            b3d.gen_skeleton()
+
+            plot_b3ds([b3d], color='simple')
+
+
+            # all_ep = b3d.get_edge_pixel
+
 
 
         # printl('Plotting b3ds with plotly')

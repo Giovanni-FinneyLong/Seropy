@@ -405,8 +405,10 @@ class Canvas(vispy.scene.SceneCanvas):
                             marker_colors[index] = my_rgba_colors[group_index % len(my_rgba_colors)]
                             index += 1
 
+
+
         markers = visuals.Markers()
-        # print("Result of marker_pos for type: " + str(type_string) + ' : ' + str(marker_pos))
+        print("Result of marker_pos for type: " + str(type_string) + ' : ' + str(marker_pos))
         # print("Result of marker_colors for type: " + str(type_string) + ' : ' + str(marker_colors))
         # print("Point count: " + str(point_count))
         markers.set_data(marker_pos, face_color=marker_colors, size=size) #, edge_color=edge_color)
@@ -503,23 +505,25 @@ class Canvas(vispy.scene.SceneCanvas):
         stitch_colors = np.empty((num_markers, 4))
         marker_index = 0
 
-        self.add_markers_from_groups(bg_more_than_one, 'simple', list_of_colors=colors, size=12)
-        for index, bg in enumerate(bg_more_than_one):
-            bg = sorted(bg, key=lambda blob3d: (blob3d.avgx, blob3d.avgy)) # TODO improve this or do segmentation of sorts..
-            # Maybe look for two long lines, that share an endpoint, and replace on of them with a link to the other's other point
-            marker_midpoints = np.zeros([len(bg), 3])
-            for group_index, b3d in enumerate(bg):
-                if group_index == len(bg) - 1:
-                    connections[marker_index] = [marker_index, marker_index]
-                else:
-                    connections[marker_index] = [marker_index, marker_index + 1]
-                stitch_colors[marker_index] = color_to_rgba(colors[index % len(colors)])
-                marker_midpoints[group_index] = [b3d.avgx / self.xdim, b3d.avgy / self.ydim, b3d.avgz / (Config.z_compression * self.zdim)]
-                marker_index += 1
-            all_stitch_arr = np.concatenate((all_stitch_arr, marker_midpoints))
-        all_lines = visuals.Line(method=Config.linemethod, color=stitch_colors, width=3)
-        all_lines.set_data(pos=all_stitch_arr, connect=connections)
-        self.add_stitch(all_lines, 'simple')
+        print('bg of more than one: ' + str(bg_more_than_one))
+        if len(bg_more_than_one):
+            self.add_markers_from_groups(bg_more_than_one, 'simple', list_of_colors=colors, size=12)
+            for index, bg in enumerate(bg_more_than_one):
+                bg = sorted(bg, key=lambda blob3d: (blob3d.avgx, blob3d.avgy)) # TODO improve this or do segmentation of sorts..
+                # Maybe look for two long lines, that share an endpoint, and replace on of them with a link to the other's other point
+                marker_midpoints = np.zeros([len(bg), 3])
+                for group_index, b3d in enumerate(bg):
+                    if group_index == len(bg) - 1:
+                        connections[marker_index] = [marker_index, marker_index]
+                    else:
+                        connections[marker_index] = [marker_index, marker_index + 1]
+                    stitch_colors[marker_index] = color_to_rgba(colors[index % len(colors)])
+                    marker_midpoints[group_index] = [b3d.avgx / self.xdim, b3d.avgy / self.ydim, b3d.avgz / (Config.z_compression * self.zdim)]
+                    marker_index += 1
+                all_stitch_arr = np.concatenate((all_stitch_arr, marker_midpoints))
+            all_lines = visuals.Line(method=Config.linemethod, color=stitch_colors, width=3)
+            all_lines.set_data(pos=all_stitch_arr, connect=connections)
+            self.add_stitch(all_lines, 'simple')
 
 
     def setup_stitches(self):
@@ -711,12 +715,26 @@ class Canvas(vispy.scene.SceneCanvas):
             zmax = self.b3ds[0].highslideheight
 
             for blob3d in self.b3ds:
-                xmin = min(xmin, blob3d.minx)
-                xmax = max(xmax, blob3d.maxx)
-                ymin = min(ymin, blob3d.miny)
-                ymax = max(ymax, blob3d.maxy)
-                zmin = min(zmin, blob3d.lowslideheight)
-                zmax = max(zmax, blob3d.highslideheight)
+                for b2d in blob3d.blob2ds:
+                    b2d = Blob2d.get(b2d)
+                    xmin = min(xmin, b2d.minx)
+                    xmax = max(xmax, b2d.maxx)
+                    ymin = min(ymin, b2d.miny)
+                    ymax = max(ymax, b2d.maxy)
+                    zmin = min(zmin, b2d.height)
+                    zmax = max(zmax, b2d.height)
+
+                # Note changed the below temporarily because of issues between the ranges of b3ds and their constituent b2ds
+                # xmin = min(xmin, blob3d.minx)
+                # xmax = max(xmax, blob3d.maxx)
+                # ymin = min(ymin, blob3d.miny)
+                # ymax = max(ymax, blob3d.maxy)
+                # zmin = min(zmin, blob3d.lowslideheight)
+                # zmax = max(zmax, blob3d.highslideheight)
+
+
+
+
 
                 # zdim += 1 # Note this is b/c numbering starts at 0
         self.xmin = xmin

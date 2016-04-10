@@ -3,7 +3,7 @@ from Pixel import Pixel
 from util import warn
 from util import printl, printd
 from myconfig import Config
-
+import numpy as np
 
 def get_blob2ds_b3ds(blob2dlist, ids=False):
     """
@@ -227,6 +227,29 @@ class Blob3d:
             edge = edge + [Pixel.get(pix) for pix in b2d.edge_pixels]
         return edge
 
+    def get_pixels(self, ids=False):
+        pixel_ids = []
+        for b2d in self.blob2ds:
+            b2d = Blob2d.get(b2d)
+            b2d_descend = b2d.getdescendants(include_self=True)
+            printl("B2d: " + str(b2d) + ' ----- had descendants (incl self(' + str(len(b2d_descend)) + ') ------' + str(b2d_descend))
+            for blob2d in b2d_descend:
+                pixel_ids += blob2d.pixels
+        if ids:
+            return pixel_ids
+        else:
+            return [Pixel.get(pixel_id) for pixel_id in pixel_ids]
+
+            # pixels = pixels +
+
+
+
+
+
+
+
+
+
     @staticmethod
     def tag_blobs_singular(blob3dlist, quiet=False):
         singular_count = 0
@@ -316,6 +339,7 @@ class Blob3d:
         printl('<< CLEANING B3DS >>')
         # printl("These are the b3ds that will need fixing!")
         set_isBead_after = False
+        adjusted_b3d_minmax = 0
         for b3d in Blob3d.all.values():
             if not hasattr(b3d, 'isBead'):
                 b3d.isBead = None
@@ -335,9 +359,22 @@ class Blob3d:
                 printl(' While cleaning b3d:' + str(b3d) + ' had to set parent_id to None, because parent_id: ' + str(
                     b3d.parent_id) + ' is not a valid blob3d-id')
                 b3d.parent_id = None
+
+            # for b2d in b3d.blob2ds:
+            #     b2d = Blob2d.get(b2d)
+            #     if b2d.maxx > b3d.maxx or b2d.maxy > b3d.maxy or b2d.minx < b3d.minx or b2d.miny < b3d.miny:
+            #         adjusted_b3d_minmax += 1
+            #         Blob3d.all[b3d.id].maxx = max(b2d.maxx, b3d.maxx)
+            #         Blob3d.all[b3d.id].maxy = max(b2d.maxy, b3d.maxy)
+            #         Blob3d.all[b3d.id].minx = min(b2d.minx, b3d.minx)
+            #         Blob3d.all[b3d.id].miny = min(b2d.miny, b3d.miny)
+
+
         if set_isBead_after:
             printl(' While cleaning b3ds, found b3ds without isBead attr, so setting isBead for all b3ds')
             Blob3d.tag_all_beads()
+        if adjusted_b3d_minmax:
+            warn("Had to adjust the ranges for a total of " + str(adjusted_b3d_minmax) + ' blob3ds because their b2ds were out of range') # FIXME
 
     def save2d(self, filename):
         """
@@ -380,3 +417,75 @@ class Blob3d:
         if self.parent_id is not None:
             res = res or Blob3d.get(self.parent_id).has_parent_nonbead()
         return res
+
+    def gen_skeleton(self):
+        # Begin by creating a 3d array, with each element either None or the id of the pixel
+        # Then create a second 3d array, with the distances from each internal point to the closest edge point
+            # Find internals by doing all pixels - edge_pixels
+
+        print("CALLED GEN_SKELETON!!!!")
+
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+
+
+
+
+        xdim = self.maxx - self.minx + 1
+        ydim = self.maxy - self.miny + 1
+        zdim = self.highslideheight - self.lowslideheight + 1
+        minx = self.minx
+        miny = self.miny
+        minz = self.lowslideheight
+
+
+
+        def pixel_to_pos(pixel):
+            # Returns the (x,y,z) location of the pixel in any one of the 3d arrays
+            return (pixel.x - minx, pixel.y - miny, pixel.z - minz)
+
+
+        edge_array = np.full((xdim, ydim, zdim), None, dtype=np.float)
+        edge_pixels = self.get_edge_pixels() # Actual pixels not ids
+        all_pixels = self.get_pixels()
+        inner_pixels = [Pixel.get(cur_pixel) for cur_pixel in (set(pixel.id for pixel in all_pixels) - set(pixel.id for pixel in edge_pixels))]
+
+
+
+
+
+
+        # print("\n\nEP: " + str(len(edge_pixels)))
+        # print("Pix: " + str(len(all_pixels)))
+        # print("Inner pix: " + str(len(inner_pixels)))
+        # print("Children: " + str(self.children))
+        # for color_index, pix_list in enumerate([edge_pixels, inner_pixels]):
+        #     cur_color = ['r', 'g', 'b'][color_index]
+        #     xs = [0] * len(pix_list)
+        #     ys = [0] * len(pix_list)
+        #     zs = [0] * len(pix_list)
+        #
+        #     for index, pixel in enumerate(pix_list):
+        #         # print(pixel)
+        #         # print('  ' + str(pixel_to_pos(pixel)))
+        #         x, y, z =  pixel_to_pos(pixel)
+        #         edge_array[x][y][z] = pixel.id
+        #         xs[index] = x
+        #         ys[index] = y
+        #         zs[index] = z
+        #     ax.scatter(xs, ys, zs, c=cur_color)
+        # ax.set_xlabel('X Label')
+        # ax.set_ylabel('Y Label')
+        # ax.set_zlabel('Z Label')
+        # plt.show()
+
+
+
+
+
+
+
+
+
