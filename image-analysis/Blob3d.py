@@ -4,6 +4,7 @@ from util import warn
 from util import printl, printd
 from myconfig import Config
 import numpy as np
+import math
 
 def get_blob2ds_b3ds(blob2dlist, ids=False):
     """
@@ -232,23 +233,13 @@ class Blob3d:
         for b2d in self.blob2ds:
             b2d = Blob2d.get(b2d)
             b2d_descend = b2d.getdescendants(include_self=True)
-            printl("B2d: " + str(b2d) + ' ----- had descendants (incl self(' + str(len(b2d_descend)) + ') ------' + str(b2d_descend))
+            # printl("B2d: " + str(b2d) + ' ----- had descendants (incl self(' + str(len(b2d_descend)) + ') ------' + str(b2d_descend))
             for blob2d in b2d_descend:
                 pixel_ids += blob2d.pixels
         if ids:
             return pixel_ids
         else:
             return [Pixel.get(pixel_id) for pixel_id in pixel_ids]
-
-            # pixels = pixels +
-
-
-
-
-
-
-
-
 
     @staticmethod
     def tag_blobs_singular(blob3dlist, quiet=False):
@@ -383,7 +374,6 @@ class Blob3d:
         :return:
         """
         from scipy import misc as scipy_misc
-        import numpy as np
         slice_arrays = []
         for i in range(self.highslideheight - self.lowslideheight + 1):
             slice_arrays.append(np.zeros((self.maxx - self.minx + 1, self.maxy - self.miny + 1)))
@@ -446,16 +436,140 @@ class Blob3d:
             # Returns the (x,y,z) location of the pixel in any one of the 3d arrays
             return (pixel.x - minx, pixel.y - miny, pixel.z - minz)
 
+        def distance_from_offset(x_offset, y_offset, z_offset):
+            return math.sqrt(math.pow(x_offset, 2) + math.pow(y_offset, 2) + math.pow(z_offset, 2))
 
-        edge_array = np.full((xdim, ydim, zdim), None, dtype=np.float)
+        def inBounds(x,y,z):
+            if x >= 0 and y >= 0 and z >= 0 and x < xdim and y < ydim and z < zdim:
+                return True
+            return False
+
+
+        def find_nearest_neighbor(x, y, z, arr, recur=1):
+            """
+
+            :param x: X coordinate within given arr
+            :param y: Y coordinate within given arr
+            :param z: Z coordinate within given arr
+            :param arr: An array populated by the ids of pixels
+            :param recur: How far outwards to extend the 'search cube'
+            :return: (x_coor, y_coor, z_coor, distance, pixel_id)
+            """
+            print("Finding nearest neighbor of: " + str((x, y, z, recur)))
+
+            possible_coordinates = [] # Contains coordinate tuples (x,y,z)
+            # Because am using cube instead of spheres, need to remember all matches and then find the best
+
+            # arr should
+
+            # TODO restrict the ranges so that they don't overlap
+
+            # X restricts Y and Z
+            # Y restricts Z
+            # Z restricts nothing
+
+            for x_offset in [-recur, recur]:
+                curx = x + x_offset
+                for y_offset in range(-recur, recur + 1): # +1 to include endcap
+                    cury = y + y_offset
+                    for z_offset in range(-recur, recur + 1): # +1 to include endcap
+                        curz = z + z_offset
+
+                        if inBounds(curx, cury, curz) and not np.isnan(arr[curx][cury][curz]):
+                            possible_coordinates.append((curx, cury, curz, distance_from_offset(x_offset, y_offset, z_offset), int(arr[curx][cury][curz])))
+                                # x, y, z, distance, pixel_id
+
+            print("Coordinates found: " + str(possible_coordinates))
+
+            if len(possible_coordinates) == 0:
+                print("----Making a recursive call!")
+                return find_nearest_neighbor(x, y, z, arr, recur + 1)
+
+            #TODO Y and Z
+
+
+            else:
+                # Find the closest coordinate
+                possible_coordinates.sort(key=lambda x_y_z_dist_id: x_y_z_dist_id[3]) # Sort by distance
+                print("SORTED POSSIBLE COORDINATES: " + str(possible_coordinates))
+                return possible_coordinates[0]
+
+        #TODO have an option to create a shell around the blob3d, by taking the highest and lowest levels, and making them all count temporarily as
+        # edge pixels. This way, the effects of segmentation will be less dependent on the scan direction
+
+
+
         edge_pixels = self.get_edge_pixels() # Actual pixels not ids
         all_pixels = self.get_pixels()
         inner_pixels = [Pixel.get(cur_pixel) for cur_pixel in (set(pixel.id for pixel in all_pixels) - set(pixel.id for pixel in edge_pixels))]
 
+        edge_array = np.empty((xdim, ydim, zdim))#, dtype=np.int)
+        inner_array = np.empty((xdim, ydim, zdim))#, dtype=np.int)
+        distances = np.empty((xdim, ydim, zdim), dtype=np.float)
+        edge_array[:] = np.nan
+        inner_array[:] = np.nan
+        distances[:] = np.nan
 
 
 
 
+
+        for pixel in edge_pixels:
+            x, y, z = pixel_to_pos(pixel)
+            edge_array[x][y][z] = pixel.id
+
+        for pixel in inner_pixels:
+            x, y, z = pixel_to_pos(pixel)
+            inner_array[x][y][z] = pixel.id
+
+
+
+        inner_pos = np.zeros([len(inner_pixels), 3])
+        near_pos = np.zeros([len(inner_pixels), 3])
+        line_endpoints = np.zeros([2 * len(inner_pixels), 3])
+
+
+        for index, pixel in enumerate(inner_pixels):
+            print("Pixel: " + str(pixel))
+            x, y, z = pixel_to_pos(pixel)
+            inner_pos[index] = x / xdim, y / ydim, z / zdim
+            nn = find_nearest_neighbor(x, y, z, edge_array)
+            near_pos[index] = (nn[0] / xdim, nn[1] / ydim, nn[2] / zdim)
+            line_endpoints[2 * index] = (nn[0] / xdim, nn[1] / ydim, nn[2] / zdim)
+            line_endpoints[2 * index + 1] = (x / xdim, y / ydim, z / zdim)
+
+
+        import vispy.io
+        import vispy.scene
+        from vispy.scene import visuals
+        from vispy.util import keys
+
+
+        canvas = vispy.scene.SceneCanvas(size=(1200,1200), keys='interactive', show=True)
+        view = canvas.central_widget.add_view()
+        view.camera = vispy.scene.cameras.FlyCamera(parent=view.scene, fov=30, name='Fly')
+        # view.camera = vispy.scene.cameras.TurntableCamera(fov=0, azimuth=80, parent=view.scene, distance=1,
+        #                                                   elevation=-55, name='Turntable')
+        # view.camera = vispy.scene.cameras.ArcballCamera(parent=view.scene, fov=50, distance=1,
+        #                                                    name='Arcball')
+        inner_markers = visuals.Markers()
+        near_markers = visuals.Markers()
+        lines = visuals.Line(method=Config.linemethod)
+        lines.set_data(pos=line_endpoints, connect='segments', color='y')
+
+        inner_markers.set_data(inner_pos, face_color='r', size=10)
+        near_markers.set_data(near_pos, face_color='g', size=10)
+        print("Inner pos: " + str(inner_pos))
+        print("Near pos: " + str(near_pos))
+
+
+        view.add(inner_markers)
+        view.add(near_markers)
+        view.add(lines)
+        vispy.app.run()
+
+
+        print('------------')
 
         # print("\n\nEP: " + str(len(edge_pixels)))
         # print("Pix: " + str(len(all_pixels)))

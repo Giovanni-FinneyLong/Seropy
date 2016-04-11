@@ -265,11 +265,11 @@ def main():
 
 
 
-        for b3d in largest_base_b3ds:
-            printl(b3d)
-            b3d.gen_skeleton()
+        for blob3d in largest_base_b3ds:
+            printl(blob3d)
+            blob3d.gen_skeleton()
 
-            plot_b3ds([b3d], color='simple')
+            # plot_b3ds([blob3d], color='simple')
 
 
             # all_ep = b3d.get_edge_pixel
