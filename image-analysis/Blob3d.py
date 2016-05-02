@@ -413,6 +413,7 @@ class Blob3d:
         # Then create a second 3d array, with the distances from each internal point to the closest edge point
             # Find internals by doing all pixels - edge_pixels
 
+
         print("CALLED GEN_SKELETON!!!!")
 
         import matplotlib.pyplot as plt
@@ -455,7 +456,7 @@ class Blob3d:
             :param recur: How far outwards to extend the 'search cube'
             :return: (x_coor, y_coor, z_coor, distance, pixel_id)
             """
-            print("Finding nearest neighbor of: " + str((x, y, z, recur)))
+            # print("Finding nearest neighbor of: " + str((x, y, z, recur)))
 
             possible_coordinates = [] # Contains coordinate tuples (x,y,z)
             # Because am using cube instead of spheres, need to remember all matches and then find the best
@@ -479,10 +480,10 @@ class Blob3d:
                             possible_coordinates.append((curx, cury, curz, distance_from_offset(x_offset, y_offset, z_offset), int(arr[curx][cury][curz])))
                                 # x, y, z, distance, pixel_id
 
-            print("Coordinates found: " + str(possible_coordinates))
+            # print("Coordinates found: " + str(possible_coordinates))
 
             if len(possible_coordinates) == 0:
-                print("----Making a recursive call!")
+                # print("----Making a recursive call!")
                 return find_nearest_neighbor(x, y, z, arr, recur + 1)
 
             #TODO Y and Z
@@ -491,7 +492,7 @@ class Blob3d:
             else:
                 # Find the closest coordinate
                 possible_coordinates.sort(key=lambda x_y_z_dist_id: x_y_z_dist_id[3]) # Sort by distance
-                print("SORTED POSSIBLE COORDINATES: " + str(possible_coordinates))
+                # print("SORTED POSSIBLE COORDINATES: " + str(possible_coordinates))
                 return possible_coordinates[0]
 
         #TODO have an option to create a shell around the blob3d, by taking the highest and lowest levels, and making them all count temporarily as
@@ -528,15 +529,61 @@ class Blob3d:
         near_pos = np.zeros([len(inner_pixels), 3])
         line_endpoints = np.zeros([2 * len(inner_pixels), 3])
 
+        index_distance_id = np.zeros([len(inner_pixels), 3])
+
+        maxdim = max([xdim, ydim, zdim]) # Adjusting z visualization
+
+        pixel_nid_nx_ny_nz_dist = []
+        marker_colors = np.zeros((len(inner_pixels), 4))
+        mycolors =  ['r', 'orange', 'yellow', 'white', 'lime', 'g', 'teal', 'blue', 'purple', 'pink']
+
+
+        #HACK
+        import vispy
+        myrgba = list(vispy.color.ColorArray(color_str).rgba for color_str in mycolors)
+
 
         for index, pixel in enumerate(inner_pixels):
-            print("Pixel: " + str(pixel))
+            # print("Pixel: " + str(pixel))
             x, y, z = pixel_to_pos(pixel)
             inner_pos[index] = x / xdim, y / ydim, z / zdim
-            nn = find_nearest_neighbor(x, y, z, edge_array)
-            near_pos[index] = (nn[0] / xdim, nn[1] / ydim, nn[2] / zdim)
-            line_endpoints[2 * index] = (nn[0] / xdim, nn[1] / ydim, nn[2] / zdim)
+            x_y_z_dist_id = find_nearest_neighbor(x, y, z, edge_array)
+
+            pixel_nid_nx_ny_nz_dist.append((pixel, x_y_z_dist_id[4], x_y_z_dist_id[0], x_y_z_dist_id[1],  x_y_z_dist_id[2], x_y_z_dist_id[3]))
+
+            near_pos[index] = (x_y_z_dist_id[0] / xdim, x_y_z_dist_id[1] / ydim, x_y_z_dist_id[2] / zdim)
+            marker_colors[index] = myrgba[int(x_y_z_dist_id[3]) % len(myrgba)]
+
+            line_endpoints[2 * index] = (x_y_z_dist_id[0] / xdim, x_y_z_dist_id[1] / ydim, x_y_z_dist_id[2] / zdim)
             line_endpoints[2 * index + 1] = (x / xdim, y / ydim, z / zdim)
+            # index_distance_id[index] = [index, x_y_z_dist_id[3], x_y_z_dist_id[4]]
+
+        # Sort distances; need to maintain index for accessing id later
+        pixel_nid_nx_ny_nz_dist = sorted(pixel_nid_nx_ny_nz_dist, key=lambda entry: entry[5], reverse=True)
+
+
+
+        # TODO find ridge
+        # Strategy: Iterative, use either the highest n or x percent to find cutoff..?
+        ridge = [pixel_nid_nx_ny_nz_dist[0]]
+        ridge_ends = [pixel_nid_nx_ny_nz_dist[0]] # Preferable to keep at 2 if we can
+
+        # HACK TODO
+        for i in pixel_nid_nx_ny_nz_dist:
+            print(' ' + str(i))
+        # min_threshold = int(pixel_nid_nx_ny_nz_dist[int(.1 * len(pixel_nid_nx_ny_nz_dist))])
+
+        # pixel_costs = dict()
+        # for pnnnnd in pixel_nid_nx_ny_nz_dist:
+        #     pixel_costs[pnnnnd[0].id] = pnnnnd[5] # Mapping inner pixel's id to its distance (to the closest edge_pixel)
+        #
+        #
+        #
+        #
+        #
+        # n, bins, patches = plt.hist([idi[5] for idi in pixel_nid_nx_ny_nz_dist], bins=np.linspace(0,10,50))
+        # # hist = np.histogram( [idi[4] for idi in pixel_nid_nx_ny_nz_dist] , bins=np.arange(10))
+        # plt.show()
 
 
         import vispy.io
@@ -557,7 +604,7 @@ class Blob3d:
         lines = visuals.Line(method=Config.linemethod)
         lines.set_data(pos=line_endpoints, connect='segments', color='y')
 
-        inner_markers.set_data(inner_pos, face_color='r', size=10)
+        inner_markers.set_data(inner_pos, face_color=marker_colors, size=10)
         near_markers.set_data(near_pos, face_color='g', size=10)
         print("Inner pos: " + str(inner_pos))
         print("Near pos: " + str(near_pos))

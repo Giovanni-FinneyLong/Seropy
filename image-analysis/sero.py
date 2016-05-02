@@ -243,8 +243,7 @@ def main():
         printl('Setting beads!')
         Blob3d.tag_all_beads()
 
-        beads = list(b3d for b3d in Blob3d.all.values() if b3d.isBead)
-        printl('Total number of beads: ' + str(len(beads)) + ' out of ' + str(len(Blob3d.all)) + ' total b3ds')
+
         # plot_b2ds([b2d for b2d in Blob2d.all.values()], coloring='simple', ids=False, stitches=True, edge=True,
         #           buffering=True, parentlines=True, explode=True)
         # plot_b3ds(blob3dlist, color='simple')
@@ -263,10 +262,119 @@ def main():
         #             printl(' ' + str(b2d))
         #             printl(' ' + str(b3d))
 
+        # TODO Calculate and plot different statistics about the data.
+        # Good examples are:
+        #   Total number of b3ds, distribution of number of pixels in blob3ds
+        #   Density over the 3d volume over the scans, as a density map and as 3 histograms, for:
+        #         Total beads, singular beads,
+        #   Average number of beads per strand
+        #
+
+        import matplotlib.pyplot as plt
+        printl("Now performing statistical analysis...")
+        b3d_count = len(Blob3d.all)
+
+        base_b3ds = list(b3d for b3d in Blob3d.all.values() if b3d.recursive_depth == 0)
+
+
+        beads = list(b3d for b3d in Blob3d.all.values() if b3d.isBead)
+        printl('Total number of beads: ' + str(len(beads)) + ' out of ' + str(b3d_count) + ' total b3ds')
+        printl('Total number of base b3ds: ' + str(len(base_b3ds)) + ' out of ' + str(b3d_count) + ' total b3ds')
+
+
+        '''
+        # NOTE: Histogram of base_b3ds x,y,z avgs
+        avg_1d_bins = 20
+        avg_2d_bins = 40
+        fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(nrows=3, ncols=2)
+
+        avgxs = list(b3d.avgx for b3d in base_b3ds)
+        avgys = list(b3d.avgy for b3d in base_b3ds)
+        avgzs = list(b3d.avgy for b3d in base_b3ds)
+
+        # 1D Histograms
+        n1, bins1, patches1 = ax1.hist(avgxs, bins=avg_1d_bins)
+        ax1.set_xlabel("Avgx of b3d")
+        ax1.set_ylabel("Number of b3ds")
+        ax1.set_title("Base b3ds by avgx")
+
+        n2, bins2, patches2 = ax2.hist(avgys, bins=avg_1d_bins)
+        ax2.set_xlabel("Avgy of b3d")
+        ax2.set_ylabel("Number of b3ds")
+        ax2.set_title("Base b3ds by avgy")
+
+        n3, bins3, patches3 = ax3.hist(avgzs, bins=avg_1d_bins)
+        ax3.set_xlabel("Avgz of b3d")
+        ax3.set_ylabel("Number of b3ds")
+        ax3.set_title("Base b3ds by avgz")
+
+
+        # 2D Histograms
+        axres4 = ax4.hist2d(avgxs, avgys, bins=avg_2d_bins)
+        ax4.set_xlabel("Avgx of b3d")
+        ax4.set_ylabel("Avgy of b3d")
+        ax4.set_title("Base b3ds avgx by avgy")
+        cbar4 = fig.colorbar(axres4[3], ax=ax4, orientation='vertical')
+
+        axres5 = ax5.hist2d(avgxs, avgzs, bins=avg_2d_bins)
+        ax5.set_xlabel("Avgx of b3d")
+        ax5.set_ylabel("Avgz of b3d")
+        ax5.set_title("Base b3ds avgx by avgz")
+        cbar5 = fig.colorbar(axres5[3], ax=ax5, orientation='vertical')
+
+        axres6 = ax6.hist2d(avgys, avgzs, bins=avg_2d_bins)
+        ax6.set_xlabel("Avgy of b3d")
+        ax6.set_ylabel("Avgz of b3d")
+        ax6.set_title("Base b3ds avgy by avgz")
+        cbar6 = fig.colorbar(axres6[3], ax=ax6, orientation='vertical')
+
+        plt.tight_layout()
+        plt.show()
+        '''
+        # --------------------------------------------------------------
+
+
+        # plot_b3ds(list(Blob3d.all.values()))
+
+        number_of_strands = None
+
+        b2d_plot_bins = 50
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2)
+        n1, bins1, patches1 = ax1.hist(list(len(b3d.blob2ds) for b3d in base_b3ds), bins=b2d_plot_bins)
+        ax1.set_xlabel("Number of b2ds per b3d")
+        ax1.set_ylabel("Number of b3ds")
+        ax1.set_title("Base b3ds by number of b2ds")
+
+        n2, bins2, patches2 = ax2.hist(list(sum(len(Blob2d.get(b2d).pixels) for b2d in b3d.blob2ds) for b3d in base_b3ds), bins=b2d_plot_bins)
+        ax2.set_xlabel("Number of pixels per b3d")
+        ax2.set_ylabel("Number of b3ds")
+        ax2.set_title("Base b3ds by number of pixels")
+
+        beads_per_strand = []
+        printl("Total base b3ds: " + str(len(base_b3ds)))
+        for b3d in base_b3ds:
+            num_children = len(b3d.get_first_child_beads())
+            if num_children != 0:
+                beads_per_strand.append(num_children)
+        number_of_strands = len(beads_per_strand)
+
+        n3, bins3, patches3 = ax3.hist(beads_per_strand, bins=max(beads_per_strand))
+        ax3.set_xlabel("Number of beads per strand")
+        ax3.set_ylabel("Number of b3ds")
+        ax3.set_title("Strand b3ds by number of beads")
+
+        plt.tight_layout()
+        plt.show()
+
+
+
+
+
 
 
         for blob3d in largest_base_b3ds:
             printl(blob3d)
+            plot_b3ds([blob3d])
             blob3d.gen_skeleton()
 
             # plot_b3ds([blob3d], color='simple')

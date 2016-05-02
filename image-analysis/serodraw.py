@@ -463,7 +463,6 @@ class Canvas(vispy.scene.SceneCanvas):
     def add_neutral_markers(self, blob3dlist, color='aqua'):
         self.add_markers_from_groups([blob3dlist], 'neutral', midpoints=False, list_of_colors=[color], size=8, explode=False)
 
-
     def add_simple_beads(self, blob3dlist):  # NOTE only doing strands for now for simplicity
         base_b3ds = [b3d for b3d in blob3dlist if b3d.recursive_depth == 0]  # and not b3d.isBead]
         print(' Number of base_b3ds = ' + str(len(base_b3ds)) + ' / ' + str(len(blob3dlist)))
@@ -524,7 +523,6 @@ class Canvas(vispy.scene.SceneCanvas):
             all_lines = visuals.Line(method=Config.linemethod, color=stitch_colors, width=3)
             all_lines.set_data(pos=all_stitch_arr, connect=connections)
             self.add_stitch(all_lines, 'simple')
-
 
     def setup_stitches(self):
         # Going to count whether there are any stitches of each type,
