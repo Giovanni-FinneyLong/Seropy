@@ -5,6 +5,8 @@ Python 3.3 or later required. ImageMagick must be installed to generate gifs.
 
 An (in progress) writeup of the project is hosted: [Here](https://drive.google.com/open?id=0B5YXBruzm8zDUWxkbkQ4TXdEWUU)
 
+Install required packages: python setup.py install
+
 ### A Top Down View of the c57b16 dataset, colored by recursive_depth ###
 ![IMAGE](https://www.dropbox.com/s/4smgqwqimxn4e0s/c57b16_top_depth.png?dl=1)
 
