@@ -1,6 +1,4 @@
 import math
-from util import printl
-
 
 class Pixel:
     """

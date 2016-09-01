@@ -66,7 +66,6 @@ class Blob3d:
         self.avgy = sum(Blob2d.get(blob).avgy for blob in self.blob2ds) / len(self.blob2ds)
         self.avgz = (self.lowslideheight + self.highslideheight) / 2
         self.isSingular = False
-        self.subblobs = []
         self.note = ''  # This is a note that can be manually added for identifying certain characteristics..
         if r_depth != 0:
             all_b2d_parents = [Blob2d.get(Blob2d.get(b2d).parent_id) for b2d in blob2dlist]
@@ -350,16 +349,6 @@ class Blob3d:
                 printl(' While cleaning b3d:' + str(b3d) + ' had to set parent_id to None, because parent_id: ' + str(
                     b3d.parent_id) + ' is not a valid blob3d-id')
                 b3d.parent_id = None
-
-            # for b2d in b3d.blob2ds:
-            #     b2d = Blob2d.get(b2d)
-            #     if b2d.maxx > b3d.maxx or b2d.maxy > b3d.maxy or b2d.minx < b3d.minx or b2d.miny < b3d.miny:
-            #         adjusted_b3d_minmax += 1
-            #         Blob3d.all[b3d.id].maxx = max(b2d.maxx, b3d.maxx)
-            #         Blob3d.all[b3d.id].maxy = max(b2d.maxy, b3d.maxy)
-            #         Blob3d.all[b3d.id].minx = min(b2d.minx, b3d.minx)
-            #         Blob3d.all[b3d.id].miny = min(b2d.miny, b3d.miny)
-
 
         if set_isBead_after:
             printl(' While cleaning b3ds, found b3ds without isBead attr, so setting isBead for all b3ds')

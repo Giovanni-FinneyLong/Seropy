@@ -7,11 +7,12 @@ import vispy.io
 import vispy.scene
 from vispy.scene import visuals
 from vispy.util import keys
-
 from Blob2d import Blob2d
 from Pixel import Pixel
 from myconfig import Config
 from util import warn, debug
+import matplotlib.pyplot as plt
+import pandas as pd
 
 colors = None
 color_dict = None
@@ -22,8 +23,6 @@ from Blob3d import get_blob2ds_b3ds, Blob3d
 
 # TODO sample animation code here: https://github.com/vispy/vispy/blob/master/examples/basics/scene/save_animation.py
 # TODO sample event code: https://github.com/vispy/vispy/blob/master/examples/tutorial/app/app_events.py
-
-
 
 def plot_plotly(bloblist, b2ds=False):
     import plotly.plotly as py
@@ -165,12 +164,7 @@ class Canvas(vispy.scene.SceneCanvas):
             # print(len(self.view.scene.children))
 
     def on_key_press(self, event):
-
         # modifiers = [key.log_name for key in event.modifiers]
-        # if event.key != 'Escape':
-        #     print('Key pressed - text: %r, key: %s, modifiers: %r' % (
-        #     event.text, event.key.log_name, modifiers))
-
         if event.key.name == 'Up':  # Next color cheme
             self.update_markers(increment=1)
 
@@ -189,6 +183,7 @@ class Canvas(vispy.scene.SceneCanvas):
                 for name, val in child.__dict__.items():
                     print('   ' + str(name) + ' : ' + str(val))
                     debug()
+
         elif event.key.name == 'Left':  # Toggle stitches
             self.update_stitches(increment=1)
 
@@ -217,18 +212,6 @@ class Canvas(vispy.scene.SceneCanvas):
             print('Changing config.max_subbeads_to_be_a_bead from ' + str(Config.max_subbeads_to_be_a_bead), end='')
             Config.max_subbeads_to_be_a_bead -= 1
             print(' to ' + str(Config.max_subbeads_to_be_a_bead))
-            self.refresh_bead_markers()
-
-        elif event.key.name == '5':
-            print('Changing config.child_bead_difference from ' + str(Config.child_bead_difference), end='')
-            Config.child_bead_difference += 1
-            print(' to ' + str(Config.child_bead_difference))
-            self.refresh_bead_markers()
-
-        elif event.key.name == '6':
-            print('Changing config.child_bead_difference from ' + str(Config.child_bead_difference), end='')
-            Config.child_bead_difference -= 1
-            print(' to ' + str(Config.child_bead_difference))
             self.refresh_bead_markers()
 
         elif event.key.name == 'P':
@@ -408,7 +391,7 @@ class Canvas(vispy.scene.SceneCanvas):
 
 
         markers = visuals.Markers()
-        print("Result of marker_pos for type: " + str(type_string) + ' : ' + str(marker_pos))
+        # print("Result of marker_pos for type: " + str(type_string) + ' : ' + str(marker_pos))
         # print("Result of marker_colors for type: " + str(type_string) + ' : ' + str(marker_colors))
         # print("Point count: " + str(point_count))
         markers.set_data(marker_pos, face_color=marker_colors, size=size) #, edge_color=edge_color)
@@ -749,9 +732,8 @@ class Canvas(vispy.scene.SceneCanvas):
         print("xdim: " + str(self.xdim) + ', ydim: ' + str(self.ydim) + ', zdim: ' + str(self.zdim))
 
 
-def plot_b2ds(blob2ds, coloring='', canvas_size=(800, 800), ids=False, stitches=False, titleNote='', edge=True,
-              buffering=True, parentlines=False, explode=False, showStitchCosts=0, b2dmidpoints=False, offset=False,
-              pixel_ids=False):
+def plot_b2ds(blob2ds, coloring='', canvas_size=(800, 800), ids=False, stitches=False, titleNote='',
+              buffering=True, parentlines=False, explode=False, offset=False):
     global colors
     coloring = coloring.lower()
     assert coloring in ['blob2d', '', 'b2d_depth', 'blob3d', 'bead', 'simple']
@@ -774,11 +756,9 @@ def plot_b2ds(blob2ds, coloring='', canvas_size=(800, 800), ids=False, stitches=
                             coloring) + ' canvas_size=' + str(canvas_size) + ') ' + titleNote)
         canvas.plot_call = 'PlotBlob2ds'
         canvas.set_blobs(blob2ds)
-        # TODO
+
         if coloring == 'simple' or canvas.buffering:
             canvas.add_simple_beads(canvas.b3ds)
-        # TODO
-
 
         if coloring == 'blob2d' or canvas.buffering:
             canvas.add_blob2d_markers(blob2ds, explode=explode)
@@ -798,32 +778,11 @@ def plot_b2ds(blob2ds, coloring='', canvas_size=(800, 800), ids=False, stitches=
         if parentlines or canvas.buffering:
             canvas.add_parent_lines(blob2ds, offset=offset, explode=explode)
 
-        # if pixel_ids:
-        #     print("\nWARNING adding ids for every pixel, this could overload if not a small dataset, so skipping if not a test_set!!")
-        #     if Config.test_instead_of_data:
-        #         for blob2d in blob2ds:
-        #                 for pixel in blob2d.pixels:
-        #                     pixel = Pixel.get(pixel)
-        #                     canvas.view.add(visuals.Text(str(pixel.id), pos=[(pixel.x) / canvas.xdim,(pixel.y) / canvas.ydim,(pixel.z) / canvas.zdim], font_size=4, bold=False, color='w'))
-
-
-        # if b2dmidpoints:
-        #     b2d_num = 0
-        #     b2d_midpoint_pos = np.zeros([len(blob2ds), 3])
-        #     for blob2d in blob2ds:
-        #         b2d_midpoint_pos[b2d_num] = [blob2d.avgx / xdim, blob2d.avgy / ydim, blob2d.height / zdim]
-        #         b2d_num += 1
-        #     b2d_midpoint_markers = visuals.Markers()
-        #     b2d_midpoint_markers.set_data(b2d_midpoint_pos, edge_color='w', face_color='yellow', size=15)
-        #     b2d_midpoint_markers.symbol = 'diamond'
-        #     canvas.add_marker(b2d_midpoint_markers, 'blob2d_mid')
-
         if ids:
             print(
                 "\nWARNING adding ids for every blob2d, this could overload if not a small dataset, so skipping if not a test_set!!")
             if Config.test_instead_of_data:
                 for b2d_num, b2d in enumerate(blob2ds):
-                    # if b2d.recursive_depth == 0:
                     midpoints = [(b2d.avgx - canvas.xmin) / canvas.xdim, (b2d.avgy - canvas.ymin) / canvas.ydim, (
                         (getBloomedHeight(b2d, explode, canvas.zdim) + .25 - canvas.zmin) / (
                             Config.z_compression * canvas.zdim))]
@@ -836,8 +795,7 @@ def plot_b2ds(blob2ds, coloring='', canvas_size=(800, 800), ids=False, stitches=
         vispy.app.run()
 
 
-def plot_b3ds(blob3dlist, stitches=True, color='blob3d', lineColoring=None, costs=0, maxcolors=-1, b2dmidpoints=False,
-              b3dmidpoints=False, canvas_size=(800, 800), b2d_midpoint_values=0, titleNote=''):
+def plot_b3ds(blob3dlist, stitches=True, color='blob3d', lineColoring=None, maxcolors=-1, canvas_size=(800, 800)):
     global colors
     canvas = Canvas(canvas_size, coloring=color)
     if 0 < maxcolors < len(colors):
@@ -930,6 +888,7 @@ def filter_available_colors():
         print('There are a total of ' + str(len(colors)) + ' colors available for plotting')
         # openglconfig = vispy.gloo.wrappers.get_gl_configuration() # Causes opengl/vispy crash for unknown reasons
 
+
 def color_to_rgba(color_str):
     return vispy.color.ColorArray(color_dict[color_str]).rgba
 
@@ -952,30 +911,130 @@ def getBloomedHeight(b2d, explode, zdim):
         return b2d.height
 
 
-# NOTE: all marker types:
-'''
-('*',
- '+',
- '-',
- '->',
- '>',
- '^',
- 'arrow',
- 'clobber',
- 'cross',
- 'diamond',
- 'disc',
- 'hbar',
- 'o',
- 'ring',
- 's',
- 'square',
- 'star',
- 'tailed_arrow',
- 'triangle_down',
- 'triangle_up',
- 'v',
- 'vbar',
- 'x',
- '|')
- '''
+def plot_hist_xyz(b3ds, xname='Avgx', yname='Avgy', zname='Avgz', type='Base_B3ds', num_1d_bins=75,
+                  num_2d_bins=150):
+    fig, ((ax1, ax2, ax3), (ax4, ax5, ax6), (ax7, ax8, ax9)) = plt.subplots(nrows=3, ncols=3)
+
+    xs = list(b3d.avgx for b3d in b3ds)
+    ys = list(b3d.avgy for b3d in b3ds)
+    zs = list(b3d.avgz for b3d in b3ds)
+
+    # 1D Histograms
+    n1, bins1, patches1 = ax1.hist(xs, bins=num_1d_bins)
+    ax1.set_xlabel(xname + " of " + type)
+    ax1.set_ylabel("Number of " + type)
+    ax1.set_title(type + " by " + xname)
+
+    n2, bins2, patches2 = ax2.hist(ys, bins=num_1d_bins)
+    ax2.set_xlabel(yname + " of " + type)
+    ax2.set_ylabel("Number of " + type)
+    ax2.set_title(type + " by " + yname)
+
+    n3, bins3, patches3 = ax3.hist(zs, bins=num_1d_bins)
+    ax3.set_xlabel(zname + " of " + type)
+    ax3.set_ylabel("Number of " + type)
+    ax3.set_title(type + " by " + zname)
+
+    # 2D Histograms
+    axres4 = ax4.hist2d(xs, ys, bins=num_2d_bins)
+    ax4.set_xlabel(xname + " of " + type)
+    ax4.set_ylabel(yname + " of " + type)
+    ax4.set_title(type + " " + xname + " by " + yname)
+    cbar4 = fig.colorbar(axres4[3], ax=ax4, orientation='vertical')
+
+    axres5 = ax5.hist2d(xs, zs, bins=num_2d_bins)
+    ax5.set_xlabel(xname + " of " + type)
+    ax5.set_ylabel(zname + " of " + type)
+    ax5.set_title(type + " " + yname + " by " + zname)
+    cbar5 = fig.colorbar(axres5[3], ax=ax5, orientation='vertical')
+
+    axres6 = ax6.hist2d(ys, zs, bins=num_2d_bins)
+    ax6.set_xlabel(yname + " of " + type)
+    ax6.set_ylabel(zname + " of " + type)
+    ax6.set_title(type + " " + yname + " by " + zname)
+    cbar6 = fig.colorbar(axres6[3], ax=ax6, orientation='vertical')
+
+    buf = list(len(b3d.blob2ds) for b3d in b3ds)
+    n7, bins7, patches7 = ax7.hist(buf, bins=min(num_1d_bins, max(buf)))
+    ax7.set_xlabel("Number of b2ds per " + type)
+    ax7.set_ylabel("Number of " + type)
+    ax7.set_title(type + " by number of b2ds")
+
+    n8, bins8, patches8 = ax8.hist(list(len(b3d.get_pixels()) for b3d in b3ds), bins=num_1d_bins)
+    ax8.set_xlabel("Number of pixels per " + type)
+    ax8.set_ylabel("Number of " + type)
+    ax8.set_title(type + " by number of pixels")
+
+    n9, bins9, patches9 = ax9.hist(list(b3d.get_edge_pixel_count() for b3d in b3ds), bins=num_1d_bins)
+    ax9.set_xlabel("Number of edge_pixels per " + type)
+    ax9.set_ylabel("Number of " + type)
+    ax9.set_title(type + " by number of edge_pixels")
+
+    figManager = plt.get_current_fig_manager()  # http://stackoverflow.com/questions/12439588/how-to-maximize-a-plt-show-window-using-python
+    figManager.window.showMaximized()
+
+    window = plt.gcf()  # http://stackoverflow.com/questions/5812960/change-figure-window-title-in-pylab
+    window.canvas.set_window_title(type + '(' + str(len(xs)) + ') by ' + xname + ' ' + yname + ' & ' + zname)
+    fig.tight_layout()
+    plt.show()
+
+
+def plot_corr(b3ds, type='Base_B3ds'):
+
+    # Now building correlation matrix
+    attr_names = ['avgx', 'avgy', 'avgz', 'minx', 'miny', 'minz', 'maxx', 'maxy', 'maxz', 'recur_depth',
+                  '# child b3ds', '# b2ds', '# pixels', '# edge_pixels', '# pairings', 'isSingle', 'isBead']
+    num_attr = len(attr_names)
+    mat = [[] for i in range(num_attr)]
+    for index, b3d in enumerate(b3ds):
+        mat[0].append(b3d.avgx)
+        mat[1].append(b3d.avgy)
+        mat[2].append(b3d.avgz)
+        mat[3].append(b3d.minx)
+        mat[4].append(b3d.miny)
+        mat[5].append(b3d.lowslideheight)
+        mat[6].append(b3d.maxx)
+        mat[7].append(b3d.maxy)
+        mat[8].append(b3d.highslideheight)
+        mat[9].append(b3d.recursive_depth)
+        mat[10].append(len(b3d.children))
+        mat[11].append(len(b3d.blob2ds))
+        mat[12].append(len(b3d.get_pixels()))
+        mat[13].append(b3d.get_edge_pixel_count())
+        mat[14].append(len(b3d.pairings))
+        mat[15].append(int(b3d.isSingular))
+        mat[16].append(int(b3d.isBead))
+
+    corr = np.corrcoef(mat)
+    adj_corr = np.copy(corr)
+
+    for r in range(num_attr):
+        for c in range(num_attr - r):
+            adj_corr[r][num_attr - c - 1] = 0.
+
+    desired_width = 500
+    pd.set_option('display.width', desired_width)
+
+    index_names = ['B3d_' + str(i) for i in range(len(b3ds))]
+
+    df = pd.DataFrame(data=np.transpose(mat), index=index_names, columns=attr_names)
+    print(df.describe())
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    cax = ax.matshow(adj_corr, cmap=plt.cm.seismic, interpolation='none', vmin=-1, vmax=1)
+    fig.colorbar(cax)
+    ax.set_xticks([i for i in range(num_attr)])
+    ax.set_yticks([i for i in range(num_attr)])
+    ax.set_xticklabels(attr_names)
+    ax.set_yticklabels(attr_names)
+    ax.grid()
+    figManager = plt.get_current_fig_manager()  # http://stackoverflow.com/questions/12439588/how-to-maximize-a-plt-show-window-using-python
+    figManager.window.showMaximized()
+    window = plt.gcf()  # http://stackoverflow.com/questions/5812960/change-figure-window-title-in-pylab
+    window.canvas.set_window_title("Correlation matrix of " + type)
+    fig.autofmt_xdate()
+    fig.tight_layout()
+    plt.show()
+

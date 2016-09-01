@@ -123,7 +123,6 @@ class Slide:
                                         local_ydim > ypos + vertical_offset >= 0 and local_xdim > xpos + horizontal_offset >= 0):  # Boundary check.
                         neighbor = pixel_array[xpos + horizontal_offset][ypos + vertical_offset]
                         if neighbor != 0:
-                            # printl(' Checking neighbor: ' + str(neighbor) + ' offsets: h:' + str(horizontal_offset) + ', v: ' + str(vertical_offset))
                             difference = abs(float(pixel.val) - float(
                                 neighbor.val))  # Note: Need to convert to floats, otherwise there's an overflow error due to the value range being int8 (0-255)
                             if difference <= Config.max_val_step:  # Within acceptable bound to be grouped by id
@@ -150,12 +149,10 @@ class Slide:
                 pixel.blob_id = low_eql
 
         for pixel in pixel_list:
-            # printl(str(pixel) + ' -> ', end='')
             base = equivalent_labels[pixel.blob_id]
             while base != equivalent_labels[base]:
                 base = equivalent_labels[base]
             pixel.blob_id = equivalent_labels[base]
-            # printl(' ' + str(pixel.blob_id))
 
     @staticmethod
     def dataToSlides(stitch=True):
@@ -200,9 +197,6 @@ class Slide:
                     else:
                         buf = [Blob2d.get(b2d) for b2d in Blob2d.get(
                             blob).getpartnerschain()]  # TODO setting partners needs filtering like stitching
-                    # HACK refresh buf
-                    # buf = [Blob2d.get(b2d.id) for b2d in buf] # HACK TODO PSOE
-                    # buf = [b2d for b2d in buf if b2d.b3did == -1]
                     if len(buf) != 0:
                         blob3dlist.append(Blob3d([b2d.id for b2d in buf]))
         return blob3dlist

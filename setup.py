@@ -13,12 +13,12 @@ from setuptools import setup, find_packages
 
 setup(
     name='Serotonin',
-    version='.1',
-    install_requires=['numpy', 'vispy', 'munkres', 'scipy', 'PIL'],
+    version='1.0',
+    install_requires=['numpy', 'vispy', 'munkres', 'scipy', 'pandas', 'matplotlib'],
     packages=find_packages(),
     url='https://bitbucket.org/gfinneylong/serotonin',
     license='',
-    author='gio',
+    author='Giovanni Finney-Long',
     author_email='gfinneylong@gmail.com',
     description='Python Blob Analysis'
 )

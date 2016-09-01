@@ -3,6 +3,7 @@ import pickle  # Note uses cPickle automatically ONLY IF python 3
 import traceback
 import sys
 import time
+import pandas as pd
 
 from Slide import Slide
 from Stitches import Pairing
@@ -66,17 +67,6 @@ def load(filename, directory=Config.PICKLEDIR):
 
     buff = pickle.load(open(filename + '_b3ds', "rb"))
     Blob3d.all = buff['b3ds']
-    # if 'possible_merges' in buff:
-    #     printl('Loading b3d possible merges')
-    #     Blob3d.possible_merges = buff['possible_merges']
-    # else:
-    #     printl('Blob3d possible merges were not loaded as they were not in the save file')
-    # This is a temp fix to work with old pickle files:
-    if type(Blob3d.all) is list:
-        buf = Blob3d.all
-        Blob3d.all = dict()
-        for b3d in buf:
-            Blob3d.all[b3d.id] = b3d
 
     Blob3d.next_id = max(b3d.id for b3d in Blob3d.all.values()) + 1
     print_elapsed_time(t, time.time(), prefix='(' + str(len(Blob3d.all)) + ') took', flush=True)
@@ -100,13 +90,13 @@ def load(filename, directory=Config.PICKLEDIR):
     print_elapsed_time(t_start, time.time(), prefix='')
 
 
-def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
+def bloom_b3ds(blob3dlist, stitch=False):
     allb2ds = [Blob2d.get(b2d) for b3d in blob3dlist for b2d in b3d.blob2ds]
     printl('\nProcessing internals of ' + str(len(allb2ds)) + ' 2d blobs via \'blooming\' ', end='')
     t_start_bloom = time.time()
     num_unbloomed = len(allb2ds)
     pb = ProgressBar(max_val=sum(len(b2d.pixels) for b2d in allb2ds), increments=50)
-    for bnum, blob2d in enumerate(allb2ds):  # HACK need to put the colon on the right of start_offset
+    for bnum, blob2d in enumerate(allb2ds):
         blob2d.gen_internal_blob2ds()  # NOTE will have len 0 if no blooming can be done
         pb.update(len(blob2d.pixels), set_val=False)  # set is false so that we add to an internal counter
     pb.finish()
@@ -118,7 +108,7 @@ def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
     # Setting possible_partners
     printl('Pairing all new blob2ds with their potential partners in adjacent slides')
     max_avail_depth = max(
-        b2d.recursive_depth for b2d in Blob2d.all.values())  # Note may want to adjust this later to do just some b2ds
+        b2d.recursive_depth for b2d in Blob2d.all.values())
     for cur_depth in range(max_avail_depth)[1:]:  # Skip those at depth 0
         depth = [b2d.id for b2d in Blob2d.all.values() if b2d.recursive_depth == cur_depth]
         max_h_d = max(Blob2d.all[b2d].height for b2d in depth)
@@ -138,7 +128,6 @@ def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
                         1:]:  # Skip offset of zero, which refers to the b3ds which have already been stitched
         printd('Depth_offset: ' + str(depth_offset), Config.debug_blooming)
         new_b3ds = []
-
         for b3d in blob3dlist:
             all_d1_with_pp_in_this_b3d = []
             for b2d in b3d.blob2ds:
@@ -150,7 +139,6 @@ def bloom_b3ds(blob3dlist, stitch=False, create_progress_bar=True):
                     for desc in d_1:
                         if len(desc.possible_partners):
                             all_d1_with_pp_in_this_b3d.append(desc.id)
-
             all_d1_with_pp_in_this_b3d = set(all_d1_with_pp_in_this_b3d)
             if len(all_d1_with_pp_in_this_b3d) != 0:
                 printd(' Working on b3d: ' + str(b3d), Config.debug_blooming)
@@ -244,23 +232,12 @@ def main():
         Blob3d.tag_all_beads()
 
 
-        # plot_b2ds([b2d for b2d in Blob2d.all.values()], coloring='simple', ids=False, stitches=True, edge=True,
-        #           buffering=True, parentlines=True, explode=True)
-        # plot_b3ds(blob3dlist, color='simple')
-        #
-        largest_base_b3ds = sorted(list(blob3d for blob3d in Blob3d.all.values() if blob3d.recursive_depth == 0),
-                              key=lambda b3d: b3d.get_edge_pixel_count(), reverse=True)  # Do by recursive depth
-        # for b3d in largest_b3ds:
-        #     for b2d in b3d.blob2ds:
-        #         b2d = Blob2d.get(b2d)
-        #         if b2d.maxx > b3d.maxx:
-        #             printl("B2d with larger x than b3d")
-        #             printl(' ' + str(b2d))
-        #             printl(' ' + str(b3d))
-        #         if b2d.maxy > b3d.maxy:
-        #             printl("B2d with larger y than b3d")
-        #             printl(' ' + str(b2d))
-        #             printl(' ' + str(b3d))
+        plot_b2ds([b2d for b2d in Blob2d.all.values()], coloring='simple', ids=False, stitches=True, edge=True,
+                  buffering=True, parentlines=True, explode=True)
+        plot_b3ds(blob3dlist, color='simple')
+
+        # largest_base_b3ds = sorted(list(blob3d for blob3d in Blob3d.all.values() if blob3d.recursive_depth == 0),
+        #                       key=lambda b3d: b3d.get_edge_pixel_count(), reverse=True)  # Do by recursive depth
 
         # TODO Calculate and plot different statistics about the data.
         # Good examples are:
@@ -270,119 +247,78 @@ def main():
         #   Average number of beads per strand
         #
 
-        import matplotlib.pyplot as plt
+
+
+
+
         printl("Now performing statistical analysis...")
         b3d_count = len(Blob3d.all)
-
         base_b3ds = list(b3d for b3d in Blob3d.all.values() if b3d.recursive_depth == 0)
-
-
-        beads = list(b3d for b3d in Blob3d.all.values() if b3d.isBead)
-        printl('Total number of beads: ' + str(len(beads)) + ' out of ' + str(b3d_count) + ' total b3ds')
-        printl('Total number of base b3ds: ' + str(len(base_b3ds)) + ' out of ' + str(b3d_count) + ' total b3ds')
-
-
-        '''
-        # NOTE: Histogram of base_b3ds x,y,z avgs
-        avg_1d_bins = 20
-        avg_2d_bins = 40
-        fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(nrows=3, ncols=2)
-
-        avgxs = list(b3d.avgx for b3d in base_b3ds)
-        avgys = list(b3d.avgy for b3d in base_b3ds)
-        avgzs = list(b3d.avgy for b3d in base_b3ds)
-
-        # 1D Histograms
-        n1, bins1, patches1 = ax1.hist(avgxs, bins=avg_1d_bins)
-        ax1.set_xlabel("Avgx of b3d")
-        ax1.set_ylabel("Number of b3ds")
-        ax1.set_title("Base b3ds by avgx")
-
-        n2, bins2, patches2 = ax2.hist(avgys, bins=avg_1d_bins)
-        ax2.set_xlabel("Avgy of b3d")
-        ax2.set_ylabel("Number of b3ds")
-        ax2.set_title("Base b3ds by avgy")
-
-        n3, bins3, patches3 = ax3.hist(avgzs, bins=avg_1d_bins)
-        ax3.set_xlabel("Avgz of b3d")
-        ax3.set_ylabel("Number of b3ds")
-        ax3.set_title("Base b3ds by avgz")
-
-
-        # 2D Histograms
-        axres4 = ax4.hist2d(avgxs, avgys, bins=avg_2d_bins)
-        ax4.set_xlabel("Avgx of b3d")
-        ax4.set_ylabel("Avgy of b3d")
-        ax4.set_title("Base b3ds avgx by avgy")
-        cbar4 = fig.colorbar(axres4[3], ax=ax4, orientation='vertical')
-
-        axres5 = ax5.hist2d(avgxs, avgzs, bins=avg_2d_bins)
-        ax5.set_xlabel("Avgx of b3d")
-        ax5.set_ylabel("Avgz of b3d")
-        ax5.set_title("Base b3ds avgx by avgz")
-        cbar5 = fig.colorbar(axres5[3], ax=ax5, orientation='vertical')
-
-        axres6 = ax6.hist2d(avgys, avgzs, bins=avg_2d_bins)
-        ax6.set_xlabel("Avgy of b3d")
-        ax6.set_ylabel("Avgz of b3d")
-        ax6.set_title("Base b3ds avgy by avgz")
-        cbar6 = fig.colorbar(axres6[3], ax=ax6, orientation='vertical')
-
-        plt.tight_layout()
-        plt.show()
-        '''
-        # --------------------------------------------------------------
-
-
-        # plot_b3ds(list(Blob3d.all.values()))
-
-        number_of_strands = None
-
-        b2d_plot_bins = 50
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(nrows=2, ncols=2)
-        n1, bins1, patches1 = ax1.hist(list(len(b3d.blob2ds) for b3d in base_b3ds), bins=b2d_plot_bins)
-        ax1.set_xlabel("Number of b2ds per b3d")
-        ax1.set_ylabel("Number of b3ds")
-        ax1.set_title("Base b3ds by number of b2ds")
-
-        n2, bins2, patches2 = ax2.hist(list(sum(len(Blob2d.get(b2d).pixels) for b2d in b3d.blob2ds) for b3d in base_b3ds), bins=b2d_plot_bins)
-        ax2.set_xlabel("Number of pixels per b3d")
-        ax2.set_ylabel("Number of b3ds")
-        ax2.set_title("Base b3ds by number of pixels")
+        beads = list(b3d for b3d in Blob3d.all.values() if b3d.isBead) # TODO optimize
 
         beads_per_strand = []
-        printl("Total base b3ds: " + str(len(base_b3ds)))
-        for b3d in base_b3ds:
-            num_children = len(b3d.get_first_child_beads())
+        loose_beads = [] # These are beads that are solitary (not part of a strand)
+        beads_in_strands = []
+        strands = []
+
+
+        for b3d in base_b3ds: # TODO see if this conflicts with the current 'isBead' labeling
+            buf = b3d.get_first_child_beads()
+            num_children = len(buf)
             if num_children != 0:
-                beads_per_strand.append(num_children)
+                # Has bead children; is a strand
+                if b3d.isBead:
+                    loose_beads.append(b3d)
+                else:
+                    # Not a bead, so is a strand (since these are from base b3ds)
+                    if b3d.isBead:
+                        print("WARNING adding b3d to strands, when isBead: " + str(b3d))
+                    strands.append(b3d)
+                    beads_per_strand.append(num_children)
+                    beads_in_strands += buf
+            else:
+                # No children, therefore implicitly a loose bead?
+                if not b3d.isBead:
+                    print("WARNING adding b3d to loose beads, when not isBead: " + str(b3d))
+                loose_beads.append(b3d)
         number_of_strands = len(beads_per_strand)
+        printl('Total number of beads: ' + str(len(beads)) + ' out of ' + str(b3d_count) + ' total b3ds')
+        printl('Total number of base b3ds: ' + str(len(base_b3ds)) + ' out of ' + str(b3d_count) + ' total b3ds')
+        printl('Total number of loose beads: ' + str(len(loose_beads)) + ' out of ' + str(b3d_count) + ' total b3ds')
+        printl('Total number of strands: ' + str(len(strands)) + ' out of ' + str(b3d_count) + ' total b3ds')
 
-        n3, bins3, patches3 = ax3.hist(beads_per_strand, bins=max(beads_per_strand))
-        ax3.set_xlabel("Number of beads per strand")
-        ax3.set_ylabel("Number of b3ds")
-        ax3.set_title("Strand b3ds by number of beads")
+        # plot_hist_xyz(base_b3ds)
+        # plot_hist_xyz(beads, type='All_Bead_b3ds')
+        # plot_hist_xyz(loose_beads, type='Loose_bead_b3ds')
+        # plot_hist_xyz(strands, type='Strand_b3ds')
+        # plot_hist_xyz(beads_in_strands, type='Beads_in_strand_b3ds')
+        #
+        plot_corr(base_b3ds)
+        plot_corr(beads, type='All_Bead_b3ds')
+        plot_corr(loose_beads, type='Loose_bead_b3ds')
+        plot_corr(strands, type='Strand_b3ds')
+        plot_corr(beads_in_strands, type='Beads_in_strand_b3ds')
 
-        plt.tight_layout()
-        plt.show()
+
+
+        # n1, bins1, patches1 = plt.hist(beads_per_strand, bins=max(beads_per_strand))
+        # plt.xlabel("Number of beads per strand")
+        # plt.ylabel("Number of b3ds")
+        # plt.title("Strand b3ds by number of beads")
+        # plt.tight_layout()
+        # plt.show()
 
 
 
 
-
+        '''
 
 
         for blob3d in largest_base_b3ds:
             printl(blob3d)
             plot_b3ds([blob3d])
             blob3d.gen_skeleton()
-
             # plot_b3ds([blob3d], color='simple')
-
-
-            # all_ep = b3d.get_edge_pixel
-
-
 
         # printl('Plotting b3ds with plotly')
         # plot_plotly(blob3dlist)
@@ -390,6 +326,7 @@ def main():
         # plot_plotly(list(Blob2d.all.values()), b2ds=True)
         printl('Plotting all simple:')
         plot_b3ds(blob3dlist, color='simple')
+        '''
         exit()
 
 
@@ -397,11 +334,8 @@ if __name__ == '__main__':
     try:
         if Config.mayPlot:
             from serodraw import *
-
-            # global colors
-            # global color_dict
             filter_available_colors()
-        main()  # Run the main function
+        main() # Loads or generates blobs, displays in 3d, then displays visual stats
         log.close()
     except Exception as exc:
         printl("\nEXECUTION FAILED!\n")
@@ -410,89 +344,3 @@ if __name__ == '__main__':
         log.close()
 
 
-
-
-        # TODO less b3ds after loading then when saving..?
-
-        # NOTE: After updating blooming (2/28)
-        # NOTE: Swell, stitched base, stitched blooming 2/28
-        # Pickling 4123 b3ds took 11.19 seconds
-        # Pickling 24253 b2ds took 21.77 seconds
-        # Pickling 708062 pixels took 11.14 seconds
-        # Saving took: 44.11 seconds
-        # &
-        # Loading b3ds (3829) took 4.32 seconds
-        # Loading b2ds (24253) took 11.19 seconds
-        # Loading pixels (708062) took 7.56 seconds
-        # Total time to load: 23.08 seconds
-
-        # NOTE: After updating blooming (2/28)
-        # NOTE: C57BL6, stitched base, non-stitched blooming 2/28
-        # Pickling 8293 b3ds took 27.58 seconds
-        # Pickling 49891 b2ds took 26.82 seconds
-        # Pickling 782067 pixels took 12.23 seconds
-        # Saving took: 1 minute & 7 seconds
-        # &
-        # Loading b3ds (8209) took 9.49 seconds
-        # Loading b2ds (49891) took 31.66 seconds
-        # Loading pixels (782067) took 8.68 seconds
-        # Total time to load: 49.83 seconds
-
-        # TODO less b3ds after loading then when saving..?
-
-
-        # NOTE: Post Stitch fix: (Also parallel run with the below)
-        # NOTE: Swell, stitched base, non-stitched blooming 2/27
-        # Pickling 8526 b3ds took 20.99 seconds
-        # Pickling 24253 b2ds took 21.02 seconds
-        # Pickling 708062 pixels took 11.31 seconds
-        # Saving took: 53.32 seconds
-
-        # NOTE: Post Stitch fix: (Also parallel run with the below)
-        # NOTE: Swell, stitched base, stitched blooming 2/27
-        # Pickling 8526 b3ds took 19.95 seconds
-        # Pickling 24253 b2ds took 21.11 seconds
-        # Pickling 708062 pixels took 11.50 seconds
-        # Saving took: 52.57 seconds
-        # &
-        # Loading b3ds (8526) took 10.79 seconds
-        # Loading b2ds (24253) took 40.17 seconds
-        # Loading pixels (708062) took 9.72 seconds
-        # Total time to load: 1 minute & 1 seconds
-
-        # NOTE: Post Stitch fix: (Also parallel run with the above)
-        # NOTE: C57BL6, stitched base, stitched blooming 2/27
-        # Pickling 26514 b3ds took 39.91 seconds
-        # Pickling 49891 b2ds took 50.86 seconds
-        # Pickling 782067 pixels took 13.00 seconds
-        # Saving took: 1 minute & 44 seconds
-
-        # NOTE: C57BL6, stitched base, non-stitched blooming 2/22
-        # Pickling 8294 b3ds took 55.75 seconds
-        # Pickling 49891 b2ds took 1 minute & 1 seconds
-        # Pickling 782067 pixels took 18.64 seconds
-        # Saving took: 2 minutes & 15 seconds
-
-        # NOTE: C57BL6, non-stitched base, non-blooming 2/22
-        # Pickling 10118 b3ds took 0.26 seconds
-        # Pickling 30815 b2ds took 1.39 seconds
-        # Pickling 782067 pixels took 14.71 seconds
-        # Saving took: 16.35 seconds
-
-        # NOTE: Swell, stitched base, non-stitched blooming: 2/20
-        # Loading b3ds (3851) took 15.63 seconds
-        # Loading b2ds (26218) took 2 minutes & 49 seconds
-        # Loading pixels (708062) took 12.96 seconds
-        # Total time to load: 3 minutes & 18 seconds
-
-        # NOTE: Swell, stitched base, non-stitched blooming: 1/25
-        # Pickling 9606 b3ds took 27.79 seconds
-        # Pickling 25347 b2ds took 26.07 seconds
-        # Pickling 708062 pixels took 15.85 seconds
-        # Saving took: 1 minute & 10 seconds
-
-        # NOTE: C57BL6, stitched base, non-stitched blooming: 1/25
-        # Pickling 25616 b3ds took 52.14 seconds
-        # Pickling 50298 b2ds took 47.14 seconds
-        # Pickling 782067 pixels took 15.58 seconds
-        # Saving took: 1 minute & 55 seconds
