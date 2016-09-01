@@ -7,6 +7,8 @@ An (in progress) writeup of the project is hosted: [Here](https://drive.google.c
 
 Install required packages: python setup.py install
 
+Note: Sometimes the below images fail to load, largely due to their size. If this is the case, right click the 'IMAGE' icon and open in a new tab to save a copy
+
 ### A Top Down View of the c57b16 dataset, colored by recursive_depth ###
 ![IMAGE](https://www.dropbox.com/s/4smgqwqimxn4e0s/c57b16_top_depth.png?dl=1)
 
