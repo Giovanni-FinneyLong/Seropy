@@ -5,7 +5,11 @@ Python 3.3 or later required. ImageMagick must be installed to generate gifs.
 
 An (in progress) writeup of the project is hosted: [Here](https://drive.google.com/open?id=0B5YXBruzm8zDUWxkbkQ4TXdEWUU)
 
-Install required packages: python setup.py install
+# Installation
+1. Install required packages: python setup.py install
+2. Copy config.py into myconfig.py
+3. Fill in the 'Folders' section of myconfig.py
+3. Configure the 'Switches' section of myconfig.py
 
 Note: Sometimes the below images fail to load, largely due to their size. If this is the case, right click the 'IMAGE' icon and open in a new tab to save a copy
 
