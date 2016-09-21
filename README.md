@@ -1,7 +1,6 @@
 All visuals & data are hosted: [Here](https://www.dropbox.com/sh/s136nj2b780e22d/AACy854x31kk4U11daFO1Z-0a?dl=0)
 
 Python 3.3 or later required. ImageMagick must be installed to generate gifs.
-(Open images in new tab to download/enlarge)
 
 An (in progress) writeup of the project is hosted: [Here](https://drive.google.com/open?id=0B5YXBruzm8zDUWxkbkQ4TXdEWUU)
 
