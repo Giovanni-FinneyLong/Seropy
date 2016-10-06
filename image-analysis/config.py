@@ -14,16 +14,16 @@ class Config:
      |____/    \_/\_/   |_|  \__|  \___| |_| |_|  \___| |___/
      '''
     mayPlot = True # Used to control the importing of visualization packages; vispy doesn't run on arm :(
-    test_instead_of_data = True
+    test_instead_of_data = True # Use the data at Test_Dir instead of Data_dir
     swell_instead_of_c57bl6 = False # Allows swellshark files to be in the same folder as c57b16
-    dePickle = False
+    dePickle = False # Load a preprocessed dataset. Run with False at least the first time
 
-    process_internals = True # Do blooming, set possible partners for the generated b2ds, then create b3ds from them
-    base_b3ds_with_stitching = True # TODO TODO TODO this still needs to be true to get good results, abstractify for filtering b2ds in both cases
+    process_internals = True # Default True, Do blooming, set possible partners for the generated b2ds, then create b3ds from them
+    base_b3ds_with_stitching = True # Default True, This needs to be true to get accurate results. If speed is much more valueable that accuracy, make False
     # NOTE can allow this to control creation of b3ds, or allow a quick create method for b3ds (noting no stitching and much less accuracy)
-    stitch_bloomed_b2ds = False # Default False
-    do_logging = True
-    nervous_logging = True
+    stitch_bloomed_b2ds = False # Default False, this enables stitching between generated internal Blob2ds. This greatly increases processing time!
+    do_logging = True # Default True, If true, logs all output to logs folder
+    nervous_logging = True # Default, If true, saves the write_to_log after each output. Slightly increases processing time
     log_everything = True
 
     OpenGLLinesInsteadOfAgg = True
