@@ -25,5 +25,5 @@ Note: Sometimes the below images fail to load, largely due to their size. If thi
 ### A Top Down View of the swellshark dataset, colored by 3d blob###
 ![IMAGE](https://www.dropbox.com/s/odqyi3lgg48noqn/swell_blob3d_top.png?dl=1)
 
-### An example of the stitching algorithm
+### An example of the stitching algorithm, which is used to construct blob3ds from layers of blob2ds (outlined)
 ![3D-GIF](https://www.dropbox.com/s/a471w8z70jwav7n/Test_Example_of_Point_Matching.gif?dl=1)
