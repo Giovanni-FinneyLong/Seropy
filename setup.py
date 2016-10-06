@@ -1,24 +1,14 @@
 # from distutils.core import setup
 from setuptools import setup, find_packages
 
-# install = [
-#     'numpy',
-#     'matplotlib',
-#     'scipy',
-#     'scikit-learn',
-#     'vispy',
-#     'munkres'
-# ]
-
-
 setup(
-    name='Serotonin',
-    version='1.0',
+    name='Seropy',
+    version='1.1.1',
     install_requires=['numpy', 'vispy', 'munkres', 'scipy', 'pandas', 'matplotlib'],
     packages=find_packages(),
     url='https://bitbucket.org/gfinneylong/serotonin',
     license='',
     author='Giovanni Finney-Long',
     author_email='gfinneylong@gmail.com',
-    description='Python Blob Analysis'
+    description='Package for analysis and 3d-reconstruction of objects from laser confocal scans'
 )

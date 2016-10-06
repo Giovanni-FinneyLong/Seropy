@@ -27,6 +27,8 @@ class Pairing:
             which are within the scaled boundary defined by boundaryblob and Config.overscan_scale
         """
         assert 0 < self.overscan_scale < 2
+        assert type(subsetblob) is int
+        assert type(boundaryblob) is int
         subsetblob = Blob2d.get(subsetblob)
         boundaryblob = Blob2d.get(boundaryblob)
 
@@ -56,6 +58,7 @@ class Pairing:
         # Note that angles are NORMALLY measured COUNTER-clockwise from the +x axis,
         # Note  however the += 180, used to remove the negative values,
         # NOTE  makes it so that angles are counterclockwise from the NEGATIVE x-axis
+        assert type(num_bins) is int and num_bins > 1
         ledgep = len(self.lowerpixels)
         uedgep = len(self.upperpixels)
 
@@ -102,6 +105,8 @@ class Pairing:
         """
 
         def cost_between_bins(bins1, bins2):
+            assert type(bins1) is list
+            assert type(bins2) is list
             assert len(bins1) == len(bins2)
             cost = 0
             for i in range(len(bins1)):

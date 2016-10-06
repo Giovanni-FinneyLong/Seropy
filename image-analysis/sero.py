@@ -185,7 +185,7 @@ def main():
     printl('Current recusion limit: ' + str(sys.getrecursionlimit()) + ' updating to: ' + str(Config.recursion_limit))
     sys.setrecursionlimit(Config.recursion_limit)  # HACK
     if Config.test_instead_of_data:
-        picklefile = 'All_test_pre_b3d_tree.pickle'  # THIS IS DONE *, and log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
+        picklefile = 'All_test_pre_b3d_tree.pickle'  # THIS IS DONE *, and write_to_log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
     else:
         if Config.swell_instead_of_c57bl6:
             picklefile = 'Swellshark_Adult_012615.pickle'
@@ -340,7 +340,7 @@ if __name__ == '__main__':
     except Exception as exc:
         printl("\nEXECUTION FAILED!\n")
         printl(traceback.format_exc())
-        printl('Writing object to log')
+        printl('Writing object to write_to_log')
         log.close()
 
 
