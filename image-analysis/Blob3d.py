@@ -6,7 +6,7 @@ from myconfig import Config
 import numpy as np
 import math
 
-def get_blob2ds_b3ds(blob2dlist, ids=False):
+def get_blob3ds_from_blob2ds(blob2dlist, ids=False):
     """
     Gives the list of b3ds that together contain all b2ds in the supplied list
     :param blob2dlist: A list of blob2ds (not blob2d ids)
@@ -18,6 +18,12 @@ def get_blob2ds_b3ds(blob2dlist, ids=False):
     else:
         return list(set(
             Blob3d.get(b2d.b3did) for b2d in blob2dlist if b2d.b3did != -1))  # Excluding b2ds that dont belong to a b3d
+
+def get_blob2ds_from_blob3ds(blob3dlist, ids=False):
+    if ids:
+        return list(set(Blob2d.get(b2did) for b3did in blob3dlist for b2did in Blob3d.get(b3did).blob2ds))
+    else:
+        return list(set(Blob2d.get(b2did) for b3d in blob3dlist for b2did in b3d.blob2ds))
 
 
 class Blob3d:
@@ -51,13 +57,13 @@ class Blob3d:
                 # warn('NOT assigning a new b3did (' + str(self.id) + ') to blob2d: ' + str(Blob2d.all[blob.id]))
                 printl('---NOT assigning a new b3did (' + str(self.id) + ') to blob2d: ' + str(Blob2d.all[blob.id]))
                 Blob3d.possible_merges.append((Blob2d.all[blob.id].b3did, self.id, blob.id))
-                ids_that_are_removed_due_to_reusal.add(blobid)
+                ids_that_are_removed_due_to_reusal.add(blobid) # HACK
             else:  # Note not adding to the new b3d
                 Blob2d.all[blob.id].b3did = self.id
                 for stitch in blob.pairings:
                     if stitch not in self.pairings:  # TODO set will be faster
                         self.pairings.append(stitch)
-        self.blob2d = list(set(self.blob2ds) - ids_that_are_removed_due_to_reusal)
+        # self.blob2ds = list(set(self.blob2ds) - ids_that_are_removed_due_to_reusal) # TODO fixed typo 10/10, check doesn't impact elsewhere before uncommenting
         self.maxx = max(Blob2d.get(blob).maxx for blob in self.blob2ds)
         self.maxy = max(Blob2d.get(blob).maxy for blob in self.blob2ds)
         self.miny = min(Blob2d.get(blob).miny for blob in self.blob2ds)
@@ -392,7 +398,6 @@ class Blob3d:
 
     def has_parent_nonbead(self):
         res = False
-
         if self.parent_id is not None:
             res = res or Blob3d.get(self.parent_id).has_parent_nonbead()
         return res

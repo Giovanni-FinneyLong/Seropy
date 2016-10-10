@@ -10,15 +10,15 @@ from vispy.util import keys
 from Blob2d import Blob2d
 from Pixel import Pixel
 from myconfig import Config
-from util import warn, debug
+from util import *
 import matplotlib.pyplot as plt
 import pandas as pd
+from Blob3d import *
 
 colors = None
 color_dict = None
 rgba_colors = None
 
-from Blob3d import get_blob2ds_b3ds, Blob3d
 
 
 # TODO sample animation code here: https://github.com/vispy/vispy/blob/master/examples/basics/scene/save_animation.py
@@ -405,11 +405,32 @@ class Canvas(vispy.scene.SceneCanvas):
                                                              #  to make it easier to see in denser regions
         self.add_markers_from_groups(beads_nonbeads, 'bead', midpoints=False, list_of_colors=['red','green'], size=8)
 
+    def add_blob2d_markers(self, blob2dlist, explode=True):
+        num_colors_used = min(len(colors), len(blob2dlist))
+        b2ds_by_color = [[] for _ in range(num_colors_used + 1)]
+        for index, b2d in enumerate(blob2dlist):
+            b2ds_by_color[index % num_colors_used].append(b2d)
+        self.add_markers_from_groups(b2ds_by_color, 'blob2d', midpoints=False,
+                                     list_of_colors=colors[:num_colors_used], size=8, explode=explode)
+
+    def add_blob2d_markers_from_blob3ds(self, blob3dlist, explode=True):
+        self.add_blob2d_markers(get_blob2ds_from_blob3ds(blob3dlist, ids=False), explode=explode)
+
     def add_blob3d_markers(self, blob3dlist):  # Note that for now, this only does edges
         b3d_groups = [[] for _ in range(min(len(colors), len(blob3dlist)))]
         for blobnum, blob3d in enumerate(blob3dlist):
             b3d_groups[blobnum % len(b3d_groups)].append(blob3d)
         self.add_markers_from_groups(b3d_groups, 'blob3d', midpoints=False, list_of_colors=colors, size=8)
+
+    def add_blob3d_markers_from_blob2ds(self, blob2dlist):  # This makes sure that the whole b3d isnt shown, instead just the relevant b2ds
+        max_b3d_id = max(b2d.b3did for b2d in blob2dlist)
+        b3d_lists = [[] for _ in range(max_b3d_id + 2)]  # +2 to allow for blobs which are unassigned
+        for b2d in blob2dlist:
+            b3d_lists[b2d.b3did].append(b2d)
+        if len(b3d_lists[-1]):
+            warn('Plotting b2ds that weren\'t assigned ids (while converting to b3ds)')
+        b3d_lists = [b3d_list for b3d_list in b3d_lists if len(b3d_list)]
+        self.add_markers_from_groups(b3d_lists, 'blob2d_to_3d', midpoints=False, list_of_colors=colors, size=8, explode=False)
 
     def add_depth_markers(self, blob3dlist):
         max_depth = max(blob3d.recursive_depth for blob3d in blob3dlist)
@@ -425,23 +446,6 @@ class Canvas(vispy.scene.SceneCanvas):
         for b2d in blob2dlist:
             b2ds_by_depth[b2d.recursive_depth].append(b2d)
         self.add_markers_from_groups(b2ds_by_depth, 'b2d_depth', midpoints=False, list_of_colors=colors, size=8, explode=True)
-
-    def add_blob2d_markers(self, blob2dlist, explode=True):
-        num_colors_used = min(len(colors), len(blob2dlist))
-        b2ds_by_color = [[] for _ in range(num_colors_used + 1)]
-        for index, b2d in enumerate(blob2dlist):
-            b2ds_by_color[index % num_colors_used].append(b2d)
-        self.add_markers_from_groups(b2ds_by_color, 'blob2d', midpoints=False, list_of_colors=colors[:num_colors_used],size=8, explode=explode)
-
-    def add_blob3d_markers_from_blob2ds(self, blob2dlist):  # This makes sure that the whole b3d isnt shown, instead just the relevant b2ds
-        max_b3d_id = max(b2d.b3did for b2d in blob2dlist)
-        b3d_lists = [[] for _ in range(max_b3d_id + 2)]  # +2 to allow for blobs which are unassigned
-        for b2d in blob2dlist:
-            b3d_lists[b2d.b3did].append(b2d)
-        if len(b3d_lists[-1]):
-            warn('Plotting b2ds that weren\'t assigned ids (while converting to b3ds)')
-        b3d_lists = [b3d_list for b3d_list in b3d_lists if len(b3d_list)]
-        self.add_markers_from_groups(b3d_lists, 'blob2d_to_3d', midpoints=False, list_of_colors=colors, size=8, explode=False)
 
     def add_neutral_markers(self, blob3dlist, color='aqua'):
         self.add_markers_from_groups([blob3dlist], 'neutral', midpoints=False, list_of_colors=[color], size=8, explode=False)
@@ -658,7 +662,7 @@ class Canvas(vispy.scene.SceneCanvas):
         elif all(type(blob) is Blob2d for blob in bloblist):
             # Given a list of blob2ds
             self.b2ds = bloblist
-            self.b3ds = get_blob2ds_b3ds(bloblist, ids=False)
+            self.b3ds = get_blob3ds_from_blob2ds(bloblist, ids=False)
             self.set_canvas_bounds(b2ds_not_b3ds=True)
         else:
             warn('Given a list not of blob2ds or blob3ds entirely!!!')
@@ -712,10 +716,6 @@ class Canvas(vispy.scene.SceneCanvas):
                 # ymax = max(ymax, blob3d.maxy)
                 # zmin = min(zmin, blob3d.lowslideheight)
                 # zmax = max(zmax, blob3d.highslideheight)
-
-
-
-
 
                 # zdim += 1 # Note this is b/c numbering starts at 0
         self.xmin = xmin
@@ -806,6 +806,10 @@ def plot_b3ds(blob3dlist, stitches=True, color='blob3d', lineColoring=None, maxc
     # HACK
     canvas.add_simple_beads(blob3dlist)
     # /HACK
+
+    if color == 'blob2d' or canvas.buffering:
+        # NEW
+        canvas.add_blob2d_markers_from_blob3ds(blob3dlist)
 
     if color == 'bead' or canvas.buffering:
         canvas.add_bead_markers(blob3dlist)

@@ -301,7 +301,7 @@ def main():
         #         Total beads, singular beads,
         #   Average number of beads per strand
         #
-    do_stat_analysis()
+    # do_stat_analysis()
     exit()
 
 
