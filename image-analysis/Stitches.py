@@ -105,8 +105,8 @@ class Pairing:
         """
 
         def cost_between_bins(bins1, bins2):
-            assert type(bins1) is list
-            assert type(bins2) is list
+            assert type(bins1) is np.ndarray
+            assert type(bins2) is np.ndarray
             assert len(bins1) == len(bins2)
             cost = 0
             for i in range(len(bins1)):

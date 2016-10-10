@@ -167,7 +167,7 @@ class ProgressBar:
         assert min_val <= start_val < max_val
         assert type(increments) is int and 0 < increments <= max_val - min_val
         assert type(symbol) is str and len(symbol) == 1
-        assert type(log) is bool
+        assert type(write_to_log) is bool
         self.symbol = symbol
         self.last_output = 0
         self.max = max_val
@@ -232,7 +232,7 @@ def warn(string):
     :param string: The text to warn the user with
     :return:
     """
-    assert type(string) is str and len(str) > 0
+    assert type(string) is str and len(string) > 0
     if not Config.disable_warnings:
         print('\n>\n->\n--> WARNING: ' + str(string) + ' <--\n->\n>')
 
@@ -252,14 +252,16 @@ def get_images():
     """
     if Config.test_instead_of_data:
         dir_path = Config.TEST_DIR
-        extension = '*.png'
+        file_name_pattern = '*.' + Config.TEST_FILE_EXTENSION
     else:
         dir_path = Config.DATA_DIR
         if Config.swell_instead_of_c57bl6:
-            extension = 'Swell*.tif'
+            file_name_pattern = 'Swell*.' + Config.DATA_FILE_EXTENSION
         else:
-            extension = 'C57BL6*.tif'
-    all_images = glob.glob(dir_path + extension)
+            file_name_pattern = 'C57BL6*.' + Config.DATA_FILE_EXTENSION
+    all_images = glob.glob(dir_path + file_name_pattern)
+    if len(all_images) == 0:
+        raise Exception('No images found matching the pattern: ' + str(dir_path + file_name_pattern))
     return all_images
 
 
@@ -319,5 +321,10 @@ def vispy_tests():
     """
     import vispy
     vispy.test()
+
+
+
+
+
 
 log = Logger(nervous=Config.nervous_logging)  # TODO clean this up by moving it elsewhere or using Logger directly

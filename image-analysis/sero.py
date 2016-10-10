@@ -11,6 +11,8 @@ from myconfig import Config
 from util import print_elapsed_time
 from util import ProgressBar, log, printl, printd  # Log is the actual object that will be shared between files
 
+# NOTE -----------------------------------------------
+# This is the main file. Its execution is controlled by the parameters in myconfig.py
 
 def save(blob3dlist, filename, directory=Config.PICKLEDIR):
     slash = ''
@@ -181,6 +183,62 @@ def bloom_b3ds(blob3dlist, stitch=False):
     return all_new_b3ds
 
 
+def do_stat_analysis():
+    printl("Now performing statistical analysis...")
+    b3d_count = len(Blob3d.all)
+    base_b3ds = list(b3d for b3d in Blob3d.all.values() if b3d.recursive_depth == 0)
+    beads = list(b3d for b3d in Blob3d.all.values() if b3d.isBead)  # TODO optimize
+
+    beads_per_strand = []
+    loose_beads = []  # These are beads that are solitary (not part of a strand)
+    beads_in_strands = []
+    strands = []
+
+    for b3d in base_b3ds:  # TODO see if this conflicts with the current 'isBead' labeling
+        buf = b3d.get_first_child_beads()
+        num_children = len(buf)
+        if num_children != 0:
+            # Has bead children; is a strand
+            if b3d.isBead:
+                loose_beads.append(b3d)
+            else:
+                # Not a bead, so is a strand (since these are from base b3ds)
+                if b3d.isBead:
+                    print("WARNING adding b3d to strands, when isBead: " + str(b3d))
+                strands.append(b3d)
+                beads_per_strand.append(num_children)
+                beads_in_strands += buf
+        else:
+            # No children, therefore implicitly a loose bead?
+            if not b3d.isBead:
+                print("WARNING adding b3d to loose beads, when not isBead: " + str(b3d))
+            loose_beads.append(b3d)
+    number_of_strands = len(beads_per_strand)
+    printl('Total number of beads: ' + str(len(beads)) + ' out of ' + str(b3d_count) + ' total b3ds')
+    printl('Total number of base b3ds: ' + str(len(base_b3ds)) + ' out of ' + str(b3d_count) + ' total b3ds')
+    printl('Total number of loose beads: ' + str(len(loose_beads)) + ' out of ' + str(b3d_count) + ' total b3ds')
+    printl('Total number of strands: ' + str(len(strands)) + ' out of ' + str(b3d_count) + ' total b3ds')
+
+    plot_hist_xyz(base_b3ds)
+    plot_hist_xyz(beads, type='All_Bead_b3ds')
+    plot_hist_xyz(loose_beads, type='Loose_bead_b3ds')
+    plot_hist_xyz(strands, type='Strand_b3ds')
+    plot_hist_xyz(beads_in_strands, type='Beads_in_strand_b3ds')
+    #
+    plot_corr(base_b3ds)
+    plot_corr(beads, type='All_Bead_b3ds')
+    plot_corr(loose_beads, type='Loose_bead_b3ds')
+    plot_corr(strands, type='Strand_b3ds')
+    plot_corr(beads_in_strands, type='Beads_in_strand_b3ds')
+
+    n1, bins1, patches1 = plt.hist(beads_per_strand, bins=max(beads_per_strand))
+    plt.xlabel("Number of beads per strand")
+    plt.ylabel("Number of b3ds")
+    plt.title("Strand b3ds by number of beads")
+    plt.tight_layout()
+    plt.show()
+
+
 def main():
     printl('Current recusion limit: ' + str(sys.getrecursionlimit()) + ' updating to: ' + str(Config.recursion_limit))
     sys.setrecursionlimit(Config.recursion_limit)  # HACK
@@ -195,7 +253,7 @@ def main():
         all_slides, blob3dlist = Slide.dataToSlides(stitch=Config.base_b3ds_with_stitching)
         # Reads in images and converts them to slides.
         # This process involves generating Pixels & Blob2ds & Blob3ds & Pairings
-        printl("DB saving a rd0 copy!")
+        printl("Saving a recursive depth 0 (rd0) copy!")
         save(blob3dlist, picklefile + '_rd0_only')
         log.flush()
 
@@ -206,7 +264,7 @@ def main():
 
         save(blob3dlist, picklefile)
         log.flush()
-        plot_b2ds(list(Blob2d.all.values()), ids=False, stitches=True, edge=False, parentlines=Config.process_internals,explode=Config.process_internals, pixel_ids=False)
+        plot_b2ds(list(Blob2d.all.values()), ids=False, stitches=True, parentlines=Config.process_internals, explode=Config.process_internals)
         printl("Debug going to plot each blob2d individually:")
         for b2d in Blob2d.all.values():
             printl("B2d: " + str(b2d))
@@ -231,7 +289,6 @@ def main():
         printl('Setting beads!')
         Blob3d.tag_all_beads()
 
-
         plot_b2ds([b2d for b2d in Blob2d.all.values()], coloring='simple', ids=False, stitches=True, edge=True,
                   buffering=True, parentlines=True, explode=True)
         plot_b3ds(blob3dlist, color='simple')
@@ -246,74 +303,11 @@ def main():
         #         Total beads, singular beads,
         #   Average number of beads per strand
         #
-
-
-
-
-
-        printl("Now performing statistical analysis...")
-        b3d_count = len(Blob3d.all)
-        base_b3ds = list(b3d for b3d in Blob3d.all.values() if b3d.recursive_depth == 0)
-        beads = list(b3d for b3d in Blob3d.all.values() if b3d.isBead) # TODO optimize
-
-        beads_per_strand = []
-        loose_beads = [] # These are beads that are solitary (not part of a strand)
-        beads_in_strands = []
-        strands = []
-
-
-        for b3d in base_b3ds: # TODO see if this conflicts with the current 'isBead' labeling
-            buf = b3d.get_first_child_beads()
-            num_children = len(buf)
-            if num_children != 0:
-                # Has bead children; is a strand
-                if b3d.isBead:
-                    loose_beads.append(b3d)
-                else:
-                    # Not a bead, so is a strand (since these are from base b3ds)
-                    if b3d.isBead:
-                        print("WARNING adding b3d to strands, when isBead: " + str(b3d))
-                    strands.append(b3d)
-                    beads_per_strand.append(num_children)
-                    beads_in_strands += buf
-            else:
-                # No children, therefore implicitly a loose bead?
-                if not b3d.isBead:
-                    print("WARNING adding b3d to loose beads, when not isBead: " + str(b3d))
-                loose_beads.append(b3d)
-        number_of_strands = len(beads_per_strand)
-        printl('Total number of beads: ' + str(len(beads)) + ' out of ' + str(b3d_count) + ' total b3ds')
-        printl('Total number of base b3ds: ' + str(len(base_b3ds)) + ' out of ' + str(b3d_count) + ' total b3ds')
-        printl('Total number of loose beads: ' + str(len(loose_beads)) + ' out of ' + str(b3d_count) + ' total b3ds')
-        printl('Total number of strands: ' + str(len(strands)) + ' out of ' + str(b3d_count) + ' total b3ds')
-
-        # plot_hist_xyz(base_b3ds)
-        # plot_hist_xyz(beads, type='All_Bead_b3ds')
-        # plot_hist_xyz(loose_beads, type='Loose_bead_b3ds')
-        # plot_hist_xyz(strands, type='Strand_b3ds')
-        # plot_hist_xyz(beads_in_strands, type='Beads_in_strand_b3ds')
-        #
-        plot_corr(base_b3ds)
-        plot_corr(beads, type='All_Bead_b3ds')
-        plot_corr(loose_beads, type='Loose_bead_b3ds')
-        plot_corr(strands, type='Strand_b3ds')
-        plot_corr(beads_in_strands, type='Beads_in_strand_b3ds')
-
-
-
-        # n1, bins1, patches1 = plt.hist(beads_per_strand, bins=max(beads_per_strand))
-        # plt.xlabel("Number of beads per strand")
-        # plt.ylabel("Number of b3ds")
-        # plt.title("Strand b3ds by number of beads")
-        # plt.tight_layout()
-        # plt.show()
-
-
+    do_stat_analysis()
+    exit()
 
 
         '''
-
-
         for blob3d in largest_base_b3ds:
             printl(blob3d)
             plot_b3ds([blob3d])
@@ -327,7 +321,6 @@ def main():
         printl('Plotting all simple:')
         plot_b3ds(blob3dlist, color='simple')
         '''
-        exit()
 
 
 if __name__ == '__main__':

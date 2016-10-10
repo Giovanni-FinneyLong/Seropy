@@ -78,6 +78,7 @@ class Config:
     # The proportion of each slide to operate over, used to speed up test processing
     # A value of .5 would mean scanning 1/2 the slide in the x & y directions, resulting in 1/4 the area
 
+    image_channel_to_use = 0  # The slide channel to use (as tifs has multiple channels / subimages). Start at 0
     '''
       _____                           _                          _          _
      | ____|__  __ _ __    ___  _ __ (_) _ __ ___    ___  _ __  | |_  __ _ | |
@@ -90,7 +91,7 @@ class Config:
        \ V /| (_| || |   | || (_| || |_) || ||  __/\__ \
         \_/  \__,_||_|   |_| \__,_||_.__/ |_| \___||___/
 
-    '''
+    '''  # All switches are either True or False
     # These variables are somewhat new, it is recommended that you do not modify them
     max_pixels_to_stitch = 50 # The max amount of pixels acceptable in EACH pair of slides to be stitched.
     # Increasing this can greatly increase the amount of time required to stitch large blobs
@@ -120,12 +121,16 @@ class Config:
      | |_  / _ \ | | / _` | / _ \| '__|/ __|
      |  _|| (_) || || (_| ||  __/| |   \__ \
      |_|   \___/ |_| \__,_| \___||_|   |___/
-    '''
-    FIGURES_DIR = ''
-    DATA_DIR = ''
-    TEST_DIR = ''
-    IMAGEMAGICK_CONVERT_EXEC = ''
-    PICKLEDIR = '' # Can be relative
+    '''  # All folders are string of relative or complete paths (each ending with '\\' or '/'), or file types/extensions
+    FIGURES_DIR = ''  # Directory where generated images are stored
+    DATA_DIR = ''  # Directory where the input datasets are stored
+                   # NOTE: This is currently configured specifically for the swellshark and C57BL6 datasets
+                   # NOTE: These are expected to be .tif files starting with 'Swell' or 'C57BL6' respectively
+    DATA_FILE_EXTENSION = 'tif'  # File type of images used for input when test_instead_of_data is False
+    TEST_DIR = ''  # Directory where the 'test' files are stored
+    TEST_FILE_EXTENSION = 'png'  # File type of images used for input when test_instead_of_data is True
+    IMAGEMAGICK_CONVERT_EXEC = ''  # Full path to Image Magick .exe file (for generating gifs)
+    PICKLEDIR = ''  # Folder to store processed datasets (as .pickle files)
 
     '''
       ____           __        _
@@ -145,3 +150,8 @@ class Config:
       linemethod = 'gl'
     else:
       linemethod = 'agg'
+  # Checking folders terminate correctly with '/' or '\\'
+    assert FIGURES_DIR[-1] in ['/', '\\']
+    assert DATA_DIR[-1] in ['/', '\\']
+    assert TEST_DIR[-1] in ['/', '\\']
+    assert PICKLEDIR[-1] in ['/', '\\']

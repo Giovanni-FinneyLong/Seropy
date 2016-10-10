@@ -62,7 +62,7 @@ class Slide:
         pixels = []
         for curx in range(self.local_xdim):
             for cury in range(self.local_ydim):
-                pixel_value = slices[0][curx][cury]
+                pixel_value = slices[Config.image_channel_to_use][curx][cury]
                 if pixel_value >= Config.min_val_threshold:
                     pixels.append(Pixel(pixel_value, curx, cury, self.id_num,
                                         validate=False))  # No need to validate at this point
@@ -161,8 +161,8 @@ class Slide:
         all_slides = []
         for imagefile in all_images:
             all_slides.append(Slide(imagefile))  # Pixel computations are done here, as the slide is created.
-        printl('Total # of non-zero pixels: ' + str(
-            Pixel.total_pixels) + ', total number of pixels after filtering: ' + str(len(Pixel.all)))
+        printl('Total # of non-zero pixels: ' + str(Pixel.total_pixels) + ', total number of pixels after filtering: '
+               + str(len(Pixel.all)))
         printl('Total # of blob2ds: ' + str(len(Blob2d.all)))
         printl('Generating ' + str(len(all_slides)) + ' slides took', end='')
         print_elapsed_time(t_gen_slides_0, time.time(), prefix='')
