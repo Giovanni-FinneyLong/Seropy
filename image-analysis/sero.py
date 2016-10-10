@@ -11,8 +11,9 @@ from myconfig import Config
 from util import print_elapsed_time
 from util import ProgressBar, log, printl, printd  # Log is the actual object that will be shared between files
 
-# NOTE -----------------------------------------------
+# NOTE ------------------------------------------------------------------------------
 # This is the main file. Its execution is controlled by the parameters in myconfig.py
+# NOTE ------------------------------------------------------------------------------
 
 def save(blob3dlist, filename, directory=Config.PICKLEDIR):
     slash = ''
@@ -245,10 +246,7 @@ def main():
     if Config.test_instead_of_data:
         picklefile = 'All_test_pre_b3d_tree.pickle'  # THIS IS DONE *, and write_to_log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
     else:
-        if Config.swell_instead_of_c57bl6:
-            picklefile = 'Swellshark_Adult_012615.pickle'
-        else:
-            picklefile = 'C57BL6_Adult_CerebralCortex.pickle'
+        picklefile = Config.PICKLE_FILE_PREFIX + ".pickle"
     if not Config.dePickle:
         all_slides, blob3dlist = Slide.dataToSlides(stitch=Config.base_b3ds_with_stitching)
         # Reads in images and converts them to slides.
@@ -256,7 +254,6 @@ def main():
         printl("Saving a recursive depth 0 (rd0) copy!")
         save(blob3dlist, picklefile + '_rd0_only')
         log.flush()
-
         if Config.process_internals:
             bloomed_b3ds = bloom_b3ds(blob3dlist,stitch=Config.stitch_bloomed_b2ds) # Also sets partners + optionally stitching
             printl('Blooming resulted in ' + str(len(bloomed_b3ds)) + ' new b3ds:')
@@ -307,20 +304,20 @@ def main():
     exit()
 
 
-        '''
-        for blob3d in largest_base_b3ds:
-            printl(blob3d)
-            plot_b3ds([blob3d])
-            blob3d.gen_skeleton()
-            # plot_b3ds([blob3d], color='simple')
+    '''
+    for blob3d in largest_base_b3ds:
+        printl(blob3d)
+        plot_b3ds([blob3d])
+        blob3d.gen_skeleton()
+        # plot_b3ds([blob3d], color='simple')
 
-        # printl('Plotting b3ds with plotly')
-        # plot_plotly(blob3dlist)
-        # printl('Plotting b2ds with plotly')
-        # plot_plotly(list(Blob2d.all.values()), b2ds=True)
-        printl('Plotting all simple:')
-        plot_b3ds(blob3dlist, color='simple')
-        '''
+    # printl('Plotting b3ds with plotly')
+    # plot_plotly(blob3dlist)
+    # printl('Plotting b2ds with plotly')
+    # plot_plotly(list(Blob2d.all.values()), b2ds=True)
+    printl('Plotting all simple:')
+    plot_b3ds(blob3dlist, color='simple')
+    '''
 
 
 if __name__ == '__main__':

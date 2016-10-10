@@ -70,11 +70,7 @@ class Logger:
         if Config.test_instead_of_data:
             data_type = 'Test'
         else:
-            data_type = 'Dataset-'
-            if Config.swell_instead_of_c57bl6:
-                data_type += 'Swell'
-            else:
-                data_type += 'C57B16'
+            data_type = 'Dataset-' + Config.DATA_FILE_PATTERN
         if Config.base_b3ds_with_stitching:
             data_type += '-Stitched'
         else:
@@ -165,7 +161,7 @@ class ProgressBar:
         assert type(min_val) is int
         assert type(max_val) is int and max_val > min_val
         assert min_val <= start_val < max_val
-        assert type(increments) is int and 0 < increments <= max_val - min_val
+        assert type(increments) is int
         assert type(symbol) is str and len(symbol) == 1
         assert type(write_to_log) is bool
         self.symbol = symbol
@@ -252,13 +248,10 @@ def get_images():
     """
     if Config.test_instead_of_data:
         dir_path = Config.TEST_DIR
-        file_name_pattern = '*.' + Config.TEST_FILE_EXTENSION
+        file_name_pattern = Config.TEST_FILE_PATTERN
     else:
         dir_path = Config.DATA_DIR
-        if Config.swell_instead_of_c57bl6:
-            file_name_pattern = 'Swell*.' + Config.DATA_FILE_EXTENSION
-        else:
-            file_name_pattern = 'C57BL6*.' + Config.DATA_FILE_EXTENSION
+        file_name_pattern = Config.DATA_FILE_PATTERN
     all_images = glob.glob(dir_path + file_name_pattern)
     if len(all_images) == 0:
         raise Exception('No images found matching the pattern: ' + str(dir_path + file_name_pattern))
