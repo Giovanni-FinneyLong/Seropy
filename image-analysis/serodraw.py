@@ -839,7 +839,7 @@ def plotBlob2d(b2d, canvas_size=(1080, 1080)):
     canvas = Canvas(canvas_size, coloring='blob2d')
     canvas.plot_call = 'PlotBlob2ds'
     canvas.set_blobs([b2d])
-    canvas.add_blob2d_markers([b2d], edge=False, offset=True, explode=False)
+    canvas.add_blob2d_markers([b2d], explode=False)
     for pixel in b2d.pixels:
         pixel = Pixel.get(pixel)
         canvas.view.add(visuals.Text(str(pixel.id),

@@ -182,7 +182,7 @@ class Slide:
 
     @staticmethod
     def extract_blob3ds(all_slides, stitched=True):
-        printl('Extracting 3d blobs by combining 2d blobs into 3d', flush=True)
+        printl('Extracting 3D blobs by combining 2D blobs into 3D', flush=True)
         blob3dlist = []
         if not stitched:
             warn('Extracting blob3ds, and have been told that they haven\'t been stitched. This will be inaccurate')

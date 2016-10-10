@@ -262,18 +262,19 @@ def main():
         save(blob3dlist, picklefile)
         log.flush()
         plot_b2ds(list(Blob2d.all.values()), ids=False, stitches=True, parentlines=Config.process_internals, explode=Config.process_internals)
-        printl("Debug going to plot each blob2d individually:")
-        for b2d in Blob2d.all.values():
-            printl("B2d: " + str(b2d))
-            plotBlob2d(b2d)
+        plot_b3ds(blob3dlist, color='simple')
+        # printl("Debug going to plot each blob2d individually:")
+        # for b2d in Blob2d.all.values():
+        #     printl("B2d: " + str(b2d))
+        #     plotBlob2d(b2d) # TODO only plotting pixel numbers..
 
     else:
         if Config.load_base_only:
             load(picklefile + '_rd0_only')
             blob3dlist = list(Blob3d.all.values())
             if Config.process_internals:
-                bloomed_b3ds = bloom_b3ds(blob3dlist,
-                                          stitch=Config.stitch_bloomed_b2ds)  # Includes setting partners, and optionally stitching
+                bloomed_b3ds = bloom_b3ds(blob3dlist, stitch=Config.stitch_bloomed_b2ds)
+                # Includes setting partners, and optionally stitching
                 printl('Blooming resulted in ' + str(len(bloomed_b3ds)) + ' new b3ds:')
                 for b3d in bloomed_b3ds:
                     printl(b3d)
@@ -286,7 +287,7 @@ def main():
         printl('Setting beads!')
         Blob3d.tag_all_beads()
 
-        plot_b2ds([b2d for b2d in Blob2d.all.values()], coloring='simple', ids=False, stitches=True, edge=True,
+        plot_b2ds([b2d for b2d in Blob2d.all.values()], coloring='simple', ids=False, stitches=True,
                   buffering=True, parentlines=True, explode=True)
         plot_b3ds(blob3dlist, color='simple')
 
