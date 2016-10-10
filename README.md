@@ -10,6 +10,7 @@ An (in progress) writeup of the project is hosted: [Here](https://drive.google.c
 3. Copy config.py into myconfig.py
 4. Fill in the 'Folders' section of myconfig.py
 5. Configure the 'Switches' section of myconfig.py
+6. Run sero.py : python sero.py
 
 Note: Sometimes the below images fail to load, largely due to their size. If this is the case, right click the 'IMAGE' icon and open in a new tab to save a copy
 
