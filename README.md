@@ -28,3 +28,11 @@ Note: Sometimes the below images fail to load, largely due to their size. If thi
 
 ### An example of the stitching algorithm, which is used to construct blob3ds from layers of blob2ds (outlined)
 ![3D-GIF](https://www.dropbox.com/s/a471w8z70jwav7n/Test_Example_of_Point_Matching.gif?dl=1)
+
+### TODOs / Upcoming: ###
+* Add blob3d lines to plot in serodraw.py
+* Document visualization methods
+* Create test suite
+* Do more runtime exception checking / assertions
+* Add better visuals to readme (not from perpendicular)
+* Bug - Some (rare) blob3ds have children id's that have been removed (from being combined with other blob3ds). These specific child ids were meant to have been removed. If this has occured, it will crash execution when visualizing. The temporary solution is to load after running the first time, which will bypass this issue.
