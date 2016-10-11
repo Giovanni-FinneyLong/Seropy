@@ -40,7 +40,7 @@ class Slide:
             (self.local_xdim, self.local_ydim, self.local_zdim) = imarray.shape[0], imarray.shape[1], self.height
             if not quiet:
                 if len(imarray.shape) > 2:
-                    printl('The are ' + str(imarray.shape[2]) + ' channels')
+                    printl('The are ' + str(imarray.shape[2]) + ' channels', end='')
                 else:
                     printl('There is one channel')
             image_channels = imagein.split()
@@ -50,7 +50,8 @@ class Slide:
                 slices.append(buf)
                 if np.amax(slices[s]) == 0:
                     if not quiet:
-                        printl('Channel #' + str(s) + ' is empty')
+                        printl(', Channel #' + str(s) + ' is empty', end='')
+            print('', end='\n')
         else:
             slices = [matrix]
             self.local_xdim, self.local_ydim = matrix.shape

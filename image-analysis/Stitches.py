@@ -158,8 +158,8 @@ class Pairing:
         printl('')
         for slide_num, slide in enumerate(slidelist):
             t_start_stitching_this_slide = time.time()
-            printl('Stitching ' + str(len(slide.blob2dlist)) + ' blob2ds from slide #' + str(slide_num + 1) + '/' + str(
-                len(slidelist)), end=' ')  # Note that slide number is offset of non-technical users
+            printl('Stitching ' + str(len(slide.blob2dlist)) + ' blob2ds from slide #' + (str(slide_num + 1) + '/' + str(
+                len(slidelist)).ljust(5)), end=' ')  # Note that slide number is offset of non-technical users
             progress = ProgressBar(max_val=len(slide.blob2dlist), increments=20,
                                    symbol='.')  # Note actually more responsive to do based on blob than # of pixels, due to using only a subset to stitch
             for b_num, blob1 in enumerate(slide.blob2dlist):

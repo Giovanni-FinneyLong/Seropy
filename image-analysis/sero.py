@@ -261,8 +261,8 @@ def main():
 
         save(blob3dlist, picklefile)
         log.flush()
-        plot_b2ds(list(Blob2d.all.values()), ids=False, stitches=True, parentlines=Config.process_internals, explode=Config.process_internals)
-        plot_b3ds(blob3dlist, color='simple')
+        plot(blob3dlist, ids=False, stitches=True, parentlines=Config.process_internals,
+             explode=Config.process_internals, buffering=True)
         # printl("Debug going to plot each blob2d individually:")
         # for b2d in Blob2d.all.values():
         #     printl("B2d: " + str(b2d))
@@ -287,9 +287,7 @@ def main():
         printl('Setting beads!')
         Blob3d.tag_all_beads()
 
-        plot_b2ds([b2d for b2d in Blob2d.all.values()], coloring='simple', ids=False, stitches=True,
-                  buffering=True, parentlines=True, explode=True)
-        plot_b3ds(blob3dlist, color='simple')
+        plot(blob3dlist, coloring='simple', ids=False, stitches=True, buffering=True, parentlines=True, explode=True)
 
         # largest_base_b3ds = sorted(list(blob3d for blob3d in Blob3d.all.values() if blob3d.recursive_depth == 0),
         #                       key=lambda b3d: b3d.get_edge_pixel_count(), reverse=True)  # Do by recursive depth

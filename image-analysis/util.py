@@ -70,7 +70,7 @@ class Logger:
         if Config.test_instead_of_data:
             data_type = 'Test'
         else:
-            data_type = 'Dataset-' + Config.DATA_FILE_PATTERN
+            data_type = 'Dataset-' + Config.DATA_FILE_PATTERN.replace('*', '(star)')  # Because '*' not allowed in filenames
         if Config.base_b3ds_with_stitching:
             data_type += '-Stitched'
         else:

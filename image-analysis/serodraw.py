@@ -83,9 +83,7 @@ class Canvas(vispy.scene.SceneCanvas):
         # TODO adjust _keymap of FlyCamera to tune turning to be less extreme
         # print('Fly_camera keymap: ' + str(fly_camera._keymap))
 
-        turn_speed = .6
-        assert (
-            turn_speed >= .6)  # This is because below this value, the camera stops reponding to turn requests when not already moving
+        turn_speed = .6 # This is because below this value, the camera stops reponding to turn requests when not already moving
 
         fly_camera.set_range(x=(0, 1), y=(0, 1), z=(0, 1))  # Doesn't seem to improve performance..
         # fly_camera.link(turn_camera) # Can't link b/c dont share rotation :/
@@ -123,7 +121,6 @@ class Canvas(vispy.scene.SceneCanvas):
         self.show()
         self.coloring = coloring.lower()
 
-        # print('----Starting canvas color: ' + str(self.coloring))
         self.markers = []
         self.available_marker_colors = ['simple', 'blob3d', 'bead', 'depth', 'blob2d', 'b2d_depth', 'neutral', 'blob2d_to_3d']
         self.available_stitch_colors = ['simple', 'neutral', 'parent_id', 'blob3d']
@@ -388,8 +385,6 @@ class Canvas(vispy.scene.SceneCanvas):
                             marker_colors[index] = my_rgba_colors[group_index % len(my_rgba_colors)]
                             index += 1
 
-
-
         markers = visuals.Markers()
         # print("Result of marker_pos for type: " + str(type_string) + ' : ' + str(marker_pos))
         # print("Result of marker_colors for type: " + str(type_string) + ' : ' + str(marker_colors))
@@ -397,62 +392,41 @@ class Canvas(vispy.scene.SceneCanvas):
         markers.set_data(marker_pos, face_color=marker_colors, size=size) #, edge_color=edge_color)
         self.add_marker(markers, type_string)
 
-    def add_bead_markers(self, blob3dlist):
+    def add_bead_markers(self):
         Blob3d.tag_all_beads()         # Tagging beads for safety
         beads_nonbeads = [[], []]
-        for blob3d in blob3dlist:
+        for blob3d in self.b3ds:
             beads_nonbeads[not blob3d.isBead].append(blob3d) # Inverted so that green is drawn after red,
                                                              #  to make it easier to see in denser regions
         self.add_markers_from_groups(beads_nonbeads, 'bead', midpoints=False, list_of_colors=['red','green'], size=8)
 
-    def add_blob2d_markers(self, blob2dlist, explode=True):
-        num_colors_used = min(len(colors), len(blob2dlist))
+    def add_blob2d_markers(self, explode=True):
+        num_colors_used = min(len(colors), len(self.b2ds))
         b2ds_by_color = [[] for _ in range(num_colors_used + 1)]
-        for index, b2d in enumerate(blob2dlist):
+        for index, b2d in enumerate(self.b2ds):
             b2ds_by_color[index % num_colors_used].append(b2d)
         self.add_markers_from_groups(b2ds_by_color, 'blob2d', midpoints=False,
                                      list_of_colors=colors[:num_colors_used], size=8, explode=explode)
 
-    def add_blob2d_markers_from_blob3ds(self, blob3dlist, explode=True):
-        self.add_blob2d_markers(get_blob2ds_from_blob3ds(blob3dlist, ids=False), explode=explode)
-
-    def add_blob3d_markers(self, blob3dlist):  # Note that for now, this only does edges
-        b3d_groups = [[] for _ in range(min(len(colors), len(blob3dlist)))]
-        for blobnum, blob3d in enumerate(blob3dlist):
+    def add_blob3d_markers(self):  # Note that for now, this only does edges
+        b3d_groups = [[] for _ in range(min(len(colors), len(self.b3ds)))]
+        for blobnum, blob3d in enumerate(self.b3ds):
             b3d_groups[blobnum % len(b3d_groups)].append(blob3d)
         self.add_markers_from_groups(b3d_groups, 'blob3d', midpoints=False, list_of_colors=colors, size=8)
 
-    def add_blob3d_markers_from_blob2ds(self, blob2dlist):  # This makes sure that the whole b3d isnt shown, instead just the relevant b2ds
-        max_b3d_id = max(b2d.b3did for b2d in blob2dlist)
-        b3d_lists = [[] for _ in range(max_b3d_id + 2)]  # +2 to allow for blobs which are unassigned
-        for b2d in blob2dlist:
-            b3d_lists[b2d.b3did].append(b2d)
-        if len(b3d_lists[-1]):
-            warn('Plotting b2ds that weren\'t assigned ids (while converting to b3ds)')
-        b3d_lists = [b3d_list for b3d_list in b3d_lists if len(b3d_list)]
-        self.add_markers_from_groups(b3d_lists, 'blob2d_to_3d', midpoints=False, list_of_colors=colors, size=8, explode=False)
-
-    def add_depth_markers(self, blob3dlist):
-        max_depth = max(blob3d.recursive_depth for blob3d in blob3dlist)
+    def add_depth_markers(self, explode=False):
+        max_depth = max(blob3d.recursive_depth for blob3d in self.b3ds)
         b3ds_by_depth = [[] for _ in range(max_depth + 1)]
-        for b3d in blob3dlist:
+        for b3d in self.b3ds:
             b3ds_by_depth[b3d.recursive_depth].append(b3d)
-        self.add_markers_from_groups(b3ds_by_depth, 'depth', midpoints=False, list_of_colors=colors, size=8)
+        self.add_markers_from_groups(b3ds_by_depth, 'depth', midpoints=False, list_of_colors=colors, size=8, explode=explode)
 
-    def add_depth_markers_from_blob2ds(self, blob2dlist, offset=False, explode=True):
-        max_depth = max(blob2d.recursive_depth for blob2d in blob2dlist)
-        b2ds_by_depth = [[] for _ in range(max_depth + 1)]
-        print(len(b2ds_by_depth))
-        for b2d in blob2dlist:
-            b2ds_by_depth[b2d.recursive_depth].append(b2d)
-        self.add_markers_from_groups(b2ds_by_depth, 'b2d_depth', midpoints=False, list_of_colors=colors, size=8, explode=True)
+    def add_neutral_markers(self, color='aqua'):
+        self.add_markers_from_groups([self.b3ds], 'neutral', midpoints=False, list_of_colors=[color], size=8, explode=False)
 
-    def add_neutral_markers(self, blob3dlist, color='aqua'):
-        self.add_markers_from_groups([blob3dlist], 'neutral', midpoints=False, list_of_colors=[color], size=8, explode=False)
-
-    def add_simple_beads(self, blob3dlist):  # NOTE only doing strands for now for simplicity
-        base_b3ds = [b3d for b3d in blob3dlist if b3d.recursive_depth == 0]  # and not b3d.isBead]
-        print(' Number of base_b3ds = ' + str(len(base_b3ds)) + ' / ' + str(len(blob3dlist)))
+    def add_simple_beads(self):  # NOTE only doing strands for now for simplicity
+        base_b3ds = [b3d for b3d in self.b3ds if b3d.recursive_depth == 0]  # and not b3d.isBead]
+        print(' Number of base_b3ds = ' + str(len(base_b3ds)) + ' / ' + str(len(self.b3ds)))
         bead_groups = []
         all_first_children = []
         for b3d in base_b3ds:
@@ -483,8 +457,7 @@ class Canvas(vispy.scene.SceneCanvas):
         one_markers.set_data(one_marker_midpoints, face_color=colors[0], size=8, edge_color='yellow')
         self.add_marker(one_markers, 'simple')
 
-
-        all_stitch_arr = np.zeros((0,3))
+        all_stitch_arr = np.zeros((0, 3))
 
         num_markers = sum(len(bg) for bg in bg_more_than_one)
         connections = np.empty((num_markers, 2))
@@ -531,17 +504,17 @@ class Canvas(vispy.scene.SceneCanvas):
         self.stitches.append((stitch, coloring))
         self.view.add(self.stitches[-1][0])
 
-    def add_blob3d_stitches(self, blob3dlist):  # FIXME
-        num_markers = min(len(blob3dlist), len(colors))
+    def add_blob3d_stitches(self):  # FIXME
+        num_markers = min(len(self.b3ds), len(colors))
         lines_per_color = [0] * num_markers
         offsets = [0] * num_markers
         line_location_lists = []
-        for blob_num, b3d in enumerate(blob3dlist):
+        for blob_num, b3d in enumerate(self.b3ds):
             lines_per_color[blob_num % num_markers] += sum(
-                len(pairing.indeces) for blob3d in blob3dlist for pairing in blob3d.pairings)
+                len(pairing.indeces) for blob3d in self.b3ds for pairing in blob3d.pairings)
         for line_count in lines_per_color:
             line_location_lists.append(np.zeros([2 * line_count, 3]))  # 2x because we are storing endpoints
-        for blob_num, blob3d in enumerate(blob3dlist):
+        for blob_num, blob3d in enumerate(self.b3ds):
             for pairing in blob3d.pairings:
                 for stitch_no, stitch in enumerate(pairing.stitches):
                     lowerpixel = Pixel.get(stitch.lowerpixel)
@@ -560,63 +533,45 @@ class Canvas(vispy.scene.SceneCanvas):
             stitch_lines.set_data(pos=line_location_list, connect='segments', color=colors[list_no % len(colors)])
             self.add_stitch(stitch_lines, 'blob3d')
 
-    def add_neutral_stitches(self, blob3dlist):
+    def add_neutral_stitches(self, offset=False):
+        if offset:
+            xoffset = self.xmin
+            yoffset = self.ymin
+            zoffset = self.zmin
+        else:
+            xoffset = 0
+            yoffset = 0
+            zoffset = 0
+
         line_end_points = 0
         line_index = 0
-        for blob_num, blob3d in enumerate(blob3dlist):
+        for blob_num, blob3d in enumerate(self.b3ds):
             for stitch in blob3d.pairings:
                 line_end_points += (2 * len(stitch.indeces))  # 2 as each line has 2 endpoints
         line_locations = np.zeros([line_end_points, 3])
-        for blob3d in blob3dlist:
+        for blob3d in self.b3ds:
             for pairing in blob3d.pairings:
                 for stitch in pairing.stitches:
                     lowerpixel = Pixel.get(stitch.lowerpixel)
                     upperpixel = Pixel.get(stitch.upperpixel)
-                    line_locations[line_index] = [lowerpixel.x / self.xdim, lowerpixel.y / self.ydim,
-                                                  pairing.lowerheight / (Config.z_compression * self.zdim)]
-                    line_locations[line_index + 1] = [upperpixel.x / self.xdim, upperpixel.y / self.ydim,
-                                                      pairing.upperheight / (Config.z_compression * self.zdim)]
+                    # line_locations[line_index] = [lowerpixel.x / self.xdim, lowerpixel.y / self.ydim,
+                    #                               pairing.lowerheight / (Config.z_compression * self.zdim)]
+                    # line_locations[line_index + 1] = [upperpixel.x / self.xdim, upperpixel.y / self.ydim,
+                    #                                   pairing.upperheight / (Config.z_compression * self.zdim)]
+                    line_locations[line_index] = [(lowerpixel.x - xoffset) / self.xdim,
+                                                  (lowerpixel.y - yoffset) / self.ydim,
+                                                  (pairing.lowerheight - zoffset) / (
+                                                      Config.z_compression * self.zdim)]
+                    line_locations[line_index + 1] = [(upperpixel.x - xoffset) / self.xdim,
+                                                      (upperpixel.y - yoffset) / self.ydim,
+                                                      (pairing.upperheight - zoffset) / (
+                                                          Config.z_compression * self.zdim)]
                     line_index += 2
         stitch_lines = visuals.Line(method=Config.linemethod)
         stitch_lines.set_data(pos=line_locations, connect='segments')
         self.add_stitch(stitch_lines, 'neutral')
 
-    def add_neutral_stitches_from_blob2ds(self, blob2dlist, offset=False):
-        if offset:
-            xoffset = self.xmin
-            yoffset = self.ymin
-            zoffset = self.zmin
-        else:
-            xoffset = 0
-            yoffset = 0
-            zoffset = 0
-
-        lineendpoints = 0
-        for blob2d in blob2dlist:
-            for pairing in blob2d.pairings:
-                lineendpoints += (2 * len(pairing.indeces))
-        if lineendpoints != 0:
-            line_index = 0
-            line_locations = np.zeros([lineendpoints, 3])
-            for blob2d in blob2dlist:
-                for pairing in blob2d.pairings:
-                    for lowerpnum, upperpnum in pairing.indeces:
-                        lowerpixel = Pixel.get(pairing.lowerpixels[lowerpnum])
-                        upperpixel = Pixel.get(pairing.upperpixels[upperpnum])
-                        line_locations[line_index] = [(lowerpixel.x - xoffset) / self.xdim,
-                                                      (lowerpixel.y - yoffset) / self.ydim,
-                                                      (pairing.lowerheight - zoffset) / (
-                                                          Config.z_compression * self.zdim)]
-                        line_locations[line_index + 1] = [(upperpixel.x - xoffset) / self.xdim,
-                                                          (upperpixel.y - yoffset) / self.ydim,
-                                                          (pairing.upperheight - zoffset) / (
-                                                              Config.z_compression * self.zdim)]
-                        line_index += 2
-            stitch_lines = visuals.Line(method=Config.linemethod)
-            stitch_lines.set_data(pos=line_locations, connect='segments')
-            self.add_stitch(stitch_lines, 'neutral')
-
-    def add_parent_lines(self, blob2dlist, offset=False, explode=True):
+    def add_parent_lines(self, offset=False, explode=True):
         if offset:
             xoffset = self.xmin
             yoffset = self.ymin
@@ -626,12 +581,12 @@ class Canvas(vispy.scene.SceneCanvas):
             yoffset = 0
             zoffset = 0
         lineendpoints = 0
-        for num, b2d in enumerate(blob2dlist):
+        for num, b2d in enumerate(self.b2ds):
             lineendpoints += (2 * len(b2d.children))
         if lineendpoints:
             line_index = 0
             line_locations = np.zeros([lineendpoints, 3])
-            for b2d in blob2dlist:
+            for b2d in self.b2ds:
                 for child in b2d.children:
                     child = Blob2d.get(child)
                     line_locations[line_index] = [(b2d.avgx - xoffset) / self.xdim, (b2d.avgy - yoffset) / self.ydim,
@@ -654,16 +609,21 @@ class Canvas(vispy.scene.SceneCanvas):
         :param bloblist: A list of entirely blob2ds or entirely blob3ds
         :return:
         """
+        assert type(bloblist) is list
+        if len(bloblist) == 0:
+            raise Exception("Added an empty list to canvas; requires a list of blob2d or blob3ds")
         if all(type(blob) is Blob3d for blob in bloblist):
             # Given a list of blob3ds
             self.b3ds = bloblist
-            self.b2ds = [blob2d for blob3d in bloblist for blob2d in blob3d.blob2ds]
+            self.b2ds = [Blob2d.get(blob2d) for blob3d in bloblist for blob2d in blob3d.blob2ds]
             self.set_canvas_bounds(b2ds_not_b3ds=False)
+            self.plot_call = 'PlotBlob3ds'
         elif all(type(blob) is Blob2d for blob in bloblist):
             # Given a list of blob2ds
             self.b2ds = bloblist
             self.b3ds = get_blob3ds_from_blob2ds(bloblist, ids=False)
             self.set_canvas_bounds(b2ds_not_b3ds=True)
+            self.plot_call = 'PlotBlob2ds'
         else:
             warn('Given a list not of blob2ds or blob3ds entirely!!!')
             print(bloblist)
@@ -673,7 +633,7 @@ class Canvas(vispy.scene.SceneCanvas):
     def set_canvas_bounds(self, b2ds_not_b3ds):
         """
         Sets (x,y,z) (min, max, dim) using either canvas.b2ds or canvas.b3ds
-        :param b2ds_not_b3ds:
+        :param b2ds_not_b3ds: True if using blob2ds, False if using blob3ds
         :return:
         """
         if b2ds_not_b3ds:
@@ -732,109 +692,172 @@ class Canvas(vispy.scene.SceneCanvas):
         print("xdim: " + str(self.xdim) + ', ydim: ' + str(self.ydim) + ', zdim: ' + str(self.zdim))
 
 
-def plot_b2ds(blob2ds, coloring='', canvas_size=(800, 800), ids=False, stitches=False, titleNote='',
-              buffering=True, parentlines=False, explode=False, offset=False):
+def plot(blob3ds_or_blob2ds, coloring='', lineColoring=None, canvas_size=(800, 800), ids=False, stitches=False, titleNote='',
+              buffering=True, parentlines=False, explode=False, offset=False, maxcolors=-1):
     global colors
     coloring = coloring.lower()
-    assert coloring in ['blob2d', '', 'b2d_depth', 'blob3d', 'bead', 'simple']
-
-    # This block allows the passing of ids or blob2ds
-    if len(blob2ds) == 0:
-        warn('Tried to plot 0 blob2ds')
-    else:
-        all_b2ds_are_ids = all(type(b2d) is int for b2d in blob2ds)
-        all_b2d_are_blob2ds = all(type(b2d) is Blob2d for b2d in blob2ds)
-        assert (all_b2d_are_blob2ds or all_b2ds_are_ids)
-        if all_b2ds_are_ids:  # May want to change this depending on what it does to memory
-            blob2ds = [Blob2d.get(b2d) for b2d in blob2ds]
-
-        if coloring == '':
-            coloring = 'blob2d'  # For the canvas title
-
-        canvas = Canvas(canvas_size, coloring='blob2d', buffering=buffering,
-                        title='plotBlob2ds(' + str(len(blob2ds)) + '-Blob2ds, coloring=' + str(
-                            coloring) + ' canvas_size=' + str(canvas_size) + ') ' + titleNote)
-        canvas.plot_call = 'PlotBlob2ds'
-        canvas.set_blobs(blob2ds)
-
-        if coloring == 'simple' or canvas.buffering:
-            canvas.add_simple_beads(canvas.b3ds)
-
-        if coloring == 'blob2d' or canvas.buffering:
-            canvas.add_blob2d_markers(blob2ds, explode=explode)
-
-        if coloring == 'blob3d' or canvas.buffering:
-            canvas.add_blob3d_markers_from_blob2ds(blob2ds)
-
-        if coloring == 'bead' or canvas.buffering:
-            canvas.add_bead_markers(canvas.b3ds)  # HACK
-
-        if coloring == 'b2d_depth' or canvas.buffering:
-            canvas.add_depth_markers_from_blob2ds(blob2ds)
-
-        if stitches or canvas.buffering:
-            canvas.add_neutral_stitches_from_blob2ds(blob2ds, offset=offset)
-
-        if parentlines or canvas.buffering:
-            canvas.add_parent_lines(blob2ds, offset=offset, explode=explode)
-
-        if ids:
-            print(
-                "\nWARNING adding ids for every blob2d, this could overload if not a small dataset, so skipping if not a test_set!!")
-            if Config.test_instead_of_data:
-                for b2d_num, b2d in enumerate(blob2ds):
-                    midpoints = [(b2d.avgx - canvas.xmin) / canvas.xdim, (b2d.avgy - canvas.ymin) / canvas.ydim, (
-                        (getBloomedHeight(b2d, explode, canvas.zdim) + .25 - canvas.zmin) / (
-                            Config.z_compression * canvas.zdim))]
-                    textStr = str(b2d.id)
-                    color = colors[b2d.id % len(colors)]
-                    canvas.view.add(visuals.Text(textStr, pos=midpoints, color=color, font_size=8, bold=False))
-
-        canvas.setup_markers()
-        canvas.setup_stitches()
-        vispy.app.run()
-
-
-def plot_b3ds(blob3dlist, stitches=True, color='blob3d', lineColoring=None, maxcolors=-1, canvas_size=(800, 800)):
-    global colors
-    canvas = Canvas(canvas_size, coloring=color)
+    assert coloring in ['blob2d', '', 'depth', 'blob3d', 'bead', 'simple'] # TODO check all are included
+    if coloring == '':
+        coloring = 'blob2d'  # For the canvas title
     if 0 < maxcolors < len(colors):
         colors = colors[:maxcolors]
-    canvas.plot_call = 'PlotBlob3ds'
-    canvas.set_blobs(blob3dlist)
+    if len(blob3ds_or_blob2ds) == 0:
+        raise Exception("Tried to plot a list of zero blob2ds / blob3ds")
+    canvas = Canvas(canvas_size, coloring=coloring, buffering=buffering)
+    canvas.set_blobs(blob3ds_or_blob2ds)
+    # TODO set title
+    # TODO add all plotting methods, and check they correspond to colorings available in above assertion
+    # TODO need to add simple stitches
 
-    # HACK
-    canvas.add_simple_beads(blob3dlist)
-    # /HACK
+    if coloring == 'simple' or canvas.buffering:
+        canvas.add_simple_beads()
 
-    if color == 'blob2d' or canvas.buffering:
-        # NEW
-        canvas.add_blob2d_markers_from_blob3ds(blob3dlist)
+    if coloring == 'blob2d' or canvas.buffering:
+        canvas.add_blob2d_markers(explode=explode)
 
-    if color == 'bead' or canvas.buffering:
-        canvas.add_bead_markers(blob3dlist)
+    if coloring == 'blob3d' or canvas.buffering:
+        canvas.add_blob3d_markers()
 
-    if color == 'blob' or color == 'blob3d' or canvas.buffering:  # Note: This is very graphics intensive.
-        canvas.add_blob3d_markers(blob3dlist)
+    if coloring == 'bead' or canvas.buffering:
+        canvas.add_bead_markers()
 
-    if color == 'depth' or canvas.buffering:  # Coloring based on recursive depth
-        canvas.add_depth_markers(blob3dlist)
+    if coloring == 'depth' or canvas.buffering: # Note same as b2d_depth
+        canvas.add_depth_markers()  # TODO add explode
 
-    if color == 'neutral' or canvas.buffering:
-        canvas.add_neutral_markers(blob3dlist)
+    if coloring == 'neutral' or canvas.buffering:
+        canvas.add_neutral_markers()  # TODO add offset
 
     if stitches or canvas.buffering:
         if lineColoring == 'blob3d' or canvas.buffering:  # TODO need to change this so that stitchlines of the same color are the same object
             if Config.test_instead_of_data:
-                canvas.add_blob3d_stitches(blob3dlist)
+                canvas.add_blob3d_stitches()
             else:
                 print('Skipping adding blob3d stitches as it overloads ram (for now)')
         if lineColoring == 'neutral' or canvas.buffering:
-            canvas.add_neutral_stitches(blob3dlist)
+            canvas.add_neutral_stitches()  # TODO add offset
+
+        if parentlines or canvas.buffering:
+            canvas.add_parent_lines(offset=offset, explode=explode)
+
+    if ids:
+        print(
+            "\nWARNING adding ids for every blob2d, this could overload if not a small dataset, so skipping if not a test_set!!")
+        if Config.test_instead_of_data:
+            for b2d_num, b2d in enumerate(canvas.b2ds):
+                midpoints = [(b2d.avgx - canvas.xmin) / canvas.xdim, (b2d.avgy - canvas.ymin) / canvas.ydim, (
+                    (getBloomedHeight(b2d, explode, canvas.zdim) + .25 - canvas.zmin) / (
+                        Config.z_compression * canvas.zdim))]
+                textStr = str(b2d.id)
+                color = colors[b2d.id % len(colors)]
+                canvas.view.add(visuals.Text(textStr, pos=midpoints, color=color, font_size=8, bold=False))
 
     canvas.setup_markers()
     canvas.setup_stitches()
     vispy.app.run()
+
+
+
+# def plot_b2ds(blob2ds, coloring='', canvas_size=(800, 800), ids=False, stitches=False, titleNote='',
+#               buffering=True, parentlines=False, explode=False, offset=False):
+#     global colors
+#     coloring = coloring.lower()
+#     assert coloring in ['blob2d', '', 'b2d_depth', 'blob3d', 'bead', 'simple']
+#
+#     # This block allows the passing of ids or blob2ds
+#     if len(blob2ds) == 0:
+#         warn('Tried to plot 0 blob2ds')
+#     else:
+#         all_b2ds_are_ids = all(type(b2d) is int for b2d in blob2ds)
+#         all_b2d_are_blob2ds = all(type(b2d) is Blob2d for b2d in blob2ds)
+#         assert (all_b2d_are_blob2ds or all_b2ds_are_ids)
+#         if all_b2ds_are_ids:  # May want to change this depending on what it does to memory
+#             blob2ds = [Blob2d.get(b2d) for b2d in blob2ds]
+#
+#         if coloring == '':
+#             coloring = 'blob2d'  # For the canvas title
+#
+#         canvas = Canvas(canvas_size, coloring='blob2d', buffering=buffering,
+#                         title='plotBlob2ds(' + str(len(blob2ds)) + '-Blob2ds, coloring=' + str(
+#                             coloring) + ' canvas_size=' + str(canvas_size) + ') ' + titleNote)
+#         canvas.plot_call = 'PlotBlob2ds'
+#         canvas.set_blobs(blob2ds)
+
+        # if coloring == 'simple' or canvas.buffering:
+        #     canvas.add_simple_beads()
+
+        # if coloring == 'blob2d' or canvas.buffering:
+        #     canvas.add_blob2d_markers(explode=explode)
+
+        # if coloring == 'blob3d' or canvas.buffering:
+        #     canvas.add_blob3d_markers()
+
+        # if coloring == 'bead' or canvas.buffering:
+        #     canvas.add_bead_markers()  # HACK
+
+        # if coloring == 'b2d_depth' or canvas.buffering:
+        #     canvas.add_depth_markers()  # TODO add explode
+
+        # if stitches or canvas.buffering:
+        #     canvas.add_neutral_stitches()  # TODO add offset
+
+        # if parentlines or canvas.buffering:
+        #     canvas.add_parent_lines(blob2ds, offset=offset, explode=explode)
+
+        # if ids:
+        #     print(
+        #         "\nWARNING adding ids for every blob2d, this could overload if not a small dataset, so skipping if not a test_set!!")
+        #     if Config.test_instead_of_data:
+        #         for b2d_num, b2d in enumerate(blob2ds):
+        #             midpoints = [(b2d.avgx - canvas.xmin) / canvas.xdim, (b2d.avgy - canvas.ymin) / canvas.ydim, (
+        #                 (getBloomedHeight(b2d, explode, canvas.zdim) + .25 - canvas.zmin) / (
+        #                     Config.z_compression * canvas.zdim))]
+        #             textStr = str(b2d.id)
+        #             color = colors[b2d.id % len(colors)]
+        #             canvas.view.add(visuals.Text(textStr, pos=midpoints, color=color, font_size=8, bold=False))
+
+        # canvas.setup_markers()
+        # canvas.setup_stitches()
+        # vispy.app.run()
+
+
+# def plot_b3ds(blob3dlist, stitches=True, color='blob3d', lineColoring=None, maxcolors=-1, canvas_size=(800, 800)):
+#     global colors
+#     canvas = Canvas(canvas_size, coloring=color)
+#     if 0 < maxcolors < len(colors):
+#         colors = colors[:maxcolors]
+#     canvas.plot_call = 'PlotBlob3ds'
+#     canvas.set_blobs(blob3dlist)
+
+    # if color == 'simple' or canvas.buffering:
+    #     canvas.add_simple_beads()
+
+    # if color == 'blob2d' or canvas.buffering:
+    #     canvas.add_blob2d_markers()
+
+    # if color == 'bead' or canvas.buffering:
+    #     canvas.add_bead_markers()
+
+    # if color == 'blob' or color == 'blob3d' or canvas.buffering:  # Note: This is very graphics intensive.
+    #     canvas.add_blob3d_markers()
+
+    # if color == 'depth' or canvas.buffering:  # Coloring based on recursive depth
+    #     canvas.add_depth_markers()
+
+    # if color == 'neutral' or canvas.buffering:
+    #     canvas.add_neutral_markers()
+
+    # if stitches or canvas.buffering:
+    #     if lineColoring == 'blob3d' or canvas.buffering:  # TODO need to change this so that stitchlines of the same color are the same object
+    #         if Config.test_instead_of_data:
+    #             canvas.add_blob3d_stitches()
+    #         else:
+    #             print('Skipping adding blob3d stitches as it overloads ram (for now)')
+    #     if lineColoring == 'neutral' or canvas.buffering:
+    #         canvas.add_neutral_stitches() # TODO add offset
+    #
+    # canvas.setup_markers()
+    # canvas.setup_stitches()
+    # vispy.app.run()
 
 
 def plotBlob2d(b2d, canvas_size=(1080, 1080)):

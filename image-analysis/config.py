@@ -94,7 +94,7 @@ class Config:
     # Increasing this can greatly increase the amount of time required to stitch large blobs
     # This is because the optimized Munkres algorithm is O(n^3)
     # Recommended 50-150, for experimental use lower is generally better
-    # Semi-Experimental (trying to find a good range)
+    # Semi-Experimental (trying to find a good range), may want to adjust to be a proportion of edge-pixels
 
     max_stitch_cost = 90 # The max cost a stitch can be before it is ignored
     # Experimental
