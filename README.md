@@ -36,3 +36,5 @@ Note: Sometimes the below images fail to load, largely due to their size. If thi
 * Do more runtime exception checking / assertions
 * Add better visuals to readme (not from perpendicular)
 * Bug - Some (rare) blob3ds have children id's that have been removed (from being combined with other blob3ds). These specific child ids were meant to have been removed. If this has occured, it will crash execution when visualizing. The temporary solution is to load after running the first time, which will bypass this issue.
+* Complete setup.py & pkg-info, confirm that setup.py does complete installation
+* Add tags once above is complete, upload tags to pypi, allowing installation with 'pip install Seropy'
