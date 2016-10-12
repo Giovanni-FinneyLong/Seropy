@@ -13,15 +13,15 @@ class Config:
       ___) |  \ V  V /  | | | |_  | (__  | | | | |  __/ \__ \
      |____/    \_/\_/   |_|  \__|  \___| |_| |_|  \___| |___/
      '''  # All switches are either True or False
-    mayPlot = True # Used to control the importing of visualization packages; vispy doesn't run on arm :(
-    test_instead_of_data = True # Use the data at Test_Dir instead of Data_dir
-    dePickle = False # Load a preprocessed dataset. Run with False at least the first time
-    process_internals = True # Default True, Do blooming, set possible partners for the generated b2ds, then create b3ds from them
-    base_b3ds_with_stitching = True # Default True, This needs to be true to get accurate results. If speed is much more valueable that accuracy, make False
+    mayPlot = True  # Used to control the importing of visualization packages; vispy doesn't run on arm :(
+    test_instead_of_data = True  # Use the data at Test_Dir instead of Data_dir
+    dePickle = False  # Load a preprocessed dataset. Run with False at least the first time
+    process_internals = True  # Default True, Do blooming, set possible partners for the generated b2ds, then create b3ds from them
+    base_b3ds_with_stitching = True  # Default True, This needs to be true to get accurate results. If speed is much more valueable that accuracy, make False
     # NOTE can allow this to control creation of b3ds, or allow a quick create method for b3ds (noting no stitching and much less accuracy)
-    stitch_bloomed_b2ds = False # Default False, this enables stitching between generated internal Blob2ds. This greatly increases processing time!
+    stitch_bloomed_b2ds = False  # Default False, this enables stitching between generated internal Blob2ds. This greatly increases processing time!
     do_logging = True # Default True, If true, logs all output to logs folder
-    nervous_logging = True  # Default, If true, saves the write_to_log after each output. Slightly increases processing time
+    nervous_logging = True  # Default, If true, the logger saves after each output. Slightly increases processing time
     log_everything = True  # Enables the logging of debugging output, which may greatly increase log size
 
     OpenGLLinesInsteadOfAgg = True
@@ -56,15 +56,15 @@ class Config:
     # The bounds are established to prevent unreasonable values
     # Recommended = 1.1
 
-    min_val_threshold = 250 # The minimal value (out of 255) that a pixel must be to be considered 'on'
+    min_val_threshold = 250  # The minimal value (out of 255) that a pixel must be to be considered 'on'
     # A higher value will have a tendency to preserve the general shape of a blob2d
     # A lower value will have a tendency to preserve the fringes of each blob2d, and also making them slightly larger
     # Recommended = 250
 
-    max_val_step = 5 # The maximum amount that two neighboring pixels can differ in val and be grouped by blob_id
+    max_val_step = 5  # The maximum amount that two neighboring pixels can differ in val and be grouped by blob_id
     # Recommended = 5, assuming using 8-bit colors (Values 0-255)
 
-    minimal_nonzero_neighbors = 2 # The minimal amount of non-zero adjacent pixels a pixel must have to avoid being filtered
+    minimal_nonzero_neighbors = 2  # The minimal amount of non-zero adjacent pixels a pixel must have to avoid being filtered
     # 0 = no filter
     # Recommended = 2
 
@@ -77,40 +77,6 @@ class Config:
     # A value of .5 would mean scanning 1/2 the slide in the x & y directions, resulting in 1/4 the area
 
     image_channel_to_use = 0  # The slide channel to use (as tifs has multiple channels / subimages). Start at 0
-    '''
-      _____                           _                          _          _
-     | ____|__  __ _ __    ___  _ __ (_) _ __ ___    ___  _ __  | |_  __ _ | |
-     |  _|  \ \/ /| '_ \  / _ \| '__|| || '_ ` _ \  / _ \| '_ \ | __|/ _` || |
-     | |___  >  < | |_) ||  __/| |   | || | | | | ||  __/| | | || |_| (_| || |
-     |_____|/_/\_\| .__/  \___||_|   |_||_| |_| |_| \___||_| |_| \__|\__,_||_|
-     __     __    |_|     _         _      _
-     \ \   / /__ _  _ __ (_)  __ _ | |__  | |  ___  ___
-      \ \ / // _` || '__|| | / _` || '_ \ | | / _ \/ __|
-       \ V /| (_| || |   | || (_| || |_) || ||  __/\__ \
-        \_/  \__,_||_|   |_| \__,_||_.__/ |_| \___||___/
-
-    '''  # These variables are somewhat new, it is recommended that you do not modify them
-    max_pixels_to_stitch = 50 # The max amount of pixels acceptable in EACH pair of slides to be stitched.
-    # Increasing this can greatly increase the amount of time required to stitch large blobs
-    # This is because the optimized Munkres algorithm is O(n^3)
-    # Recommended 50-150, for experimental use lower is generally better
-    # Semi-Experimental (trying to find a good range), may want to adjust to be a proportion of edge-pixels
-
-    max_stitch_cost = 90 # The max cost a stitch can be before it is ignored
-    # Experimental
-
-    max_distance = 7  # The max distance that two pixels can be apart and still be stitched together.
-    # If this threshold is breached, edge_pixels will not have any line to them, including a substitute
-    # Experimental
-
-    max_depth = 5 # Max recursive depth when blooming Note:(allows a total of n+2 depths, including the original one)
-    # Experimental
-
-    minimal_pixel_overlap_to_be_possible_partners = .10  # The minimal portion of area that one of a pair of blob2ds must overlap with the other to be partners
-    # Experimental
-    max_pixels_to_be_a_bead = 250  # Can be modified real time during visualization
-    max_subbeads_to_be_a_bead = 4  # Can be modified real time during visualization
-    child_bead_difference = 2  # Can be modified real time during visualization
 
     '''
       _____       _      _
@@ -130,6 +96,41 @@ class Config:
     PICKLE_FILE_PREFIX = 'Swellshark_Adult_012615'  # Note that '.pickle' is appended
     #  Note been using 'Swellshark_Adult_012615' for Swellshark, 'C57BL6_Adult_CerebralCortex' for C57BL
     #  Note been using 'All_test_pre_b3d_tree' when running tests
+
+    '''
+      _____                           _                          _          _
+     | ____|__  __ _ __    ___  _ __ (_) _ __ ___    ___  _ __  | |_  __ _ | |
+     |  _|  \ \/ /| '_ \  / _ \| '__|| || '_ ` _ \  / _ \| '_ \ | __|/ _` || |
+     | |___  >  < | |_) ||  __/| |   | || | | | | ||  __/| | | || |_| (_| || |
+     |_____|/_/\_\| .__/  \___||_|   |_||_| |_| |_| \___||_| |_| \__|\__,_||_|
+     __     __    |_|     _         _      _
+     \ \   / /__ _  _ __ (_)  __ _ | |__  | |  ___  ___
+      \ \ / // _` || '__|| | / _` || '_ \ | | / _ \/ __|
+       \ V /| (_| || |   | || (_| || |_) || ||  __/\__ \
+        \_/  \__,_||_|   |_| \__,_||_.__/ |_| \___||___/
+
+    '''  # These variables are somewhat new, it is recommended that you do not modify them
+    max_pixels_to_stitch = 50  # The max amount of pixels acceptable in EACH pair of slides to be stitched.
+    # Increasing this can greatly increase the amount of time required to stitch large blobs
+    # This is because the optimized Munkres algorithm is O(n^3)
+    # Recommended 50-150, for experimental use lower is generally better
+    # Semi-Experimental (trying to find a good range), may want to adjust to be a proportion of edge-pixels
+
+    max_stitch_cost = 90  # The max cost a stitch can be before it is ignored
+    # Experimental
+
+    max_distance = 7  # The max distance that two pixels can be apart and still be stitched together.
+    # If this threshold is breached, edge_pixels will not have any line to them, including a substitute
+    # Experimental
+
+    max_depth = 5 # Max recursive depth when blooming Note:(allows a total of n+2 depths, including the original one)
+    # Experimental
+
+    minimal_pixel_overlap_to_be_possible_partners = .10  # The minimal portion of area that one of a pair of blob2ds must overlap with the other to be partners
+    # Experimental
+    max_pixels_to_be_a_bead = 250  # Can be modified real time during visualization
+    max_subbeads_to_be_a_bead = 4  # Can be modified real time during visualization
+    child_bead_difference = 2  # Can be modified real time during visualization
 
     '''
       ____           __        _

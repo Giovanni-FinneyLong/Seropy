@@ -10,10 +10,12 @@ from Stitches import Pairing
 from myconfig import Config
 from util import print_elapsed_time
 from util import ProgressBar, log, printl, printd  # Log is the actual object that will be shared between files
+from Blob3d import *
 
 # NOTE ------------------------------------------------------------------------------
 # This is the main file. Its execution is controlled by the parameters in myconfig.py
 # NOTE ------------------------------------------------------------------------------
+
 
 def save(blob3dlist, filename, directory=Config.PICKLEDIR):
     slash = ''
@@ -27,7 +29,8 @@ def save(blob3dlist, filename, directory=Config.PICKLEDIR):
         try:
             printl('Pickling ' + str(len(blob3dlist)) + ' b3ds ', end='')
             t0 = t = time.time()
-            pickle.dump({'b3ds': Blob3d.all, 'possible_merges': Blob3d.possible_merges}, open(filename + '_b3ds', "wb"),
+            pickle.dump({'b3ds': Blob3d.all, 'possible_merges': Blob3d.possible_merges,
+                         "merged_b3ds":Blob3d.lists_of_merged_blob3ds}, open(filename + '_b3ds', "wb"),
                         protocol=0)
             print_elapsed_time(t, time.time(), prefix='took')
 
@@ -71,8 +74,15 @@ def load(filename, directory=Config.PICKLEDIR):
     buff = pickle.load(open(filename + '_b3ds', "rb"))
     Blob3d.all = buff['b3ds']
 
+    found_merged_b3ds = False
+    if "merged_b3ds" in buff:
+        Blob3d.lists_of_merged_blob3ds = buff["merged_b3ds"]
+        found_merged_b3ds = True
+
     Blob3d.next_id = max(b3d.id for b3d in Blob3d.all.values()) + 1
     print_elapsed_time(t, time.time(), prefix='(' + str(len(Blob3d.all)) + ') took', flush=True)
+    if not found_merged_b3ds:
+        print(" No lists of merged b3ds found, likely a legacy pickle file")
 
     printl('Loading b2ds ', end='', flush=True)
     t = time.time()
@@ -244,14 +254,14 @@ def main():
     printl('Current recusion limit: ' + str(sys.getrecursionlimit()) + ' updating to: ' + str(Config.recursion_limit))
     sys.setrecursionlimit(Config.recursion_limit)  # HACK
     if Config.test_instead_of_data:
-        picklefile = 'All_test_pre_b3d_tree.pickle'  # THIS IS DONE *, and write_to_log distance base 2, now filtering on max_distance_cost of 3, max_pixels_to_stitch = 100
+        picklefile = 'All_test_pre_b3d_tree.pickle'
     else:
         picklefile = Config.PICKLE_FILE_PREFIX + ".pickle"
     if not Config.dePickle:
         all_slides, blob3dlist = Slide.dataToSlides(stitch=Config.base_b3ds_with_stitching)
         # Reads in images and converts them to slides.
         # This process involves generating Pixels & Blob2ds & Blob3ds & Pairings
-        printl("Saving a recursive depth 0 (rd0) copy!")
+        printl("Saving a 'recursive depth 0' (rd0) copy")
         save(blob3dlist, picklefile + '_rd0_only')
         log.flush()
         if Config.process_internals:
@@ -261,12 +271,11 @@ def main():
 
         save(blob3dlist, picklefile)
         log.flush()
-        plot(blob3dlist, ids=False, stitches=True, parentlines=Config.process_internals,
-             explode=Config.process_internals, buffering=True)
-        # printl("Debug going to plot each blob2d individually:")
-        # for b2d in Blob2d.all.values():
-        #     printl("B2d: " + str(b2d))
-        #     plotBlob2d(b2d) # TODO only plotting pixel numbers..
+
+        # print("\n\nThere were a total of %s lists of merged b3d lists" % (len(Blob3d.lists_of_merged_blob3ds)))
+        # for index, sublist in enumerate(Blob3d.lists_of_merged_blob3ds):
+        #     print("Index:%s, sublist_len:%s, sublist_ids:%s, sublist:%s" % (index, len(sublist), [b3d.id for b3d in sublist], sublist))
+        #     plot(sublist)
 
     else:
         if Config.load_base_only:
@@ -283,11 +292,11 @@ def main():
             load(picklefile)
             blob3dlist = list(Blob3d.all.values())
 
-        Blob3d.clean_b3ds()
-        printl('Setting beads!')
-        Blob3d.tag_all_beads()
+    Blob3d.clean_b3ds()
+    printl('Setting beads!')
+    Blob3d.tag_all_beads()
 
-        plot(blob3dlist, coloring='simple', ids=False, stitches=True, buffering=True, parentlines=True, explode=True)
+    plot(blob3dlist, ids=False, stitches=True, buffering=True, parentlines=True, explode=True)
 
         # largest_base_b3ds = sorted(list(blob3d for blob3d in Blob3d.all.values() if blob3d.recursive_depth == 0),
         #                       key=lambda b3d: b3d.get_edge_pixel_count(), reverse=True)  # Do by recursive depth
@@ -329,7 +338,7 @@ if __name__ == '__main__':
     except Exception as exc:
         printl("\nEXECUTION FAILED!\n")
         printl(traceback.format_exc())
-        printl('Writing object to write_to_log')
+        printl('Writing object to log')
         log.close()
 
 

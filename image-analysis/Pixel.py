@@ -73,12 +73,19 @@ class Pixel:
         return found
 
     @staticmethod
-    def cost_between_points(pixel1, pixel2):
-        pixel1 = Pixel.get(pixel1)
-        pixel2 = Pixel.get(pixel2)
-
-        buf = math.sqrt(math.pow(pixel1.x - pixel2.x, 2) + math.pow(pixel1.y - pixel2.y, 2))
-        if buf > 0.0:  # Because floats..
-            return math.log(buf, 2)  # TODO adjust this?
+    def cost_between_pixels(pixel1, pixel2):
+        distance = Pixel.distance_between_pixels(pixel1, pixel2)
+        if distance > 0.0:  # Because floats..
+            return math.log(distance, 2)  # TODO adjust this?
         else:
             return 0.0
+
+    @staticmethod
+    def distance_between_pixels(pixel1, pixel2):
+        """
+        Returns the X,Y distance between pixels. DOES NOT take into account Z distance (between slides)
+        :param pixel1: Pixel, ID's not accepted
+        :param pixel2: Pixel, ID's not accepted
+        :return: Pythagorean distance between two pixels on the same slide, along the X,Y axes only
+        """
+        return math.sqrt(math.pow(pixel1.x - pixel2.x, 2) + math.pow(pixel1.y - pixel2.y, 2))

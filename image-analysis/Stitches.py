@@ -126,12 +126,12 @@ class Pairing:
             munkres_array = np.zeros(
                 [ndim, ndim])  # TODO FIXME replace this with slicing of cost array on third element
             for i in range(ndim):
+                lower_pixel_i = Pixel.get(self.lowerpixels[i])
                 for j in range(ndim):
+                    upper_pixel_j = Pixel.get(self.upperpixels[j])
                     contour_cost = cost_between_bins(self.lower_context_bins[i], self.upper_context_bins[j])
-                    distance_cost = Pixel.cost_between_points(self.lowerpixels[i], self.upperpixels[j])
-                    distance = math.sqrt(
-                        math.pow(Pixel.get(self.lowerpixels[i]).x - Pixel.get(self.upperpixels[j]).x, 2) + math.pow(
-                            Pixel.get(self.lowerpixels[i]).y - Pixel.get(self.upperpixels[j]).y, 2))
+                    distance_cost = Pixel.cost_between_pixels(lower_pixel_i, upper_pixel_j)
+                    distance = Pixel.distance_between_pixels(lower_pixel_i, upper_pixel_j)
                     net_cost = contour_cost * distance_cost
                     self.cost_array[i][j] = [contour_cost, distance_cost, net_cost,
                                              distance]  # TODO can reduce this later for efficiency
@@ -145,21 +145,23 @@ class Pairing:
         self.cost = 0
         for row, col in self.indeces:
             # NOTE Sorting indeces = [contour_cost, dist_cost, total_cost, distance]
-            if self.cost_array[row][col][3] < Config.max_distance and self.cost_array[row][col][
-                2] < Config.max_stitch_cost:  # HACK, may want to do this later, so that stitches can be manually removed via interactive interface (slide bar for max_value)
-                self.stitches.append(
-                    Stitch(self.lowerpixels[row], self.upperpixels[col], self.lowerblob, self.upperblob,
-                           self.cost_array[row][col]))
+            if self.cost_array[row][col][3] < Config.max_distance and self.cost_array[row][col][2] \
+                    < Config.max_stitch_cost:  # HACK, may want to do this later, so that stitches can be manually removed via interactive interface (slide bar for max_value)
+                self.stitches.append(Stitch(self.lowerpixels[row], self.upperpixels[col], self.lowerblob,
+                                            self.upperblob, self.cost_array[row][col]))
                 self.cost += self.cost_array[row][col][2]  # 2 for total_cost
 
     @staticmethod
     def stitchAllBlobs(slidelist, quiet=True, debug=False):
         t_start_stitching = time.time()
         printl('')
-        for slide_num, slide in enumerate(slidelist):
+        for slide_num, slide in enumerate(slidelist[:-1]):
+            # Skipping last slide, because pairing go from lower slide to upper slide, so it's already processed with the second to last slide
+            # IE blob2ds in the last slide are partners to the previous slide's blob2ds, and have no direct possible partners of their own
             t_start_stitching_this_slide = time.time()
-            printl('Stitching ' + str(len(slide.blob2dlist)) + ' blob2ds from slide #' + (str(slide_num + 1) + '/' + str(
-                len(slidelist)).ljust(5)), end=' ')  # Note that slide number is offset of non-technical users
+            printl('Stitching %s blob2ds from slide #%s/%s to %s blob2ds from slide #%s/%s' % (len(slide.blob2dlist), slide_num + 1,
+                len(slidelist), len(slidelist[slide_num+1].blob2dlist), str(slide_num + 2), len(slidelist)), end=' ')
+
             progress = ProgressBar(max_val=len(slide.blob2dlist), increments=20,
                                    symbol='.')  # Note actually more responsive to do based on blob than # of pixels, due to using only a subset to stitch
             for b_num, blob1 in enumerate(slide.blob2dlist):
@@ -277,9 +279,7 @@ class Stitch:
         self.lowerblob = lowerblob
         self.upperblob = upperblob
         self.cost = cost
-        self.distance = math.sqrt(math.pow(Pixel.get(lowerpixel).x - Pixel.get(upperpixel).x, 2) + math.pow(
-            Pixel.get(lowerpixel).y - Pixel.get(upperpixel).y,
-            2))  # TODO replace with distancebetween static method from Pixel
+        self.distance = Pixel.distance_between_pixels(Pixel.get(lowerpixel), Pixel.get(upperpixel))
 
     def __str__(self):
         return str(

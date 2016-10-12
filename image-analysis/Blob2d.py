@@ -116,7 +116,7 @@ class Blob2d:
 
     def validate_id(self, quiet=True):
         """
-        Checks that a blob2d's id has not been used, and it's id if it has been used
+        Checks that a blob2d's id has not been used, and updates it's id if it has been used
         It then adds the blob to the Blob2d master dictionary 'all'
         :param quiet:
         :return:
@@ -229,7 +229,6 @@ class Blob2d:
                         if left_bound <= pixel.x <= right_bound and down_bound <= pixel.y <= up_bound:
                             my_subpixel_indeces.append(p_num)
 
-
     def set_shape_contexts(self, num_bins):
         """
         Uses the methods described here: https://www.cs.berkeley.edu/~malik/papers/BMP-shape.pdf
@@ -266,7 +265,7 @@ class Blob2d:
         pairingidsl = [pairing.lowerblob for pairing in self.pairings if pairing.lowerblob != self.id]
         pairingidsu = [pairing.upperblob for pairing in self.pairings if pairing.upperblob != self.id]
         pairingids = sorted(pairingidsl + pairingidsu)
-        return str('B{id:' + str(self.id) + ', #P=' + str(len(self.pixels))) + ', #EP=' + str(
+        return str('B2D{id:' + str(self.id) + ', #P=' + str(len(self.pixels))) + ', #EP=' + str(
             len(self.edge_pixels)) + ', recur_depth=' + str(self.recursive_depth) + ', parent_id=' + str(
             self.parent_id) + ', b3did=' + str(self.b3did) + ', pairedids=' + str(pairingids) + ', height=' + str(
             self.height) + ', (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(

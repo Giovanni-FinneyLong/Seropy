@@ -6,6 +6,7 @@ from myconfig import Config
 import numpy as np
 import math
 
+
 def get_blob3ds_from_blob2ds(blob2dlist, ids=False):
     """
     Gives the list of b3ds that together contain all b2ds in the supplied list
@@ -36,8 +37,10 @@ class Blob3d:
     possible_merges = []  # Format: b3did1, b3did2, b2did (the one that links them!
     all = dict()
 
-    def __init__(self, blob2dlist, r_depth=0):
+    lists_of_merged_blob3ds = [] # List of lists, each list representing a set of blob3ds which have been merged
+    # This can be used to verify that merges were worthwhile
 
+    def __init__(self, blob2dlist, r_depth=0):
         self.id = Blob3d.next_id
         Blob3d.next_id += 1
         self.blob2ds = blob2dlist  # List of the blob 2ds used to create this blob3d
@@ -57,7 +60,7 @@ class Blob3d:
                 # warn('NOT assigning a new b3did (' + str(self.id) + ') to blob2d: ' + str(Blob2d.all[blob.id]))
                 printl('---NOT assigning a new b3did (' + str(self.id) + ') to blob2d: ' + str(Blob2d.all[blob.id]))
                 Blob3d.possible_merges.append((Blob2d.all[blob.id].b3did, self.id, blob.id))
-                ids_that_are_removed_due_to_reusal.add(blobid) # HACK
+                ids_that_are_removed_due_to_reusal.add(blobid)  # HACK
             else:  # Note not adding to the new b3d
                 Blob2d.all[blob.id].b3did = self.id
                 for stitch in blob.pairings:
@@ -107,6 +110,7 @@ class Blob3d:
                 warn('Creating a b3d at depth ' + str(r_depth) + ' with id ' + str(
                     self.id) + ' which could not find a b3d parent')
         self.validate()
+        printd("Done creating new b3d:" + str(self), Config.debug_b3d_merge)
 
     @staticmethod
     def merge(b1, b2):
@@ -136,11 +140,12 @@ class Blob3d:
     @staticmethod
     def merge(b3dlist):
         printd('Called merge on b3dlist: ' + str(b3dlist), Config.debug_b3d_merge)
+        Blob3d.lists_of_merged_blob3ds.append([Blob3d.get(b3d) for b3d in b3dlist])
         res = b3dlist.pop()
         while len(b3dlist):
             cur = b3dlist.pop()
             res = Blob3d.merge2(res, cur)
-        printd(' Final result of calling merge on b3dlist is b3d: ' + str(res), Config.debug_b3d_merge)
+        printd(' Final result of calling merge on b3dlist is b3d: ' + str(Blob3d.get(res)), Config.debug_b3d_merge)
         return res
 
     @staticmethod
@@ -213,10 +218,10 @@ class Blob3d:
         child_str = ' , Children: ' + str(self.children)
         return str(
             'B3D(' + str(self.id) + '): #b2ds:' + str(len(self.blob2ds)) + ', r_depth:' + str(self.recursive_depth) +
-            ', bead=' + str(self.isBead) + parent_str + child_str + ')')
-        # ' lowslideheight=' + str(self.lowslideheight) + ' highslideheight=' + str(self.highslideheight) +
-        # ' #edgepixels=' + str(len(self.edge_pixels)) + ' #pixels=' + str(len(self.pixels)) +
-        # ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) + parent_str + child_str + ')')
+            ', bead=' + str(self.isBead) + parent_str + child_str + ')' +
+        ' lowslideheight=' + str(self.lowslideheight) + ' highslideheight=' + str(self.highslideheight) +  # HACK INCLUDED FOR DEBUG
+        # ' #edgepixels=' + str(len(self.edge_pixels)) + ' #pixels=' + str(len(self.pixels)) +  # HACK INCLUDED FOR DEBUG
+        ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) + ')')  # HACK INCLUDED FOR DEBUG
 
     __repr__ = __str__
 

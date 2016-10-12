@@ -63,7 +63,7 @@ class Logger:
 
     def generate_log_name(self):
         """
-        Generates the file name to be written to by the write_to_log, using the date and configuration from myconfig.py
+        Generates the file name to be written to by the logger, using the date and configuration from myconfig.py
         :return:
         """
         date = datetime.now().strftime("(%m-%d-%Y)-(%H-%M-%S)")
@@ -88,13 +88,13 @@ class Logger:
         else:
             save_or_load = 'Save'
 
-        self.log_name = date + '_' + data_type + '_' + bloom + '_' + save_or_load + '.write_to_log'
+        self.log_name = date + '_' + data_type + '_' + bloom + '_' + save_or_load + '.log'
         self.log_path = fixpath(self.dir + '/' + self.log_name)
         print('Log path: ' + str(self.log_path))
 
     def w(self, string, end='\n'):
         """
-        Writes a str to the write_to_log's file
+        Writes a str to the log's file
         :param string: The string to be written
         :param end: The termination of the string
         :return:
@@ -109,7 +109,7 @@ class Logger:
 
 def printl(string, end='\n', flush=False):
     """
-    Prints to write_to_log and stdout
+    Prints to log and stdout
     :param string: The object to be written
     :param end: The suffix of the string
     :param flush: Whether to force-flush the print buffer
@@ -126,9 +126,9 @@ def printl(string, end='\n', flush=False):
 
 def printd(string, toggle, end='\n', flush=False):
     """
-    Prints to stdout/write_to_log depending on the value of toggle, otherwise writes to write_to_log if
-    config says to write_to_log everything
-    :param toggle: Only prints if toggle is true, or if config says to write_to_log everything
+    Prints to stdout/log depending on the value of toggle, otherwise writes to log if
+    config says to log everything
+    :param toggle: Only prints if toggle is true, or if config says to log everything
     :param string: The object to be written
     :param end: The suffix of the string
     :param flush: Whether to force-flush the print buffer
@@ -314,10 +314,6 @@ def vispy_tests():
     """
     import vispy
     vispy.test()
-
-
-
-
 
 
 log = Logger(nervous=Config.nervous_logging)  # TODO clean this up by moving it elsewhere or using Logger directly
