@@ -39,6 +39,8 @@ class Blob3d:
 
     lists_of_merged_blob3ds = [] # List of lists, each list representing a set of blob3ds which have been merged
     # This can be used to verify that merges were worthwhile
+    list_of_merged_blob3d_parents = [] # DEBUG
+
 
     def __init__(self, blob2dlist, r_depth=0):
         self.id = Blob3d.next_id
@@ -77,6 +79,15 @@ class Blob3d:
         self.isSingular = False
         self.note = ''  # This is a note that can be manually added for identifying certain characteristics..
         if r_depth != 0:
+            """
+            This is one of the most convoluted and complicated parts of the project
+            This occurs only when a blob3d is being created as a result of blooming
+            The idea is that a blob3d is being creating from some blob2ds, which ideally were bloomed from a single blob2d
+            However, sometimes bloomed blob2ds from multiple blob3ds end up being stitched together. The idea here is to combine those blob3ds together
+            This is complicated because it may need to be recursively applied, to keep the condition that each blob2d and each blob3d are dervied from a single blob3d
+            In the event that a blob3d would have multiple parent blob3ds, it's parents are combined
+            """
+
             all_b2d_parents = [Blob2d.get(Blob2d.get(b2d).parent_id) for b2d in blob2dlist]
             # printl('All b2d_parents of our b2ds that are going into a new b3d: ' + str(all_b2d_parents))
             parent_b3dids = set([b2d.b3did for b2d in all_b2d_parents if b2d.b3did != -1])
@@ -142,10 +153,18 @@ class Blob3d:
         printd('Called merge on b3dlist: ' + str(b3dlist), Config.debug_b3d_merge)
         Blob3d.lists_of_merged_blob3ds.append([Blob3d.get(b3d) for b3d in b3dlist])
         res = b3dlist.pop()
+
+        # DEBUG
+        all_parent_ids = [Blob3d.get(b3d).parent_id for b3d in b3dlist]
+
         while len(b3dlist):
             cur = b3dlist.pop()
             res = Blob3d.merge2(res, cur)
         printd(' Final result of calling merge on b3dlist is b3d: ' + str(Blob3d.get(res)), Config.debug_b3d_merge)
+        printd(' DB all parents of b3ds which were merged:', Config.debug_b3d_merge)  # DEBUG
+        # for parent_id in all_parent_ids:  # DEBUG
+        #     if parent_id is not None:
+        #         printd('--%s' % Blob3d.get(parent_id), Config.debug_b3d_merge)  # DEBUG
         return res
 
     @staticmethod
@@ -160,8 +179,8 @@ class Blob3d:
         """
 
         if b1 == -1 or b2 == -1:
-            warn('***Skipping merging b3ds' + str(b1) + ' and ' + str(
-                b2) + ' because at least one of them is -1, this should be fixed soon..')  # TODO
+            warn('***Skipping merging b3ds' + str(b1) + ' and ' + str(b2) + ' because at least one of them is -1, this should be fixed soon..')
+            # TODO
         else:
             b1 = Blob3d.get(b1)
             b2 = Blob3d.get(b2)
@@ -179,7 +198,7 @@ class Blob3d:
                 Blob3d.all[smaller.id].blob2ds.append(blob2d)
 
             # smaller.children += larger.children # CHANGED DEBUG
-            Blob3d.all[smaller.id].children += larger.children
+            Blob3d.all[smaller.id].children += [child for child in larger.children if child not in Blob3d.all[smaller.id].children]
 
             if larger.parent_id is not None:
                 Blob3d.all[larger.parent_id].children.remove(larger.id)
@@ -196,6 +215,15 @@ class Blob3d:
                 printd('  After Merging, the parent of the original larger is: ' + str(Blob3d.get(larger.parent_id)),
                        Config.debug_b3d_merge)
             del Blob3d.all[larger.id]
+
+            # TEST ----------
+            if smaller.parent_id is not None and larger.parent_id is not None and smaller.parent_id != larger.parent_id: # Recursively merging parents together
+                printd("**** Merging parents of ids: %s and %s(now deleted): %s & %s" % (smaller.id, larger.id, smaller.parent_id, larger.parent_id), Config.debug_b3d_merge)
+                Blob3d.lists_of_merged_blob3ds.append([Blob3d.get(smaller.parent_id), Blob3d.get(larger.parent_id)])
+                Blob3d.list_of_merged_blob3d_parents.append([Blob3d.get(smaller.parent_id), Blob3d.get(larger.parent_id)])  # DEBUG
+                Blob3d.merge2(smaller.parent_id, larger.parent_id)
+
+            printd('   Result of merge2(%s, %s) = %s' % (smaller.id, larger.id, Blob3d.all[smaller.id]), Config.debug_b3d_merge)
 
             return smaller.id
 

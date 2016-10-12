@@ -62,14 +62,14 @@ def plot_plotly(bloblist, b2ds=False):
 
 
 class Canvas(vispy.scene.SceneCanvas):
-    def __init__(self, canvas_size=(800, 800), title='', coloring='blob3d',
-                 buffering=True):  # Note may want to make buffering default to False
-        vispy.scene.SceneCanvas.__init__(self, keys='interactive', show=True, size=canvas_size, title=title)
+    def __init__(self, canvas_size=(1000, 1000), coloring='blob3d',
+                 buffering=True, debug_colors=False):  # Note may want to make buffering default to False
+        vispy.scene.SceneCanvas.__init__(self, keys='interactive', show=True, size=canvas_size)
         if hasattr(self, 'unfreeze') and callable(
                 getattr(self, 'unfreeze')):  # HACK # Interesting bug fix for an issue that only occurs on Envy
             self.unfreeze()
         self.view = self.central_widget.add_view()
-
+        self.debug_colors = debug_colors # Whether or not to add and show merged_blob3ds and merged_parents
         self.fov = 50  # Must be 0 < fov < 180
 
         turn_camera = vispy.scene.cameras.TurntableCamera(fov=0, azimuth=80, parent=self.view.scene, distance=1,
@@ -122,7 +122,10 @@ class Canvas(vispy.scene.SceneCanvas):
         self.coloring = coloring.lower()
 
         self.markers = []
-        self.available_marker_colors = ['blob3d', 'simple', 'bead', 'depth', 'blob2d', 'b2d_depth', 'neutral', 'blob2d_to_3d', 'merged']
+        self.available_marker_colors = ['blob3d', 'simple', 'bead', 'depth', 'blob2d', 'b2d_depth', 'neutral', 'blob2d_to_3d']
+        if self.debug_colors:
+            self.available_marker_colors += ['merged', 'merged_parents']
+
         self.available_stitch_colors = ['simple', 'neutral', 'parent_id', 'blob3d']
         self.current_blob_color = self.coloring
         self.buffering = buffering
@@ -432,6 +435,14 @@ class Canvas(vispy.scene.SceneCanvas):
         else:
             printl("Skipping adding markers for merged blob3ds, this is likely from a legacy pickle file, or a small dataset")  # Legacy
 
+    def add_merged_parent_markers(self):
+        if hasattr(Blob3d, "list_of_merged_blob3d_parents") and len(Blob3d.list_of_merged_blob3d_parents):  # Check for legacy pickle files and presence of blob3ds that have been merged
+            self.add_markers_from_groups([[parent] for parent_list in Blob3d.list_of_merged_blob3d_parents for parent in parent_list], 'merged_parents', midpoints=False, list_of_colors=colors, size=8, explode=False)
+        else:
+            printl("Skipping adding markers for merged blob3d parents, this is likely from a legacy pickle file, or a small dataset")  # Legacy
+
+            # Note adding them all seperately, as opposed to the style used in the original merged_markers
+
     def add_neutral_markers(self, color='aqua'):
         self.add_markers_from_groups([self.b3ds], 'neutral', midpoints=False, list_of_colors=[color], size=8, explode=False)
 
@@ -444,7 +455,7 @@ class Canvas(vispy.scene.SceneCanvas):
             if b3d.isBead is not True and b3d.isBead is not None:
                 first_children = [blob3d for blob3d in b3d.get_first_child_beads() if blob3d.isBead]
                 if not len(first_children):
-                    warn('Found non_bead b3d without any first children beads ' + str(b3d))  # FIXME TODO
+                    warn('Found non_bead b3d without any first children beads ' + str(b3d))  # TODO
                 else:
                     bead_groups.append(first_children)
                     all_first_children += first_children
@@ -688,7 +699,7 @@ class Canvas(vispy.scene.SceneCanvas):
 
 
 def plot(blob3ds_or_blob2ds, coloring=None, line_coloring=None, canvas_size=(800, 800), ids=False, stitches=False,
-         buffering=True, parentlines=False, explode=False, maxcolors=-1):
+         buffering=True, parentlines=False, explode=False, maxcolors=-1, show_debug_colors=False):
     global colors
     assert coloring in [None, 'blob2d', 'depth', 'blob3d', 'bead', 'simple', 'neutral']
     assert line_coloring in [None, 'blob3d', 'neutral']
@@ -704,7 +715,7 @@ def plot(blob3ds_or_blob2ds, coloring=None, line_coloring=None, canvas_size=(800
         colors = colors[:maxcolors]
     if len(blob3ds_or_blob2ds) == 0:
         raise Exception("Tried to plot a list of zero blob2ds / blob3ds")
-    canvas = Canvas(canvas_size, coloring=coloring, buffering=buffering)
+    canvas = Canvas(canvas_size, coloring=coloring, buffering=buffering, debug_colors=show_debug_colors)
     canvas.set_blobs(blob3ds_or_blob2ds)
 
     if coloring == 'simple' or canvas.buffering:
@@ -725,8 +736,9 @@ def plot(blob3ds_or_blob2ds, coloring=None, line_coloring=None, canvas_size=(800
     if coloring == 'neutral' or canvas.buffering:
         canvas.add_neutral_markers()
 
-    if coloring == 'merged' or canvas.buffering:
+    if coloring == 'merged' or (canvas.debug_colors and canvas.buffering):
         canvas.add_merged_markers()
+        canvas.add_merged_parent_markers()
 
     if stitches or canvas.buffering:
         if line_coloring == 'blob3d' or canvas.buffering:  # TODO need to change this so that stitchlines of the same color are the same object

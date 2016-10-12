@@ -30,7 +30,7 @@ def save(blob3dlist, filename, directory=Config.PICKLEDIR):
             printl('Pickling ' + str(len(blob3dlist)) + ' b3ds ', end='')
             t0 = t = time.time()
             pickle.dump({'b3ds': Blob3d.all, 'possible_merges': Blob3d.possible_merges,
-                         "merged_b3ds":Blob3d.lists_of_merged_blob3ds}, open(filename + '_b3ds', "wb"),
+                         "merged_b3ds":Blob3d.lists_of_merged_blob3ds, "merged_parent_b3ds":Blob3d.list_of_merged_blob3d_parents}, open(filename + '_b3ds', "wb"),
                         protocol=0)
             print_elapsed_time(t, time.time(), prefix='took')
 
@@ -78,11 +78,17 @@ def load(filename, directory=Config.PICKLEDIR):
     if "merged_b3ds" in buff:
         Blob3d.lists_of_merged_blob3ds = buff["merged_b3ds"]
         found_merged_b3ds = True
+    found_merged_parents = False
+    if "merged_parent_b3ds" in buff:
+        Blob3d.list_of_merged_blob3d_parents = buff["merged_parent_b3ds"]
+        found_merged_parents = True
 
     Blob3d.next_id = max(b3d.id for b3d in Blob3d.all.values()) + 1
     print_elapsed_time(t, time.time(), prefix='(' + str(len(Blob3d.all)) + ') took', flush=True)
     if not found_merged_b3ds:
-        print(" No lists of merged b3ds found, likely a legacy pickle file")
+        print(" No lists of merged b3ds found, likely a legacy pickle file or small dataset")
+    if not found_merged_parents:
+        print(" No lists of merged b3 parents found, likely a legacy pickle file or small dataset")
 
     printl('Loading b2ds ', end='', flush=True)
     t = time.time()
@@ -251,8 +257,8 @@ def do_stat_analysis():
 
 
 def main():
-    printl('Current recusion limit: ' + str(sys.getrecursionlimit()) + ' updating to: ' + str(Config.recursion_limit))
-    sys.setrecursionlimit(Config.recursion_limit)  # HACK
+    # printl('Current recusion limit: ' + str(sys.getrecursionlimit()) + ' updating to: ' + str(Config.recursion_limit))
+    # sys.setrecursionlimit(Config.recursion_limit)  # HACK
     if Config.test_instead_of_data:
         picklefile = 'All_test_pre_b3d_tree.pickle'
     else:
@@ -265,7 +271,7 @@ def main():
         save(blob3dlist, picklefile + '_rd0_only')
         log.flush()
         if Config.process_internals:
-            bloomed_b3ds = bloom_b3ds(blob3dlist,stitch=Config.stitch_bloomed_b2ds) # Also sets partners + optionally stitching
+            bloomed_b3ds = bloom_b3ds(blob3dlist, stitch=Config.stitch_bloomed_b2ds) # Also sets partners + optionally stitching
             printl('Blooming resulted in ' + str(len(bloomed_b3ds)) + ' new b3ds:')
             blob3dlist = blob3dlist + bloomed_b3ds
 
@@ -292,11 +298,11 @@ def main():
             load(picklefile)
             blob3dlist = list(Blob3d.all.values())
 
-    Blob3d.clean_b3ds()
+    Blob3d.clean_b3ds()  # This is for safety - prioritizing successful execution to perfectly correct data
     printl('Setting beads!')
     Blob3d.tag_all_beads()
 
-    plot(blob3dlist, ids=False, stitches=True, buffering=True, parentlines=True, explode=True)
+    plot(blob3dlist, ids=False, stitches=True, buffering=True, parentlines=True, explode=True, show_debug_colors=True)
 
         # largest_base_b3ds = sorted(list(blob3d for blob3d in Blob3d.all.values() if blob3d.recursive_depth == 0),
         #                       key=lambda b3d: b3d.get_edge_pixel_count(), reverse=True)  # Do by recursive depth

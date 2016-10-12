@@ -219,8 +219,7 @@ class Slide:
         # Note Use the shape contexts approach from here: http://www.cs.berkeley.edu/~malik/papers/mori-belongie-malik-pami05.pdf
         # Note The paper uses 'Representative Shape Contexts' to do inital matching; I will do away with this in favor of checking bounds for possible overlaps
         t0 = time.time()
-        pb = ProgressBar(
-            max_val=sum(len(Blob2d.get(b2d).edge_pixels) for slide in slidelist for b2d in slide.blob2dlist))
+        pb = ProgressBar(max_val=sum(len(Blob2d.get(b2d).edge_pixels) for slide in slidelist for b2d in slide.blob2dlist))
         for slide in slidelist:
             for blob in slide.blob2dlist:
                 Blob2d.get(blob).set_shape_contexts(36)
