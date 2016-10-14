@@ -538,13 +538,13 @@ def main():
     # largest_base_b3ds = sorted(list(blob3d for blob3d in Blob3d.all.values() if blob3d.recursive_depth == 0),
     #                       key=lambda b3d: b3d.get_edge_pixel_count(), reverse=True)  # Do by recursive depth
 
-    for b3d in blob3dlist:
-        print(b3d)
+    # for b3d in blob3dlist:
+    #     print(b3d)
         # plot([b3d], ids=False)
-        gen_skeleton_new(b3d)
+        # gen_skeleton_new(b3d)
 
-        print("P:" + str(b3d.get_pixels()))
-        print("EP:" + str(b3d.get_edge_pixels()))
+        # print("P:" + str(b3d.get_pixels()))
+        # print("EP:" + str(b3d.get_edge_pixels()))
         # for child in b3d.children:
         #     print(' ' + str(Blob3d.get(child)))
 
