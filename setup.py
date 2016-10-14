@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 setup(
     name='Seropy',
     version='1.1.1',
-    install_requires=['numpy', 'vispy', 'munkres', 'scipy', 'pandas', 'matplotlib'],
+    install_requires=['numpy', 'vispy', 'munkres', 'scipy', 'pandas', 'matplotlib', 'Goulib'],
     packages=find_packages(),
     url='https://bitbucket.org/gfinneylong/serotonin',
     license='',

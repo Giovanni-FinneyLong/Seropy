@@ -256,6 +256,239 @@ def do_stat_analysis():
     plt.show()
 
 
+def gen_skeleton(blob3d):
+    #------------------------------------------------
+    # NOTE OUTDATED, keeping only for reference
+    #------------------------------------------------
+
+    # Begin by creating a 3d array, with each element either None or the id of the pixel
+    # Then create a second 3d array, with the distances from each internal point to the closest edge point
+    # Find internals by doing all pixels - edge_pixels
+
+
+    print("CALLED GEN_SKELETON!!!!")
+
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    xdim = blob3d.maxx - blob3d.minx + 1
+    ydim = blob3d.maxy - blob3d.miny + 1
+    zdim = blob3d.highslideheight - blob3d.lowslideheight + 1
+    minx = blob3d.minx
+    miny = blob3d.miny
+    minz = blob3d.lowslideheight
+
+    def pixel_to_pos(pixel):
+        # Returns the (x,y,z) location of the pixel in any one of the 3d arrays
+        return (pixel.x - minx, pixel.y - miny, pixel.z - minz)
+
+    def distance_from_offset(x_offset, y_offset, z_offset):
+        return math.sqrt(math.pow(x_offset, 2) + math.pow(y_offset, 2) + math.pow(z_offset, 2))
+
+    def inBounds(x, y, z):
+        if x >= 0 and y >= 0 and z >= 0 and x < xdim and y < ydim and z < zdim:
+            return True
+        return False
+
+    def find_nearest_neighbor(x, y, z, arr, recur=1):
+        """
+
+        :param x: X coordinate within given arr
+        :param y: Y coordinate within given arr
+        :param z: Z coordinate within given arr
+        :param arr: An array populated by the ids of pixels
+        :param recur: How far outwards to extend the 'search cube'
+        :return: (x_coor, y_coor, z_coor, distance, pixel_id)
+        """
+        # print("Finding nearest neighbor of: " + str((x, y, z, recur)))
+
+        possible_coordinates = []  # Contains coordinate tuples (x,y,z)
+        # Because am using cube instead of spheres, need to remember all matches and then find the best
+
+        # arr should
+
+        # TODO restrict the ranges so that they don't overlap
+
+        # X restricts Y and Z
+        # Y restricts Z
+        # Z restricts nothing
+
+        for x_offset in [-recur, recur]:
+            curx = x + x_offset
+            for y_offset in range(-recur, recur + 1):  # +1 to include endcap
+                cury = y + y_offset
+                for z_offset in range(-recur, recur + 1):  # +1 to include endcap
+                    curz = z + z_offset
+
+                    if inBounds(curx, cury, curz) and not np.isnan(arr[curx][cury][curz]):
+                        possible_coordinates.append(
+                            (curx, cury, curz, distance_from_offset(x_offset, y_offset, z_offset), int(arr[curx][cury][curz])))
+                        # x, y, z, distance, pixel_id
+
+        # print("Coordinates found: " + str(possible_coordinates))
+
+        if len(possible_coordinates) == 0:
+            # print("----Making a recursive call!")
+            return find_nearest_neighbor(x, y, z, arr, recur + 1)
+
+        # TODO Y and Z
+
+
+        else:
+            # Find the closest coordinate
+            possible_coordinates.sort(key=lambda x_y_z_dist_id: x_y_z_dist_id[3])  # Sort by distance
+            # print("SORTED POSSIBLE COORDINATES: " + str(possible_coordinates))
+            return possible_coordinates[0]
+
+    # TODO have an option to create a shell around the blob3d, by taking the highest and lowest levels, and making them all count temporarily as
+    # edge pixels. This way, the effects of segmentation will be less dependent on the scan direction
+
+
+
+    edge_pixels = blob3d.get_edge_pixels()  # Actual pixels not ids
+    all_pixels = blob3d.get_pixels()
+    inner_pixels = [Pixel.get(cur_pixel) for cur_pixel in (set(pixel.id for pixel in all_pixels) - set(pixel.id for pixel in edge_pixels))]
+
+    edge_array = np.empty((xdim, ydim, zdim))  # , dtype=np.int)
+    inner_array = np.empty((xdim, ydim, zdim))  # , dtype=np.int)
+    distances = np.empty((xdim, ydim, zdim), dtype=np.float)
+    edge_array[:] = np.nan
+    inner_array[:] = np.nan
+    distances[:] = np.nan
+
+    for pixel in edge_pixels:
+        x, y, z = pixel_to_pos(pixel)
+        edge_array[x][y][z] = pixel.id
+
+    for pixel in inner_pixels:
+        x, y, z = pixel_to_pos(pixel)
+        inner_array[x][y][z] = pixel.id
+
+    inner_pos = np.zeros([len(inner_pixels), 3])
+    near_pos = np.zeros([len(inner_pixels), 3])
+    line_endpoints = np.zeros([2 * len(inner_pixels), 3])
+
+    index_distance_id = np.zeros([len(inner_pixels), 3])
+
+    maxdim = max([xdim, ydim, zdim])  # Adjusting z visualization
+
+    pixel_nid_nx_ny_nz_dist = []
+    marker_colors = np.zeros((len(inner_pixels), 4))
+    mycolors = ['r', 'orange', 'yellow', 'white', 'lime', 'g', 'teal', 'blue', 'purple', 'pink']
+
+    # HACK
+    import vispy
+    myrgba = list(vispy.color.ColorArray(color_str).rgba for color_str in mycolors)
+
+    for index, pixel in enumerate(inner_pixels):
+        # print("Pixel: " + str(pixel))
+        x, y, z = pixel_to_pos(pixel)
+        inner_pos[index] = x / xdim, y / ydim, z / zdim
+        x_y_z_dist_id = find_nearest_neighbor(x, y, z, edge_array)
+
+        pixel_nid_nx_ny_nz_dist.append((pixel, x_y_z_dist_id[4], x_y_z_dist_id[0], x_y_z_dist_id[1], x_y_z_dist_id[2], x_y_z_dist_id[3]))
+
+        near_pos[index] = (x_y_z_dist_id[0] / xdim, x_y_z_dist_id[1] / ydim, x_y_z_dist_id[2] / zdim)
+        marker_colors[index] = myrgba[int(x_y_z_dist_id[3]) % len(myrgba)]
+
+        line_endpoints[2 * index] = (x_y_z_dist_id[0] / xdim, x_y_z_dist_id[1] / ydim, x_y_z_dist_id[2] / zdim)
+        line_endpoints[2 * index + 1] = (x / xdim, y / ydim, z / zdim)
+        # index_distance_id[index] = [index, x_y_z_dist_id[3], x_y_z_dist_id[4]]
+
+    # Sort distances; need to maintain index for accessing id later
+    pixel_nid_nx_ny_nz_dist = sorted(pixel_nid_nx_ny_nz_dist, key=lambda entry: entry[5], reverse=True)
+
+    # TODO find ridge
+    # Strategy: Iterative, use either the highest n or x percent to find cutoff..?
+    ridge = [pixel_nid_nx_ny_nz_dist[0]]
+    ridge_ends = [pixel_nid_nx_ny_nz_dist[0]]  # Preferable to keep at 2 if we can
+
+    # HACK TODO
+    for i in pixel_nid_nx_ny_nz_dist:
+        print(' ' + str(i))
+    # min_threshold = int(pixel_nid_nx_ny_nz_dist[int(.1 * len(pixel_nid_nx_ny_nz_dist))])
+
+    # pixel_costs = dict()
+    # for pnnnnd in pixel_nid_nx_ny_nz_dist:
+    #     pixel_costs[pnnnnd[0].id] = pnnnnd[5] # Mapping inner pixel's id to its distance (to the closest edge_pixel)
+    #
+    #
+    #
+    #
+    #
+    # n, bins, patches = plt.hist([idi[5] for idi in pixel_nid_nx_ny_nz_dist], bins=np.linspace(0,10,50))
+    # # hist = np.histogram( [idi[4] for idi in pixel_nid_nx_ny_nz_dist] , bins=np.arange(10))
+    # plt.show()
+
+
+    import vispy.io
+    import vispy.scene
+    from vispy.scene import visuals
+    from vispy.util import keys
+
+    canvas = vispy.scene.SceneCanvas(size=(1200, 1200), keys='interactive', show=True)
+    view = canvas.central_widget.add_view()
+    view.camera = vispy.scene.cameras.FlyCamera(parent=view.scene, fov=30, name='Fly')
+    # view.camera = vispy.scene.cameras.TurntableCamera(fov=0, azimuth=80, parent=view.scene, distance=1,
+    #                                                   elevation=-55, name='Turntable')
+    # view.camera = vispy.scene.cameras.ArcballCamera(parent=view.scene, fov=50, distance=1,
+    #                                                    name='Arcball')
+    inner_markers = visuals.Markers()
+    near_markers = visuals.Markers()
+    lines = visuals.Line(method=Config.linemethod)
+    lines.set_data(pos=line_endpoints, connect='segments', color='y')
+
+    inner_markers.set_data(inner_pos, face_color=marker_colors, size=10)
+    near_markers.set_data(near_pos, face_color='g', size=10)
+    print("Inner pos: " + str(inner_pos))
+    print("Near pos: " + str(near_pos))
+
+    view.add(inner_markers)
+    view.add(near_markers)
+    view.add(lines)
+    vispy.app.run()
+
+    print('------------')
+
+    # print("\n\nEP: " + str(len(edge_pixels)))
+    # print("Pix: " + str(len(all_pixels)))
+    # print("Inner pix: " + str(len(inner_pixels)))
+    # print("Children: " + str(self.children))
+    # for color_index, pix_list in enumerate([edge_pixels, inner_pixels]):
+    #     cur_color = ['r', 'g', 'b'][color_index]
+    #     xs = [0] * len(pix_list)
+    #     ys = [0] * len(pix_list)
+    #     zs = [0] * len(pix_list)
+    #
+    #     for index, pixel in enumerate(pix_list):
+    #         # print(pixel)
+    #         # print('  ' + str(pixel_to_pos(pixel)))
+    #         x, y, z =  pixel_to_pos(pixel)
+    #         edge_array[x][y][z] = pixel.id
+    #         xs[index] = x
+    #         ys[index] = y
+    #         zs[index] = z
+    #     ax.scatter(xs, ys, zs, c=cur_color)
+    # ax.set_xlabel('X Label')
+    # ax.set_ylabel('Y Label')
+    # ax.set_zlabel('Z Label')
+    # plt.show()
+
+
+def gen_skeleton_new(blob3d):
+    """
+    New attempt at generating a skeleton
+    :param blob3d:
+    :return:
+    """
+    arr = blob3d.to_array()
+    non_zero_positions = np.where(arr)
+    non_zero_positions = [i.tolist() for i in np.dstack((non_zero_positions[0], non_zero_positions[1]))][0]
+    plot_array(arr)
+
+
 def main():
     # printl('Current recusion limit: ' + str(sys.getrecursionlimit()) + ' updating to: ' + str(Config.recursion_limit))
     # sys.setrecursionlimit(Config.recursion_limit)  # HACK
@@ -302,10 +535,25 @@ def main():
     printl('Setting beads!')
     Blob3d.tag_all_beads()
 
+    # largest_base_b3ds = sorted(list(blob3d for blob3d in Blob3d.all.values() if blob3d.recursive_depth == 0),
+    #                       key=lambda b3d: b3d.get_edge_pixel_count(), reverse=True)  # Do by recursive depth
+
+    for b3d in blob3dlist:
+        print(b3d)
+        # plot([b3d], ids=False)
+        gen_skeleton_new(b3d)
+
+        print("P:" + str(b3d.get_pixels()))
+        print("EP:" + str(b3d.get_edge_pixels()))
+        # for child in b3d.children:
+        #     print(' ' + str(Blob3d.get(child)))
+
+
+
+
     plot(blob3dlist, ids=False, stitches=True, buffering=True, parentlines=True, explode=True, show_debug_colors=True)
 
-        # largest_base_b3ds = sorted(list(blob3d for blob3d in Blob3d.all.values() if blob3d.recursive_depth == 0),
-        #                       key=lambda b3d: b3d.get_edge_pixel_count(), reverse=True)  # Do by recursive depth
+
 
         # TODO Calculate and plot different statistics about the data.
         # Good examples are:
@@ -339,7 +587,7 @@ if __name__ == '__main__':
         if Config.mayPlot:
             from serodraw import *
             filter_available_colors()
-        main() # Loads or generates blobs, displays in 3d, then displays visual stats
+        main()  # Loads or generates blobs, displays in 3d, then displays visual stats
         log.close()
     except Exception as exc:
         printl("\nEXECUTION FAILED!\n")

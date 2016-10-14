@@ -44,8 +44,7 @@ class Slide:
                 else:
                     printl('There is one channel')
             image_channels = imagein.split()
-            for s in range(
-                    len(image_channels)):  # Better to split image and use splits for arrays than to split an array
+            for s in range(len(image_channels)):  # Better to split image and use splits for arrays than to split an array
                 buf = np.array(image_channels[s])
                 slices.append(buf)
                 if np.amax(slices[s]) == 0:

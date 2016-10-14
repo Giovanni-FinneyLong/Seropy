@@ -12,13 +12,16 @@ from Pixel import Pixel
 from myconfig import Config
 from util import *
 import matplotlib.pyplot as plt
+# import matplotlib.backends
 import pandas as pd
 from Blob3d import *
+from Goulib.optim import tsp as traveling_salesman
+import functools
+import operator
 
 colors = None
 color_dict = None
 rgba_colors = None
-
 
 
 # TODO sample animation code here: https://github.com/vispy/vispy/blob/master/examples/basics/scene/save_animation.py
@@ -64,7 +67,10 @@ def plot_plotly(bloblist, b2ds=False):
 class Canvas(vispy.scene.SceneCanvas):
     def __init__(self, canvas_size=(1000, 1000), coloring='blob3d',
                  buffering=True, debug_colors=False):  # Note may want to make buffering default to False
+        # vispy.scene.SceneCanvas.__init__(self, keys='interactive', show=True, size=canvas_size)
+
         vispy.scene.SceneCanvas.__init__(self, keys='interactive', show=True, size=canvas_size)
+
         if hasattr(self, 'unfreeze') and callable(
                 getattr(self, 'unfreeze')):  # HACK # Interesting bug fix for an issue that only occurs on Envy
             self.unfreeze()
@@ -352,49 +358,6 @@ class Canvas(vispy.scene.SceneCanvas):
         self.markers.append((marker, coloring))
         self.view.add(self.markers[-1][0])  # add the above marker
 
-    def add_markers_from_groups(self, b3d_groups, type_string, midpoints=True, list_of_colors=colors, size=8, explode=True):
-        # Midpoints true if just doing midpoints, otherwise do edge_pixels
-        my_rgba_colors = list(color_to_rgba(color) for color in list_of_colors)
-
-        if midpoints:
-            point_count = sum(len(b3d_group) for b3d_group in b3d_groups)  # Lists of blob3ds
-        else:
-            if type_string in ['b2d_depth', 'blob2d', 'blob2d_to_3d']:  # Lists of blob2ds
-                point_count = sum(len(b2d.edge_pixels) for b2d_group in b3d_groups for b2d in b2d_group)
-            else:  # Lists of blob3ds
-                point_count = sum(b3d.get_edge_pixel_count() for b3d_group in b3d_groups for b3d in b3d_group)
-        marker_pos = np.zeros((point_count, 3))
-        marker_colors = np.zeros((point_count, 4))
-        index = 0
-        for group_index, b3d_group in enumerate(b3d_groups):
-            for blob in b3d_group:
-                if midpoints:
-                    marker_pos[index] = [(blob.avgx - self.xmin) / self.xdim, (blob.avgy - self.ymin) / self.ydim, (blob.avgz - self.zmin) / (Config.z_compression * self.zdim)]
-                    marker_colors[index] = my_rgba_colors[group_index % len(my_rgba_colors)]
-                    index += 1
-                else:
-                    if type_string in ['b2d_depth', 'blob2d', 'blob2d_to_3d']:
-                        cur_ep = [Pixel.get(pixel) for pixel in blob.edge_pixels]
-                        for pixel in cur_ep:
-                            marker_pos[index] = [(pixel.x - self.xmin) / self.xdim, (pixel.y - self.ymin) / self.ydim,
-                                                 (getBloomedHeight(blob, explode, self.zdim) - self.zmin) / (Config.z_compression * self.zdim)]
-                            marker_colors[index] = my_rgba_colors[group_index % len(my_rgba_colors)]
-                            index += 1
-                    else:  # Lists of blob3ds
-                        cur_ep = blob.get_edge_pixels()
-                        for pixel in cur_ep:
-                            marker_pos[index] = [(pixel.x - self.xmin) / self.xdim, (pixel.y - self.ymin) / self.ydim,
-                                                 (pixel.z - self.zmin) / (Config.z_compression * self.zdim)]
-                            marker_colors[index] = my_rgba_colors[group_index % len(my_rgba_colors)]
-                            index += 1
-
-        markers = visuals.Markers()
-        # print("Result of marker_pos for type: " + str(type_string) + ' : ' + str(marker_pos)) # DEBUG
-        # print("Result of marker_colors for type: " + str(type_string) + ' : ' + str(marker_colors))
-        # print("Point count: " + str(point_count))
-        markers.set_data(marker_pos, face_color=marker_colors, size=size) #, edge_color=edge_color)
-        self.add_marker(markers, type_string)
-
     def add_bead_markers(self):
         Blob3d.tag_all_beads()         # Tagging beads for safety
         beads_nonbeads = [[], []]
@@ -448,7 +411,6 @@ class Canvas(vispy.scene.SceneCanvas):
 
     def add_simple_beads(self):  # NOTE only doing strands for now for simplicity
         base_b3ds = [b3d for b3d in self.b3ds if b3d.recursive_depth == 0]  # and not b3d.isBead]
-        print(' Number of base_b3ds = ' + str(len(base_b3ds)) + ' / ' + str(len(self.b3ds)))
         bead_groups = []
         all_first_children = []
         for b3d in base_b3ds:
@@ -461,7 +423,7 @@ class Canvas(vispy.scene.SceneCanvas):
                     all_first_children += first_children
             else:
                 bead_groups.append([b3d])
-        print(" Number of bead groups: " + str(len(bead_groups)))
+        print("Number of bead groups: " + str(len(bead_groups)))
         bg_of_one = []
         bg_more_than_one = []
         for bg in bead_groups:
@@ -474,7 +436,7 @@ class Canvas(vispy.scene.SceneCanvas):
         # This is done ONLY for speed reasons
         one_marker_midpoints = np.zeros([len(bg_of_one), 3])
         one_markers = visuals.Markers()
-        for index,b3d in enumerate(bg_of_one):
+        for index, b3d in enumerate(bg_of_one):
             one_marker_midpoints[index] = [(b3d.avgx - self.xmin) / self.xdim, (b3d.avgy - self.ymin) / self.ydim, (b3d.avgz - self.zmin) / (Config.z_compression * self.zdim)]
         one_markers.set_data(one_marker_midpoints, face_color=colors[0], size=8, edge_color='yellow')
         self.add_marker(one_markers, 'simple')
@@ -486,11 +448,23 @@ class Canvas(vispy.scene.SceneCanvas):
         stitch_colors = np.empty((num_markers, 4))
         marker_index = 0
 
-        print('bg of more than one: ' + str(bg_more_than_one))
+        reordered_bg_more_than_one = []
+        for group in bg_more_than_one:
+            # print("Group:%s" % group)
+            iterations, score, best = traveling_salesman(group, Blob3d.distance_between_midpoints, close=False, max_iterations=1000)
+            # print("Iterations:%s" % iterations)
+            # print("Score:%s" % score)
+            # print("Best:%s" % best)
+            reordered_bg_more_than_one.append([group[index] for index in best])
+        # for index in range(len(bg_more_than_one)):
+        #     print("BG index %s:%s" % (index, [b3d.id for b3d in bg_more_than_one[index]]))
+        #     print("RO index %s:%s" % (index, [b3d.id for b3d in reordered_bg_more_than_one[index]]))
+        #     print('')
+
         if len(bg_more_than_one):
-            self.add_markers_from_groups(bg_more_than_one, 'simple', list_of_colors=colors, size=12)
-            for index, bg in enumerate(bg_more_than_one):
-                bg = sorted(bg, key=lambda blob3d: (blob3d.avgx, blob3d.avgy)) # TODO improve this or do segmentation of sorts..
+            self.add_markers_from_groups(reordered_bg_more_than_one, 'simple', list_of_colors=colors, size=12)
+            for index, bg in enumerate(reordered_bg_more_than_one): # NOTE SWITCH TO bg_more_than_one to use old heuristic instead of traveling salesman
+                # bg = sorted(bg, key=lambda blob3d: (blob3d.avgx, blob3d.avgy)) # TODO improve this or do segmentation of sorts..
                 # Maybe look for two long lines, that share an endpoint, and replace on of them with a link to the other's other point
                 marker_midpoints = np.zeros([len(bg), 3])
                 for group_index, b3d in enumerate(bg):
@@ -505,6 +479,32 @@ class Canvas(vispy.scene.SceneCanvas):
             all_lines = visuals.Line(method=Config.linemethod, color=stitch_colors, width=3)
             all_lines.set_data(pos=all_stitch_arr, connect=connections)
             self.add_stitch(all_lines, 'simple')
+        '''
+        if len(bg_more_than_one):
+            self.add_markers_from_groups(bg_more_than_one, 'simple', list_of_colors=colors, size=12)
+            for stitch_heuristic in range(2):
+                for index, bg in enumerate(bg_more_than_one):
+                    if stitch_heuristic == 0: # The older stitch heurstic
+                        bg = sorted(bg, key=lambda blob3d: (blob3d.avgx, blob3d.avgy)) # TODO improve this or do segmentation of sorts..
+                    else: # Newer heursitic using traveling salesman
+                        iterations, score, best = traveling_salesman(bg, Blob3d.distance_between_midpoints, close=False, max_iterations=1000)
+                        bgnew = [bg[bg_index] for bg_index in best]
+                        bg = bgnew
+                    # Maybe look for two long lines, that share an endpoint, and replace on of them with a link to the other's other point
+                    marker_midpoints = np.zeros([len(bg), 3])
+                    for group_index, b3d in enumerate(bg):
+                        if group_index == len(bg) - 1:
+                            connections[marker_index] = [marker_index, marker_index]
+                        else:
+                            connections[marker_index] = [marker_index, marker_index + 1]
+                        stitch_colors[marker_index] = color_to_rgba(colors[index % len(colors)])
+                        marker_midpoints[group_index] = [(b3d.avgx - self.xmin) / self.xdim, (b3d.avgy - self.ymin) / self.ydim, (b3d.avgz - self.zmin) / (Config.z_compression * self.zdim)]
+                        marker_index += 1
+                    all_stitch_arr = np.concatenate((all_stitch_arr, marker_midpoints))
+                all_lines = visuals.Line(method=Config.linemethod, color=stitch_colors, width=3)
+                all_lines.set_data(pos=all_stitch_arr, connect=connections)
+                self.add_stitch(all_lines, 'simple' + str(stitch_heuristic))
+        '''
 
     def setup_stitches(self):
         # Going to count whether there are any stitches of each type,
@@ -693,9 +693,86 @@ class Canvas(vispy.scene.SceneCanvas):
         self.xdim = xmax - xmin + 1
         self.ydim = ymax - ymin + 1
         self.zdim = zmax - zmin + 1
-        print("xmin: " + str(self.xmin) + ", xmax: " + str(self.xmax) + ", ymin: " + str(self.ymin) + ", ymax: " + str(
-            self.ymax) + ", zmin: " + str(self.zmin) + ", zmax: " + str(self.zmax))
-        print("xdim: " + str(self.xdim) + ', ydim: ' + str(self.ydim) + ', zdim: ' + str(self.zdim))
+
+    def add_markers_from_groups(self, b3d_groups, type_string, midpoints=True, list_of_colors=colors, size=8, explode=True):
+        # Midpoints true if just doing midpoints, otherwise do edge_pixels
+        my_rgba_colors = list(color_to_rgba(color) for color in list_of_colors)
+
+        if midpoints:
+            point_count = sum(len(b3d_group) for b3d_group in b3d_groups)  # Lists of blob3ds
+        else:
+            if type_string in ['b2d_depth', 'blob2d', 'blob2d_to_3d']:  # Lists of blob2ds
+                point_count = sum(len(b2d.edge_pixels) for b2d_group in b3d_groups for b2d in b2d_group)
+            else:  # Lists of blob3ds
+                point_count = sum(b3d.get_edge_pixel_count() for b3d_group in b3d_groups for b3d in b3d_group)
+        marker_pos = np.zeros((point_count, 3))
+        marker_colors = np.zeros((point_count, 4))
+        index = 0
+        for group_index, b3d_group in enumerate(b3d_groups):
+            for blob in b3d_group:
+                if midpoints:
+                    marker_pos[index] = [(blob.avgx - self.xmin) / self.xdim, (blob.avgy - self.ymin) / self.ydim, (blob.avgz - self.zmin) / (Config.z_compression * self.zdim)]
+                    marker_colors[index] = my_rgba_colors[group_index % len(my_rgba_colors)]
+                    index += 1
+                else:
+                    if type_string in ['b2d_depth', 'blob2d', 'blob2d_to_3d']:
+                        cur_ep = [Pixel.get(pixel) for pixel in blob.edge_pixels]
+                        for pixel in cur_ep:
+                            marker_pos[index] = [(pixel.x - self.xmin) / self.xdim, (pixel.y - self.ymin) / self.ydim,
+                                                 (getBloomedHeight(blob, explode, self.zdim) - self.zmin) / (Config.z_compression * self.zdim)]
+                            marker_colors[index] = my_rgba_colors[group_index % len(my_rgba_colors)]
+                            index += 1
+                    else:  # Lists of blob3ds
+                        cur_ep = blob.get_edge_pixels()
+                        for pixel in cur_ep:
+                            marker_pos[index] = [(pixel.x - self.xmin) / self.xdim, (pixel.y - self.ymin) / self.ydim,
+                                                 (pixel.z - self.zmin) / (Config.z_compression * self.zdim)]
+                            marker_colors[index] = my_rgba_colors[group_index % len(my_rgba_colors)]
+                            index += 1
+
+        markers = visuals.Markers()
+        # print("Result of marker_pos for type: " + str(type_string) + ' : ' + str(marker_pos)) # DEBUG
+        # print("Result of marker_colors for type: " + str(type_string) + ' : ' + str(marker_colors))
+        # print("Point count: " + str(point_count))
+        markers.set_data(marker_pos, face_color=marker_colors, size=size) #, edge_color=edge_color)
+        self.add_marker(markers, type_string)
+
+    def add_array(self, arr, color, only_array=False):
+        # NOTE using separate x,y,z dims, so if used alongside blob3ds, scaling will not match
+        # only array (if True), will effectively remove / prevent the other visual methods
+        if only_array:
+            self.available_marker_colors = ['array']  # HACK
+            self.available_stitch_colors = [None]  # HACK
+        else:
+            if 'array' not in self.available_marker_colors:
+                self.available_marker_colors.append('array')
+            if None not in self.available_stitch_colors:
+                self.available_stitch_colors = [None]  # HACK
+        point_count = np.count_nonzero(arr) + 1
+        marker_index = 0
+        marker_locations = np.zeros((point_count, 3))
+
+        xdim, ydim, zdim = arr.shape
+        z_compression = ((xdim + ydim) / (2. * zdim))  # Trying to make them relatively evenly spaced
+
+        for x_index, x_slice in enumerate(arr):
+            for y_index, y_slice in enumerate(x_slice):
+                for z_index, elem in enumerate(y_slice):
+                    if elem > 0:
+                        marker_index += 1
+                        marker_locations[marker_index] = x_index / xdim, y_index / ydim, z_index / (zdim * z_compression)
+
+        markers = visuals.Markers()
+        markers.set_data(marker_locations, face_color=color, size=8)  # , edge_color=edge_color)
+        self.view.add(markers)
+
+
+
+def plot_array(arr, canvas_size=(800, 800), color='yellow'):
+    canvas = Canvas(buffering=False, canvas_size=canvas_size)
+    canvas.add_array(arr, color=color, only_array=True)
+    vispy.app.run()
+
 
 
 def plot(blob3ds_or_blob2ds, coloring=None, line_coloring=None, canvas_size=(800, 800), ids=False, stitches=False,
@@ -767,6 +844,8 @@ def plot(blob3ds_or_blob2ds, coloring=None, line_coloring=None, canvas_size=(800
     canvas.setup_markers()
     canvas.setup_stitches()
     vispy.app.run()
+
+
 
 
 def plotBlob2d(b2d, canvas_size=(1080, 1080)):

@@ -241,44 +241,6 @@ class Blob3d:
         else:
             return list(b3d for b3d in Blob3d.all.values() if b3d.recursive_depth == depth)
 
-    def __str__(self):
-        parent_str = ' , Parent B3d: ' + str(self.parent_id)
-        child_str = ' , Children: ' + str(self.children)
-        return str(
-            'B3D(' + str(self.id) + '): #b2ds:' + str(len(self.blob2ds)) + ', r_depth:' + str(self.recursive_depth) +
-            ', bead=' + str(self.isBead) + parent_str + child_str + ')' +
-        ' lowslideheight=' + str(self.lowslideheight) + ' highslideheight=' + str(self.highslideheight) +  # HACK INCLUDED FOR DEBUG
-        # ' #edgepixels=' + str(len(self.edge_pixels)) + ' #pixels=' + str(len(self.pixels)) +  # HACK INCLUDED FOR DEBUG
-        ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) + ')')  # HACK INCLUDED FOR DEBUG
-
-    __repr__ = __str__
-
-    def get_edge_pixel_count(self):
-        edge = 0
-        for b2d in self.blob2ds:
-            edge += len(Blob2d.get(b2d).edge_pixels)
-        return edge
-
-    def get_edge_pixels(self):
-        edge = []
-        for b2d in self.blob2ds:
-            b2d = Blob2d.get(b2d)
-            edge = edge + [Pixel.get(pix) for pix in b2d.edge_pixels]
-        return edge
-
-    def get_pixels(self, ids=False):
-        pixel_ids = []
-        for b2d in self.blob2ds:
-            b2d = Blob2d.get(b2d)
-            b2d_descend = b2d.getdescendants(include_self=True)
-            # printl("B2d: " + str(b2d) + ' ----- had descendants (incl self(' + str(len(b2d_descend)) + ') ------' + str(b2d_descend))
-            for blob2d in b2d_descend:
-                pixel_ids += blob2d.pixels
-        if ids:
-            return pixel_ids
-        else:
-            return [Pixel.get(pixel_id) for pixel_id in pixel_ids]
-
     @staticmethod
     def tag_blobs_singular(blob3dlist, quiet=False):
         singular_count = 0
@@ -328,37 +290,6 @@ class Blob3d:
         printl("Total number of beads = " + str(sum(b3d.isBead for b3d in Blob3d.all.values())) + ' / ' + str(
             len(Blob3d.all)))
 
-    def check_bead(self, indent=1):
-        prefix = ' ' * indent
-        printd(prefix + 'Called check_bead on b3d: ' + str(self), Config.debug_bead_tagging)
-        child_bead_count = 0
-        for child in self.children:
-            printd(prefix + 'Checking if child of ' + str(self) + ' is bead:', Config.debug_bead_tagging)
-            child_is_bead = Blob3d.get(child).check_bead(indent=indent + 1)
-            if child_is_bead:
-                child_bead_count += 1
-        printd(prefix + 'Number of direct children which are beads = ' + str(child_bead_count) + ' / ' + str(
-            len(self.children)), Config.debug_bead_tagging)
-        # printl('Calling check_bead, max_subbeads_to_be_a_bead = ' + str(max_subbeads_to_be_a_bead), end='')
-        # printl(', max_pixels_to_be_a_bead = ' + str(max_pixels_to_be_a_bead) + ', child_bead_difference = ' + str(child_bead_difference))
-        # if self.recursive_depth > 0:
-        # DEBUG
-        self.isBead = \
-            ((child_bead_count < Config.max_subbeads_to_be_a_bead)
-             and (self.get_edge_pixel_count() <= Config.max_pixels_to_be_a_bead)) \
-            or (self.recursive_depth == 0 and len(self.children) == 0)
-        # and (self.recursive_depth > 0) # <== This makes bead tagging greedy and merges otherwise correctly disconnected beads
-        printd(prefix + ' set isBead = ' + str(self.isBead), Config.debug_bead_tagging)
-
-        # DEBUG
-        printd(prefix + ' ^ was decided as: (' + str(child_bead_count) + ' < ' + str(Config.max_subbeads_to_be_a_bead)
-               + ' and ' + str(self.get_edge_pixel_count()) + ' <= ' + str(Config.max_pixels_to_be_a_bead) + ') OR ('
-               + str(self.recursive_depth) + ' == 0 and ' + str(len(self.children)) + ' == 0)',
-               Config.debug_bead_tagging)
-
-        #  and  (child_bead_count > (len(self.children) - config.child_bead_difference))
-        return self.isBead
-
     @staticmethod
     def clean_b3ds():
         """
@@ -394,6 +325,90 @@ class Blob3d:
             Blob3d.tag_all_beads()
         if adjusted_b3d_minmax:
             warn("Had to adjust the ranges for a total of " + str(adjusted_b3d_minmax) + ' blob3ds because their b2ds were out of range') # FIXME
+
+    @staticmethod
+    def distance_between_midpoints(b3d1, b3d2):
+        return math.sqrt(math.pow(b3d1.avgx - b3d2.avgx, 2) + math.pow(b3d1.avgy - b3d2.avgy, 2) + math.pow(b3d1.avgz - b3d2.avgz, 2))
+
+    def __str__(self):
+        parent_str = ' , Parent B3d: ' + str(self.parent_id)
+        child_str = ' , Children: ' + str(self.children)
+        return str(
+            'B3D(' + str(self.id) + '): #b2ds:' + str(len(self.blob2ds)) + ', r_depth:' + str(self.recursive_depth) +
+            ', bead=' + str(self.isBead) + parent_str + child_str + ')')  # +
+        # ' lowslideheight=' + str(self.lowslideheight) + ' highslideheight=' + str(self.highslideheight) +  # HACK INCLUDED FOR DEBUG
+        # ' #edgepixels=' + str(len(self.edge_pixels)) + ' #pixels=' + str(len(self.pixels)) +  # HACK INCLUDED FOR DEBUG
+        # ' (xl,xh,yl,yh)range:(' + str(self.minx) + ',' + str(self.maxx) + ',' + str(self.miny) + ',' + str(self.maxy) + ')')  # HACK INCLUDED FOR DEBUG
+
+    __repr__ = __str__
+
+    def get_edge_pixel_count(self):
+        edge = 0
+        for b2d in self.blob2ds:
+            edge += len(Blob2d.get(b2d).edge_pixels)
+        return edge
+
+    def get_edge_pixels(self):
+        edge = []
+        for b2d in self.blob2ds:
+            b2d = Blob2d.get(b2d)
+            edge = edge + [Pixel.get(pix) for pix in b2d.edge_pixels]
+        return edge
+
+    def get_pixels(self, ids=False):
+        """
+        Gets all pixels from a blob3d's blob2ds, as well as from all blob2ds that are created from any of its blob2ds
+        This means that the result will be the same before and after blooming
+        This is not the same as getting only the pixels which constitute blob2ds which consititure the blob ONLY the blob2ds of self.blob2ds
+        :param ids: boolean, If true
+        :return:
+        """
+        pixel_ids = []
+        for b2d in self.blob2ds:
+            b2d = Blob2d.get(b2d)
+            b2d_descend = b2d.getdescendants(include_self=True)
+            # printl("B2d: " + str(b2d) + ' ----- had descendants (incl self(' + str(len(b2d_descend)) + ') ------' + str(b2d_descend))
+            for blob2d in b2d_descend:
+                pixel_ids += blob2d.pixels
+        if ids:
+            return pixel_ids
+        else:
+            return [Pixel.get(pixel_id) for pixel_id in pixel_ids]
+
+
+
+    def check_bead(self, indent=1):
+        prefix = ' ' * indent
+        printd(prefix + 'Called check_bead on b3d: ' + str(self), Config.debug_bead_tagging)
+        child_bead_count = 0
+        for child in self.children:
+            printd(prefix + 'Checking if child of ' + str(self) + ' is bead:', Config.debug_bead_tagging)
+            child_is_bead = Blob3d.get(child).check_bead(indent=indent + 1)
+            if child_is_bead:
+                child_bead_count += 1
+        printd(prefix + 'Number of direct children which are beads = ' + str(child_bead_count) + ' / ' + str(
+            len(self.children)), Config.debug_bead_tagging)
+        # printl('Calling check_bead, max_subbeads_to_be_a_bead = ' + str(max_subbeads_to_be_a_bead), end='')
+        # printl(', max_pixels_to_be_a_bead = ' + str(max_pixels_to_be_a_bead) + ', child_bead_difference = ' + str(child_bead_difference))
+        # if self.recursive_depth > 0:
+        # DEBUG
+        self.isBead = \
+            ((child_bead_count < Config.max_subbeads_to_be_a_bead)
+             and (self.get_edge_pixel_count() <= Config.max_pixels_to_be_a_bead)) \
+            or (self.recursive_depth == 0 and len(self.children) == 0)
+        # and (self.recursive_depth > 0) # <== This makes bead tagging greedy and merges otherwise correctly disconnected beads
+        printd(prefix + ' set isBead = ' + str(self.isBead), Config.debug_bead_tagging)
+
+        # DEBUG
+        printd(prefix + ' ^ was decided as: (' + str(child_bead_count) + ' < ' + str(Config.max_subbeads_to_be_a_bead)
+               + ' and ' + str(self.get_edge_pixel_count()) + ' <= ' + str(Config.max_pixels_to_be_a_bead) + ') OR ('
+               + str(self.recursive_depth) + ' == 0 and ' + str(len(self.children)) + ' == 0)',
+               Config.debug_bead_tagging)
+
+        #  and  (child_bead_count > (len(self.children) - config.child_bead_difference))
+        return self.isBead
+
+
 
     def save2d(self, filename):
         """
@@ -435,245 +450,24 @@ class Blob3d:
             res = res or Blob3d.get(self.parent_id).has_parent_nonbead()
         return res
 
-    def gen_skeleton(self):
-        # Begin by creating a 3d array, with each element either None or the id of the pixel
-        # Then create a second 3d array, with the distances from each internal point to the closest edge point
-            # Find internals by doing all pixels - edge_pixels
-
-
-        print("CALLED GEN_SKELETON!!!!")
-
-        import matplotlib.pyplot as plt
-        from mpl_toolkits.mplot3d import Axes3D
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-
-
-
-
-        xdim = self.maxx - self.minx + 1
-        ydim = self.maxy - self.miny + 1
-        zdim = self.highslideheight - self.lowslideheight + 1
+    def to_array(self):
+        """
+        NOTE does not preserve blob3ds position (would be an unecessarily large array)
+        :return:
+        """
+        def pixel_to_pos(pixel):
+            # Returns the (x,y,z) location of the pixel in any one of the 3d arrays
+            return pixel.x - minx, pixel.y - miny, pixel.z - minz
         minx = self.minx
         miny = self.miny
         minz = self.lowslideheight
 
-
-
-        def pixel_to_pos(pixel):
-            # Returns the (x,y,z) location of the pixel in any one of the 3d arrays
-            return (pixel.x - minx, pixel.y - miny, pixel.z - minz)
-
-        def distance_from_offset(x_offset, y_offset, z_offset):
-            return math.sqrt(math.pow(x_offset, 2) + math.pow(y_offset, 2) + math.pow(z_offset, 2))
-
-        def inBounds(x,y,z):
-            if x >= 0 and y >= 0 and z >= 0 and x < xdim and y < ydim and z < zdim:
-                return True
-            return False
-
-
-        def find_nearest_neighbor(x, y, z, arr, recur=1):
-            """
-
-            :param x: X coordinate within given arr
-            :param y: Y coordinate within given arr
-            :param z: Z coordinate within given arr
-            :param arr: An array populated by the ids of pixels
-            :param recur: How far outwards to extend the 'search cube'
-            :return: (x_coor, y_coor, z_coor, distance, pixel_id)
-            """
-            # print("Finding nearest neighbor of: " + str((x, y, z, recur)))
-
-            possible_coordinates = [] # Contains coordinate tuples (x,y,z)
-            # Because am using cube instead of spheres, need to remember all matches and then find the best
-
-            # arr should
-
-            # TODO restrict the ranges so that they don't overlap
-
-            # X restricts Y and Z
-            # Y restricts Z
-            # Z restricts nothing
-
-            for x_offset in [-recur, recur]:
-                curx = x + x_offset
-                for y_offset in range(-recur, recur + 1): # +1 to include endcap
-                    cury = y + y_offset
-                    for z_offset in range(-recur, recur + 1): # +1 to include endcap
-                        curz = z + z_offset
-
-                        if inBounds(curx, cury, curz) and not np.isnan(arr[curx][cury][curz]):
-                            possible_coordinates.append((curx, cury, curz, distance_from_offset(x_offset, y_offset, z_offset), int(arr[curx][cury][curz])))
-                                # x, y, z, distance, pixel_id
-
-            # print("Coordinates found: " + str(possible_coordinates))
-
-            if len(possible_coordinates) == 0:
-                # print("----Making a recursive call!")
-                return find_nearest_neighbor(x, y, z, arr, recur + 1)
-
-            #TODO Y and Z
-
-
-            else:
-                # Find the closest coordinate
-                possible_coordinates.sort(key=lambda x_y_z_dist_id: x_y_z_dist_id[3]) # Sort by distance
-                # print("SORTED POSSIBLE COORDINATES: " + str(possible_coordinates))
-                return possible_coordinates[0]
-
-        #TODO have an option to create a shell around the blob3d, by taking the highest and lowest levels, and making them all count temporarily as
-        # edge pixels. This way, the effects of segmentation will be less dependent on the scan direction
-
-
-
-        edge_pixels = self.get_edge_pixels() # Actual pixels not ids
+        arr = np.zeros([self.maxx - self.minx + 1, self.maxy - self.miny + 1, self.highslideheight - self.lowslideheight + 1])
         all_pixels = self.get_pixels()
-        inner_pixels = [Pixel.get(cur_pixel) for cur_pixel in (set(pixel.id for pixel in all_pixels) - set(pixel.id for pixel in edge_pixels))]
-
-        edge_array = np.empty((xdim, ydim, zdim))#, dtype=np.int)
-        inner_array = np.empty((xdim, ydim, zdim))#, dtype=np.int)
-        distances = np.empty((xdim, ydim, zdim), dtype=np.float)
-        edge_array[:] = np.nan
-        inner_array[:] = np.nan
-        distances[:] = np.nan
-
-
-
-
-
-        for pixel in edge_pixels:
+        for pixel in all_pixels:
             x, y, z = pixel_to_pos(pixel)
-            edge_array[x][y][z] = pixel.id
-
-        for pixel in inner_pixels:
-            x, y, z = pixel_to_pos(pixel)
-            inner_array[x][y][z] = pixel.id
-
-
-
-        inner_pos = np.zeros([len(inner_pixels), 3])
-        near_pos = np.zeros([len(inner_pixels), 3])
-        line_endpoints = np.zeros([2 * len(inner_pixels), 3])
-
-        index_distance_id = np.zeros([len(inner_pixels), 3])
-
-        maxdim = max([xdim, ydim, zdim]) # Adjusting z visualization
-
-        pixel_nid_nx_ny_nz_dist = []
-        marker_colors = np.zeros((len(inner_pixels), 4))
-        mycolors =  ['r', 'orange', 'yellow', 'white', 'lime', 'g', 'teal', 'blue', 'purple', 'pink']
-
-
-        #HACK
-        import vispy
-        myrgba = list(vispy.color.ColorArray(color_str).rgba for color_str in mycolors)
-
-
-        for index, pixel in enumerate(inner_pixels):
-            # print("Pixel: " + str(pixel))
-            x, y, z = pixel_to_pos(pixel)
-            inner_pos[index] = x / xdim, y / ydim, z / zdim
-            x_y_z_dist_id = find_nearest_neighbor(x, y, z, edge_array)
-
-            pixel_nid_nx_ny_nz_dist.append((pixel, x_y_z_dist_id[4], x_y_z_dist_id[0], x_y_z_dist_id[1],  x_y_z_dist_id[2], x_y_z_dist_id[3]))
-
-            near_pos[index] = (x_y_z_dist_id[0] / xdim, x_y_z_dist_id[1] / ydim, x_y_z_dist_id[2] / zdim)
-            marker_colors[index] = myrgba[int(x_y_z_dist_id[3]) % len(myrgba)]
-
-            line_endpoints[2 * index] = (x_y_z_dist_id[0] / xdim, x_y_z_dist_id[1] / ydim, x_y_z_dist_id[2] / zdim)
-            line_endpoints[2 * index + 1] = (x / xdim, y / ydim, z / zdim)
-            # index_distance_id[index] = [index, x_y_z_dist_id[3], x_y_z_dist_id[4]]
-
-        # Sort distances; need to maintain index for accessing id later
-        pixel_nid_nx_ny_nz_dist = sorted(pixel_nid_nx_ny_nz_dist, key=lambda entry: entry[5], reverse=True)
-
-
-
-        # TODO find ridge
-        # Strategy: Iterative, use either the highest n or x percent to find cutoff..?
-        ridge = [pixel_nid_nx_ny_nz_dist[0]]
-        ridge_ends = [pixel_nid_nx_ny_nz_dist[0]] # Preferable to keep at 2 if we can
-
-        # HACK TODO
-        for i in pixel_nid_nx_ny_nz_dist:
-            print(' ' + str(i))
-        # min_threshold = int(pixel_nid_nx_ny_nz_dist[int(.1 * len(pixel_nid_nx_ny_nz_dist))])
-
-        # pixel_costs = dict()
-        # for pnnnnd in pixel_nid_nx_ny_nz_dist:
-        #     pixel_costs[pnnnnd[0].id] = pnnnnd[5] # Mapping inner pixel's id to its distance (to the closest edge_pixel)
-        #
-        #
-        #
-        #
-        #
-        # n, bins, patches = plt.hist([idi[5] for idi in pixel_nid_nx_ny_nz_dist], bins=np.linspace(0,10,50))
-        # # hist = np.histogram( [idi[4] for idi in pixel_nid_nx_ny_nz_dist] , bins=np.arange(10))
-        # plt.show()
-
-
-        import vispy.io
-        import vispy.scene
-        from vispy.scene import visuals
-        from vispy.util import keys
-
-
-        canvas = vispy.scene.SceneCanvas(size=(1200,1200), keys='interactive', show=True)
-        view = canvas.central_widget.add_view()
-        view.camera = vispy.scene.cameras.FlyCamera(parent=view.scene, fov=30, name='Fly')
-        # view.camera = vispy.scene.cameras.TurntableCamera(fov=0, azimuth=80, parent=view.scene, distance=1,
-        #                                                   elevation=-55, name='Turntable')
-        # view.camera = vispy.scene.cameras.ArcballCamera(parent=view.scene, fov=50, distance=1,
-        #                                                    name='Arcball')
-        inner_markers = visuals.Markers()
-        near_markers = visuals.Markers()
-        lines = visuals.Line(method=Config.linemethod)
-        lines.set_data(pos=line_endpoints, connect='segments', color='y')
-
-        inner_markers.set_data(inner_pos, face_color=marker_colors, size=10)
-        near_markers.set_data(near_pos, face_color='g', size=10)
-        print("Inner pos: " + str(inner_pos))
-        print("Near pos: " + str(near_pos))
-
-
-        view.add(inner_markers)
-        view.add(near_markers)
-        view.add(lines)
-        vispy.app.run()
-
-
-        print('------------')
-
-        # print("\n\nEP: " + str(len(edge_pixels)))
-        # print("Pix: " + str(len(all_pixels)))
-        # print("Inner pix: " + str(len(inner_pixels)))
-        # print("Children: " + str(self.children))
-        # for color_index, pix_list in enumerate([edge_pixels, inner_pixels]):
-        #     cur_color = ['r', 'g', 'b'][color_index]
-        #     xs = [0] * len(pix_list)
-        #     ys = [0] * len(pix_list)
-        #     zs = [0] * len(pix_list)
-        #
-        #     for index, pixel in enumerate(pix_list):
-        #         # print(pixel)
-        #         # print('  ' + str(pixel_to_pos(pixel)))
-        #         x, y, z =  pixel_to_pos(pixel)
-        #         edge_array[x][y][z] = pixel.id
-        #         xs[index] = x
-        #         ys[index] = y
-        #         zs[index] = z
-        #     ax.scatter(xs, ys, zs, c=cur_color)
-        # ax.set_xlabel('X Label')
-        # ax.set_ylabel('Y Label')
-        # ax.set_zlabel('Z Label')
-        # plt.show()
-
-
-
-
-
-
+            arr[x][y][z] = 255  # pixel.val
+        return arr
 
 
 
