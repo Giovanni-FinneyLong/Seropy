@@ -7,10 +7,11 @@ An (in progress) writeup of the project is hosted: [Here](https://drive.google.c
 # Installation
 1. Clone repository: 'git clone git@bitbucket.org:gfinneylong/serotonin.git'
 2. Install required packages: python setup.py install
-3. Copy config.py into myconfig.py
-4. Fill in the 'Folders' section of myconfig.py
-5. Configure the 'Switches' section of myconfig.py
-6. Run sero.py : python sero.py
+3. Confirm at least one Vispy backend installed (PyQt4, PyQt5, PySide, PyGlet, Glfw, SDL2)
+4. Copy config.py into myconfig.py
+5. Fill in the 'Folders' section of myconfig.py
+6. Configure the 'Switches' section of myconfig.py
+7. Run sero.py : python sero.py
 
 Note: Sometimes the below images fail to load, largely due to their size. If this is the case, right click the 'IMAGE' icon and open in a new tab to save a copy
 
