@@ -5,7 +5,7 @@ Python 3.3 or later required. ImageMagick must be installed to generate gifs.
 An (in progress) writeup of the project is hosted: [Here](https://drive.google.com/open?id=0B5YXBruzm8zDUWxkbkQ4TXdEWUU)
 
 # Installation
-1. Clone repository: 'git clone git@bitbucket.org:gfinneylong/serotonin.git'
+1. Clone repository: 'git clone git@https://github.com/Giovanni-FinneyLong/Seropy.git'
 2. Install required packages: python setup.py install
 3. Confirm at least one Vispy backend installed (PyQt4, PyQt5, PySide, PyGlet, Glfw, SDL2)
 4. Copy config.py into myconfig.py
